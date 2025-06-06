@@ -17,8 +17,8 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { username, password, phone } = createUserDto;
-
     const existingUser = await this.userRepository.findOneBy({ username });
+
     if (existingUser) {
       throw new Error('Username already exists');
     }
@@ -51,7 +51,6 @@ export class UserService {
     }
 
     const token = this.authService.generateToken(user);
-
     return { user, token };
   }
 
