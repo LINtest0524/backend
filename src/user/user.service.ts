@@ -7,16 +7,14 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from '../auth/auth.service';
 import { v4 as uuidv4 } from 'uuid';
 import { UserModule } from '../user-module/user-module.entity';
+import { Module } from '../module/module.entity';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-
-    @InjectRepository(UserModule)
-    private userModuleRepository: Repository<UserModule>,
-
+    @InjectRepository(User) private userRepository: Repository<User>,
+    @InjectRepository(UserModule) private userModuleRepository: Repository<UserModule>,
+    @InjectRepository(Module) private moduleRepository: Repository<Module>,
     private readonly authService: AuthService,
   ) {}
 
@@ -24,9 +22,7 @@ export class UserService {
     const { username, password, phone } = createUserDto;
 
     const existingUser = await this.userRepository.findOneBy({ username });
-    if (existingUser) {
-      throw new Error('Username already exists');
-    }
+    if (existingUser) throw new Error('Username already exists');
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -44,15 +40,10 @@ export class UserService {
 
   async login(username: string, password: string, clientIp?: string): Promise<{ user: User; token: string }> {
     const user = await this.userRepository.findOneBy({ username });
-
-    if (!user) {
-      throw new Error('User not found');
-    }
+    if (!user) throw new Error('User not found');
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new Error('Invalid password');
-    }
+    if (!isPasswordValid) throw new Error('Invalid password');
 
     user.last_login_at = new Date();
     user.last_login_ip = clientIp ?? null;
