@@ -17,8 +17,8 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { username, password, phone } = createUserDto;
-    const existingUser = await this.userRepository.findOneBy({ username });
 
+    const existingUser = await this.userRepository.findOneBy({ username });
     if (existingUser) {
       throw new Error('Username already exists');
     }
@@ -37,7 +37,7 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async login(username: string, password: string): Promise<{ user: User; token: string }> {
+  async login(username: string, password: string, clientIp?: string): Promise<{ user: User; token: string }> {
     const user = await this.userRepository.findOneBy({ username });
 
     if (!user) {
@@ -45,10 +45,13 @@ export class UserService {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
     if (!isPasswordValid) {
       throw new Error('Invalid password');
     }
+
+    user.last_login_at = new Date();
+    user.last_login_ip = clientIp ?? null;
+    await this.userRepository.save(user);
 
     const token = this.authService.generateToken(user);
     return { user, token };
