@@ -24,14 +24,21 @@ export class UserController {
       message: 'Login success',
       id: user.id,
       username: user.username,
-      token: token,
+      token,
     };
   }
 
-  // 這段才是 profile 路由的重點
+  // 取得自己 Profile
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Request() req) {
     return req.user;
+  }
+
+  // 取得所有會員 (管理員功能)
+  @Get('list')
+  async getAllUsers() {
+    const users = await this.userService.findAll();
+    return users;
   }
 }
