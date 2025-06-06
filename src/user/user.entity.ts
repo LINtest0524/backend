@@ -30,7 +30,7 @@ export class User {
   last_login_platform: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  last_login_ip: string | null;  // <== 新增IP欄位
+  last_login_ip: string | null;
 
   @Column({ type: 'varchar', default: 'ACTIVE' })
   status: string;

@@ -19,14 +19,20 @@ export class UserController {
 
   @Post('login')
   async login(@Body() body: { username: string; password: string }, @Request() req) {
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
-    const { user, token } = await this.userService.login(body.username, body.password, clientIp as string);
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || null;
+    const { user, token } = await this.userService.login(body.username, body.password, clientIp);
     return {
       message: 'Login success',
       id: user.id,
       username: user.username,
-      token: token,
+      token,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@Request() req) {
+    return req.user;
   }
 
   @UseGuards(JwtAuthGuard)

@@ -6,12 +6,17 @@ import { CreateUserDto } from './create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from '../auth/auth.service';
 import { v4 as uuidv4 } from 'uuid';
+import { UserModule } from '../user-module/user-module.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+
+    @InjectRepository(UserModule)
+    private userModuleRepository: Repository<UserModule>,
+
     private readonly authService: AuthService,
   ) {}
 
@@ -59,5 +64,17 @@ export class UserService {
 
   async findAll(): Promise<User[]> {
     return this.userRepository.find();
+  }
+
+  async getUserModules(userId: number): Promise<{ code: string; name: string }[]> {
+    const userModules = await this.userModuleRepository.find({
+      where: { user: { id: userId } },
+      relations: ['module'],
+    });
+
+    return userModules.map((item) => ({
+      code: item.module.code,
+      name: item.module.name,
+    }));
   }
 }
