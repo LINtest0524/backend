@@ -20,6 +20,9 @@ export class User {
   @Column({ type: 'varchar', unique: true, nullable: true })
   user_code: string | null;
 
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  email: string | null;
+
   @Column({ type: 'timestamp', nullable: true })
   first_login_at: Date | null;
 

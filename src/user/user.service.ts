@@ -1,71 +1,71 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User } from './user.entity';
 import { CreateUserDto } from './create-user.dto';
 import * as bcrypt from 'bcrypt';
-import { AuthService } from '../auth/auth.service';
-import { v4 as uuidv4 } from 'uuid';
-import { UserModule } from '../user-module/user-module.entity';
 import { Module } from '../module/module.entity';
+import { UserModule } from '../user-module/user-module.entity';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectRepository(UserModule) private userModuleRepository: Repository<UserModule>,
-    @InjectRepository(Module) private moduleRepository: Repository<Module>,
-    private readonly authService: AuthService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Module)
+    private readonly moduleRepository: Repository<Module>,
+    @InjectRepository(UserModule)
+    private readonly userModuleRepository: Repository<UserModule>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const { username, password, phone } = createUserDto;
+    const { username, password, email, modules } = createUserDto;
 
-    const existingUser = await this.userRepository.findOneBy({ username });
-    if (existingUser) throw new Error('Username already exists');
+    const existingUser = await this.userRepository.findOne({ where: { username: username } });
+    if (existingUser) {
+      throw new ConflictException('Username already exists');
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const user = this.userRepository.create({
       username,
       password: hashedPassword,
-      phone: phone ?? null,
-      agent_name: '預設代理商',
-      user_code: uuidv4(),
-      status: 'ACTIVE',
+      email: email ?? null,
     });
+    const savedUser = await this.userRepository.save(user);
 
-    return this.userRepository.save(user);
-  }
+    if (modules && modules.length > 0) {
+      const moduleEntities = await this.moduleRepository.find({
+        where: { code: In(modules) }
+      });
 
-  async login(username: string, password: string, clientIp?: string): Promise<{ user: User; token: string }> {
-    const user = await this.userRepository.findOneBy({ username });
-    if (!user) throw new Error('User not found');
+      if (moduleEntities.length !== modules.length) {
+        throw new NotFoundException('Some modules not found');
+      }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) throw new Error('Invalid password');
+      const userModules = moduleEntities.map((module) => {
+        const userModule = this.userModuleRepository.create({
+          user: savedUser,
+          module: module,
+        });
+        return userModule;
+      });
 
-    user.last_login_at = new Date();
-    user.last_login_ip = clientIp ?? null;
-    await this.userRepository.save(user);
+      await this.userModuleRepository.save(userModules);
+    }
 
-    const token = this.authService.generateToken(user);
-    return { user, token };
+    return savedUser;
   }
 
   async findAll(): Promise<User[]> {
-    return this.userRepository.find();
+    return await this.userRepository.find();
   }
 
-  async getUserModules(userId: number): Promise<{ code: string; name: string }[]> {
-    const userModules = await this.userModuleRepository.find({
-      where: { user: { id: userId } },
-      relations: ['module'],
-    });
+  async findOneByUsername(username: string): Promise<User | null> {
+    return await this.userRepository.findOne({ where: { username: username } });
+  }
 
-    return userModules.map((item) => ({
-      code: item.module.code,
-      name: item.module.name,
-    }));
+  async findOneById(id: number): Promise<User | null> {
+    return await this.userRepository.findOne({ where: { id: id } });
   }
 }
