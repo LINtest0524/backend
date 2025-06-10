@@ -6,6 +6,8 @@ import { Module } from '../module/module.entity';
 import { UserModule } from '../user-module/user-module.entity';
 import { CreateUserDto } from './create-user.dto';
 import * as bcrypt from 'bcrypt';
+import { UpdateUserDto } from './update-user.dto';
+
 
 @Injectable()
 export class UserService {
@@ -89,7 +91,7 @@ export class UserService {
     return await this.userRepository.findOne({ where: { username } });
   }
 
-  
+
   async findOneWithModules(id: number): Promise<any> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
@@ -111,6 +113,45 @@ export class UserService {
       modules,
     };
   }
+
+
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const { email, status, modules } = updateUserDto;
+
+    if (email !== undefined) user.email = email;
+    if (status !== undefined) user.status = status;
+
+    await this.userRepository.save(user);
+
+    if (modules) {
+      const moduleEntities = await this.moduleRepository.find({
+        where: { code: In(modules) },
+      });
+
+      if (moduleEntities.length !== modules.length) {
+        throw new NotFoundException('Some modules not found');
+      }
+
+      await this.userModuleRepository.delete({ user: { id: user.id } });
+
+      const userModules = moduleEntities.map((module) => {
+        return this.userModuleRepository.create({
+          user: { id: user.id },
+          module,
+        });
+      });
+
+      await this.userModuleRepository.save(userModules);
+    }
+
+    return user;
+  }
+
 
 
 }

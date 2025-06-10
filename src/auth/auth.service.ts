@@ -25,6 +25,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // 可選：更新登入資訊
+    // user.last_login_at = new Date();
+    // user.last_login_ip = clientIp;
+    // await this.userService.save(user);
+
     const payload = { username: user.username, sub: user.id };
     const token = this.jwtService.sign(payload);
 
