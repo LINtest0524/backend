@@ -8,7 +8,6 @@ import { CreateUserDto } from './create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './update-user.dto';
 
-
 @Injectable()
 export class UserService {
   constructor(
@@ -58,8 +57,6 @@ export class UserService {
     return savedUser;
   }
 
-
-
   async findAll(): Promise<any[]> {
     const users: User[] = await this.userRepository.find();
     const results: any[] = [];
@@ -85,35 +82,6 @@ export class UserService {
 
     return results;
   }
-
-    // 放在最後面
-  async findOneByUsername(username: string): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { username } });
-  }
-
-
-  async findOneWithModules(id: number): Promise<any> {
-    const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
-
-    const userModules = await this.userModuleRepository.find({
-      where: { user: { id: user.id } },
-      relations: ['module'],
-    });
-
-    const modules = userModules.map(um => um.module.code);
-
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      status: user.status,
-      created_at: user.created_at,
-      updated_at: user.updated_at,
-      modules,
-    };
-  }
-
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -152,6 +120,51 @@ export class UserService {
     return user;
   }
 
+  async findOneByUsername(username: string): Promise<User | null> {
+    return await this.userRepository.findOne({ where: { username } });
+  }
 
+  async findOneWithModules(id: number): Promise<any> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
 
+    const userModules = await this.userModuleRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['module'],
+    });
+
+    const modules = userModules.map(um => um.module.code);
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      status: user.status,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      modules,
+    };
+  }
+
+  async findById(id: number): Promise<any> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const userModules = await this.userModuleRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['module'],
+    });
+
+    const modules = userModules.map((um) => um.module.code);
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      status: user.status,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      modules,
+    };
+  }
 }

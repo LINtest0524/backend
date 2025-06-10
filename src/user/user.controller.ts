@@ -5,22 +5,29 @@ import {
   Patch,
   Param,
   Body,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
-
-import { UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // 根據你的實際檔案路徑調整
-
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getProfile(@Request() req) {
+    const userId = req.user?.userId;
+    return this.userService.findById(userId);
+  }
+  
+
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
-    return await this.userService.create(createUserDto); // 註冊開放
+    return await this.userService.create(createUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -44,4 +51,3 @@ export class UserController {
     return this.userService.update(id, updateUserDto);
   }
 }
-
