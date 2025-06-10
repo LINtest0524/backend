@@ -2,10 +2,10 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { User } from './user.entity';
-import { CreateUserDto } from './create-user.dto';
-import * as bcrypt from 'bcrypt';
 import { Module } from '../module/module.entity';
 import { UserModule } from '../user-module/user-module.entity';
+import { CreateUserDto } from './create-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -21,7 +21,7 @@ export class UserService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { username, password, email, modules } = createUserDto;
 
-    const existingUser = await this.userRepository.findOne({ where: { username: username } });
+    const existingUser = await this.userRepository.findOne({ where: { username } });
     if (existingUser) {
       throw new ConflictException('Username already exists');
     }
@@ -44,11 +44,10 @@ export class UserService {
       }
 
       const userModules = moduleEntities.map((module) => {
-        const userModule = this.userModuleRepository.create({
+        return this.userModuleRepository.create({
           user: savedUser,
           module: module,
         });
-        return userModule;
       });
 
       await this.userModuleRepository.save(userModules);
@@ -57,15 +56,61 @@ export class UserService {
     return savedUser;
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.userRepository.find();
+
+
+  async findAll(): Promise<any[]> {
+    const users: User[] = await this.userRepository.find();
+    const results: any[] = [];
+
+    for (const user of users) {
+      const userModules = await this.userModuleRepository.find({
+        where: { user: { id: user.id } },
+        relations: ['module'],
+      });
+
+      const modules = userModules.map(um => um.module.code);
+
+      results.push({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        status: user.status,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        modules: modules,
+      });
+    }
+
+    return results;
   }
 
+    // 放在最後面
   async findOneByUsername(username: string): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { username: username } });
+    return await this.userRepository.findOne({ where: { username } });
   }
 
-  async findOneById(id: number): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { id: id } });
+  
+  async findOneWithModules(id: number): Promise<any> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const userModules = await this.userModuleRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['module'],
+    });
+
+    const modules = userModules.map(um => um.module.code);
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      status: user.status,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      modules,
+    };
   }
+
+
 }

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
 import { User } from '../user/user.entity';
 import { Module } from '../module/module.entity';
 
@@ -7,11 +7,9 @@ export class UserModule {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   user: User;
 
-  @ManyToOne(() => Module)
-  @JoinColumn({ name: 'module_id' })
+  @ManyToOne(() => Module, { eager: true, onDelete: 'CASCADE' })
   module: Module;
 }
