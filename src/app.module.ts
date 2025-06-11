@@ -5,7 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserModule } from './user/user.module';
 import { ModuleModule } from './module/module.module';
 import { UserModuleModule } from './user-module/user-module.module';
-import { AuthModule } from './auth/auth.module'; // ✅ 修正這裡
+import { AuthModule } from './auth/auth.module';
+import { BlacklistModule } from './blacklist/blacklist.module'; 
 
 @Module({
   imports: [
@@ -19,14 +20,15 @@ import { AuthModule } from './auth/auth.module'; // ✅ 修正這裡
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_DATABASE'),
-        autoLoadEntities: true,
+        autoLoadEntities: true, 
         synchronize: true,
       }),
     }),
     UserModule,
     ModuleModule,
     UserModuleModule,
-    AuthModule, // ✅ 放這沒問題
+    AuthModule,
+    BlacklistModule, 
   ],
 })
 export class AppModule {}
