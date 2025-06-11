@@ -14,6 +14,7 @@ import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto'; // ✅ 請確認你已建立這個 DTO
 import * as bcrypt from 'bcrypt';
+import { IsNull } from 'typeorm';
 
 @Injectable()
 export class UserService {
@@ -65,7 +66,9 @@ export class UserService {
   }
 
   async findAll(): Promise<any[]> {
-    const users: User[] = await this.userRepository.find();
+    const users: User[] = await this.userRepository.find({
+    where: { deleted_at: IsNull() }, // ← 只撈沒被刪除的
+  });
     const results: any[] = [];
 
     for (const user of users) {
@@ -213,5 +216,19 @@ export class UserService {
 
     return { message: '密碼變更成功' };
   }
+
+
+  async softDelete(id: number): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('使用者不存在');
+    }
+
+    user.deleted_at = new Date();
+    await this.userRepository.save(user);
+
+    return { message: '使用者已刪除' };
+  }
+
 
 }

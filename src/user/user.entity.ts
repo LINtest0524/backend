@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 import { Company } from '../company/company.entity';
 
-
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -46,6 +45,12 @@ export class User {
 
   @Column({ type: 'varchar', default: 'ACTIVE' })
   status: string;
+
+  @Column({ type: 'boolean', default: false })
+  is_blacklisted: boolean;
+
+  @Column({ type: 'timestamp', nullable: true }) // ✅ 新增欄位
+  deleted_at: Date | null;
 
   @CreateDateColumn()
   created_at: Date;

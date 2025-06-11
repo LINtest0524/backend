@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Request,
@@ -57,4 +58,11 @@ export class UserController {
     const userId = req.user.userId;
     return this.userService.changePassword(userId, dto);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async remove(@Param('id') id: number) {
+    return this.userService.softDelete(id);
+  }
+
 }
