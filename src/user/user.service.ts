@@ -99,10 +99,12 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const { email, status, modules } = updateUserDto;
+    const { email, status, modules, is_blacklisted } = updateUserDto;
+
 
     if (email !== undefined) user.email = email;
     if (status !== undefined) user.status = status;
+    if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
 
     await this.userRepository.save(user);
 

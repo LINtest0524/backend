@@ -14,6 +14,10 @@ import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto'; // ✅ 加這行
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+
+
 
 @Controller('user')
 export class UserController {
@@ -64,5 +68,13 @@ export class UserController {
   async remove(@Param('id') id: number) {
     return this.userService.softDelete(id);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Patch(':id/unblacklist')
+  async removeFromBlacklist(@Param('id') id: number) {
+    return this.userService.update(id, { is_blacklisted: false });
+  }
+
 
 }
