@@ -8,6 +8,12 @@ import {
 } from 'typeorm';
 import { Company } from '../company/company.entity';
 
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  AGENT = 'AGENT',
+  USER = 'USER',
+}
+
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -49,6 +55,9 @@ export class User {
   @Column({ type: 'boolean', default: false })
   is_blacklisted: boolean;
 
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER }) // ✅ 加入角色欄位
+  role: UserRole;
+
   @Column({ type: 'timestamp', nullable: true }) // ✅ 新增欄位
   deleted_at: Date | null;
 
@@ -62,3 +71,6 @@ export class User {
   company: Company;
 
 }
+
+
+

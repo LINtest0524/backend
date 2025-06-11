@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { UserModule } from './user/user.module';
-import { ModuleModule } from './module/module.module';
-import { UserModuleModule } from './user-module/user-module.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
 import { AuthModule } from './auth/auth.module';
-import { BlacklistModule } from './blacklist/blacklist.module'; 
+import { UserModule } from './user/user.module';
+import { BlacklistModule } from './blacklist/blacklist.module';
+
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './auth/roles.guard';
+import { JwtAuthGuard } from './auth/jwt-auth.guard'; // ✅ 這行你原本少了
 
 @Module({
   imports: [
@@ -20,15 +25,16 @@ import { BlacklistModule } from './blacklist/blacklist.module';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_DATABASE'),
-        autoLoadEntities: true, 
+        autoLoadEntities: true,
         synchronize: true,
       }),
     }),
+    AuthModule,       // ✅ 這個保留
     UserModule,
-    ModuleModule,
-    UserModuleModule,
-    AuthModule,
-    BlacklistModule, 
+    BlacklistModule,
   ],
+  controllers: [],   // ✅ 清空
+  providers: [],     // ✅ 清空
 })
 export class AppModule {}
+

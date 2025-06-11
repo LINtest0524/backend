@@ -131,8 +131,12 @@ export class UserService {
   }
 
   async findOneByUsername(username: string): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { username } });
+    return await this.userRepository.findOne({
+      where: { username },
+      select: ['id', 'username', 'password', 'role', 'is_blacklisted'], // ✅ 加入 role
+    });
   }
+
 
   async findOneWithModules(id: number): Promise<any> {
     const user = await this.userRepository.findOne({ where: { id } });
