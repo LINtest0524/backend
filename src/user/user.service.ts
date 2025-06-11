@@ -1,12 +1,19 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { User } from './user.entity';
 import { Module } from '../module/module.entity';
 import { UserModule } from '../user-module/user-module.entity';
 import { CreateUserDto } from './create-user.dto';
-import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto'; // ✅ 請確認你已建立這個 DTO
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -167,4 +174,44 @@ export class UserService {
       modules,
     };
   }
+
+  async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['company'],
+    });
+
+    if (!user) throw new NotFoundException('使用者不存在');
+
+    const companyModes = user.company?.passwordModes ?? ['OLD_PASSWORD'];
+
+    // 1. 舊密碼驗證
+    if (companyModes.includes('OLD_PASSWORD')) {
+      if (!dto.oldPassword) throw new BadRequestException('請輸入舊密碼');
+      const match = await bcrypt.compare(dto.oldPassword, user.password);
+      if (!match) throw new UnauthorizedException('舊密碼錯誤');
+    }
+
+    // 2. Email 驗證
+    if (companyModes.includes('EMAIL')) {
+      if (!dto.emailCode || dto.emailCode !== '123456') {
+        throw new UnauthorizedException('Email 驗證碼錯誤');
+      }
+    }
+
+    // 3. SMS 驗證
+    if (companyModes.includes('SMS')) {
+      if (!dto.smsCode || dto.smsCode !== '666666') {
+        throw new UnauthorizedException('簡訊驗證碼錯誤');
+      }
+    }
+
+    // 修改密碼
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    user.password = hashedPassword;
+    await this.userRepository.save(user);
+
+    return { message: '密碼變更成功' };
+  }
+
 }

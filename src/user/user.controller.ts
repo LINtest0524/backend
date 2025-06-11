@@ -11,6 +11,7 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto'; // ✅ 加這行
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('user')
@@ -23,7 +24,6 @@ export class UserController {
     const userId = req.user?.userId;
     return this.userService.findById(userId);
   }
-  
 
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
@@ -49,5 +49,12 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.userService.update(id, updateUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
+    const userId = req.user.userId;
+    return this.userService.changePassword(userId, dto);
   }
 }
