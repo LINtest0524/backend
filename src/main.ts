@@ -4,6 +4,14 @@ console.log('✅ NestJS is starting...');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+
+  // ✅ 加這段：允許來自前端的跨網域請求
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  });
+
+  await app.listen(3001);
 }
+
 bootstrap();
