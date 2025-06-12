@@ -26,42 +26,67 @@ export class UserService {
     private readonly userModuleRepository: Repository<UserModule>,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const { username, password, email, modules } = createUserDto;
+  async create(createUserDto: CreateUserDto, creator: User): Promise<User> {
 
-    const existingUser = await this.userRepository.findOne({ where: { username } });
-    if (existingUser) {
-      throw new ConflictException('Username already exists');
+    const { username, password, email, modules, role, companyId } = createUserDto;
+    console.log('creator.company.id =', creator.company?.id, 'target companyId =', companyId);
+
+    // ========== 安全限制：AGENT_SUPPORT 禁止新增 ==========
+    if (creator.role === 'AGENT_SUPPORT') {
+      throw new UnauthorizedException('AGENT_SUPPORT 不可新增帳號');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = this.userRepository.create({
-      username,
-      password: hashedPassword,
-      email: email ?? null,
-    });
-    const savedUser = await this.userRepository.save(user);
-
-    if (modules && modules.length > 0) {
-      const moduleEntities = await this.moduleRepository.find({
-        where: { code: In(modules) },
-      });
-
-      if (moduleEntities.length !== modules.length) {
-        throw new NotFoundException('Some modules not found');
+    if (creator.role === 'AGENT_OWNER') {
+      if (role !== 'AGENT_SUPPORT') {
+        throw new BadRequestException('AGENT_OWNER 僅可建立 AGENT_SUPPORT 帳號');
       }
 
-      const userModules = moduleEntities.map((module) => {
-        return this.userModuleRepository.create({
-          user: savedUser,
-          module,
-        });
-      });
+      if (!creator.company || Number(companyId) !== Number(creator.company.id)) {
+        throw new BadRequestException('只能建立自己公司底下的員工帳號');
+      }
 
-      await this.userModuleRepository.save(userModules);
+
+
     }
 
-    return savedUser;
+    const existingUser = await this.userRepository.findOne({ where: { username } });
+      if (existingUser) {
+        throw new ConflictException('Username already exists');
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = this.userRepository.create({
+        username,
+        password: hashedPassword,
+        email: email ?? null,
+        role: role as any,
+        company: { id: companyId } as any,
+      });
+
+      const savedUser: User = await this.userRepository.save(user);
+
+      if (modules && modules.length > 0) {
+        const moduleEntities = await this.moduleRepository.find({
+          where: { code: In(modules) },
+        });
+
+        if (moduleEntities.length !== modules.length) {
+          throw new NotFoundException('Some modules not found');
+        }
+
+        const userModules = moduleEntities.map((module) => {
+          return this.userModuleRepository.create({
+            user: savedUser,
+            module,
+          });
+        });
+
+        await this.userModuleRepository.save(userModules);
+      }
+
+      return savedUser;
+
   }
 
   async findAll(currentUser: User): Promise<any[]> {
@@ -114,7 +139,11 @@ export class UserService {
     return results;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: number, updateUserDto: UpdateUserDto, currentUser: User): Promise<User> {
+    if (currentUser.role === 'AGENT_SUPPORT') {
+      throw new UnauthorizedException('AGENT_SUPPORT 不可修改使用者');
+    }
+
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -239,7 +268,11 @@ export class UserService {
     return { message: '密碼變更成功' };
   }
 
-  async softDelete(id: number): Promise<{ message: string }> {
+  async softDelete(id: number, currentUser: User): Promise<{ message: string }> {
+    if (currentUser.role === 'AGENT_SUPPORT') {
+      throw new UnauthorizedException('AGENT_SUPPORT 不可刪除帳號');
+    }
+
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('使用者不存在');
