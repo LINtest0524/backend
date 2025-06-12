@@ -11,8 +11,9 @@ export class AuthService {
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
+    console.log('🧩 validateUser called:', username);
     const user = await this.userService.findOneByUsername(username);
-    console.log('🔍 查詢帳號:', user); // 👈 加這個
+    console.log('🔍 查詢帳號:', user);
 
     if (!user) {
       console.log('❌ 查無此帳號');
@@ -20,8 +21,8 @@ export class AuthService {
     }
 
     const isMatch = await bcrypt.compare(pass, user.password);
-    console.log('🔑 密碼比對結果:', isMatch); // 👈 再加這個
-    
+    console.log('🔑 密碼比對結果:', isMatch);
+
     if (!isMatch) {
       console.log('❌ 密碼錯誤');
       return null;
@@ -38,7 +39,12 @@ export class AuthService {
     };
   }
 
-  async login(username: string, password: string, clientIp: string): Promise<{ user: any; token: string }> {
+  async login(
+    username: string,
+    password: string,
+    clientIp: string,
+  ): Promise<{ user: any; token: string }> {
+    console.log('⚙️ login service hit');
     const user = await this.validateUser(username, password);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -54,5 +60,4 @@ export class AuthService {
 
     return { user, token };
   }
-
 }

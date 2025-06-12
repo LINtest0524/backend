@@ -2,16 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { BlacklistModule } from './blacklist/blacklist.module';
-
-import { APP_GUARD } from '@nestjs/core';
-import { RolesGuard } from './auth/roles.guard';
-import { JwtAuthGuard } from './auth/jwt-auth.guard'; // ✅ 這行你原本少了
 
 @Module({
   imports: [
@@ -29,12 +22,11 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard'; // ✅ 這行你原本少�
         synchronize: true,
       }),
     }),
-    AuthModule,       // ✅ 這個保留
+    AuthModule,
     UserModule,
     BlacklistModule,
   ],
-  controllers: [],   // ✅ 清空
-  providers: [],     // ✅ 清空
+  controllers: [],
+  providers: [], // ✅ 保持空陣列，不要註冊 APP_GUARD
 })
 export class AppModule {}
-

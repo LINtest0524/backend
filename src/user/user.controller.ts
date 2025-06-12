@@ -12,12 +12,10 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
-import { ChangePasswordDto } from './dto/change-password.dto'; // ✅ 加這行
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-
-
 
 @Controller('user')
 export class UserController {
@@ -41,6 +39,14 @@ export class UserController {
     return await this.userService.findAll();
   }
 
+  // ✅ 將 admin-only 提前，避免被當成 :id
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN') // 或你想允許其他角色
+  @Get('admin-only')
+  getAdminOnlyRoute() {
+    return { message: '你是管理員，歡迎進入此路由！' };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: number) {
@@ -49,10 +55,7 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  async update(
-    @Param('id') id: number,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
+  async update(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(id, updateUserDto);
   }
 
@@ -75,6 +78,4 @@ export class UserController {
   async removeFromBlacklist(@Param('id') id: number) {
     return this.userService.update(id, { is_blacklisted: false });
   }
-
-
 }
