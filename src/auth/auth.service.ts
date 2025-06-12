@@ -12,7 +12,8 @@ export class AuthService {
 
   async validateUser(username: string, pass: string): Promise<any> {
     console.log('🧩 validateUser called:', username);
-    const user = await this.userService.findOneByUsername(username);
+    const user = await this.userService.findOneByUsername(username, ['company']);
+
     console.log('🔍 查詢帳號:', user);
 
     if (!user) {
@@ -36,6 +37,7 @@ export class AuthService {
       userId: user.id,
       username: user.username,
       role: user.role,
+      companyId: user.company?.id ?? null,
     };
   }
 
@@ -54,7 +56,9 @@ export class AuthService {
       username: user.username,
       sub: user.userId,
       role: user.role,
+      companyId: user.companyId,
     };
+
 
     const token = this.jwtService.sign(payload);
 

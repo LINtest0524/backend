@@ -8,6 +8,7 @@ import {
   Body,
   Request,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './create-user.dto';
@@ -16,6 +17,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+
 
 @Controller('user')
 export class UserController {
@@ -33,11 +35,26 @@ export class UserController {
     return await this.userService.create(createUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Get()
-  async findAll() {
-    return await this.userService.findAll();
+  async findAll(@Request() req) {
+    const user = req.user;
+
+    if (user.role === 'SUPER_ADMIN') {
+      return await this.userService.findAll(user); // ✅ 傳入目前使用者
+    }
+
+    if (!user.companyId) {
+      throw new UnauthorizedException('無法辨識所屬公司');
+    }
+
+    return await this.userService.findByCompany(user.companyId);
   }
+
+
+
+
 
   // ✅ 將 admin-only 提前，避免被當成 :id
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -73,7 +90,7 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('SUPER_ADMIN')
   @Patch(':id/unblacklist')
   async removeFromBlacklist(@Param('id') id: number) {
     return this.userService.update(id, { is_blacklisted: false });

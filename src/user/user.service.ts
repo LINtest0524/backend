@@ -6,15 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, IsNull } from 'typeorm';
 import { User } from './user.entity';
 import { Module } from '../module/module.entity';
 import { UserModule } from '../user-module/user-module.entity';
 import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
-import { ChangePasswordDto } from './dto/change-password.dto'; // ✅ 請確認你已建立這個 DTO
+import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
-import { IsNull } from 'typeorm';
 
 @Injectable()
 export class UserService {
@@ -45,7 +44,7 @@ export class UserService {
 
     if (modules && modules.length > 0) {
       const moduleEntities = await this.moduleRepository.find({
-        where: { code: In(modules) }
+        where: { code: In(modules) },
       });
 
       if (moduleEntities.length !== modules.length) {
@@ -55,7 +54,7 @@ export class UserService {
       const userModules = moduleEntities.map((module) => {
         return this.userModuleRepository.create({
           user: savedUser,
-          module: module,
+          module,
         });
       });
 
@@ -65,10 +64,26 @@ export class UserService {
     return savedUser;
   }
 
-  async findAll(): Promise<any[]> {
+  async findAll(currentUser: User): Promise<any[]> {
+    const isAdmin = currentUser.role === 'SUPER_ADMIN';
+
+    const where: any = {
+      deleted_at: IsNull(),
+    };
+
+    if (!isAdmin) {
+      if (!currentUser.company?.id) {
+        throw new UnauthorizedException('找不到使用者的公司資訊');
+      }
+      where.company = { id: currentUser.company.id };
+    }
+
     const users: User[] = await this.userRepository.find({
-    where: { deleted_at: IsNull() }, // ← 只撈沒被刪除的
-  });
+      where,
+      relations: ['company'],
+      order: { id: 'ASC' },
+    });
+
     const results: any[] = [];
 
     for (const user of users) {
@@ -77,7 +92,7 @@ export class UserService {
         relations: ['module'],
       });
 
-      const modules = userModules.map(um => um.module.code);
+      const modules = userModules.map((um) => um.module.code);
 
       results.push({
         id: user.id,
@@ -86,7 +101,13 @@ export class UserService {
         status: user.status,
         created_at: user.created_at,
         updated_at: user.updated_at,
-        modules: modules,
+        modules,
+        company: user.company
+          ? {
+              id: user.company.id,
+              name: user.company.name,
+            }
+          : null,
       });
     }
 
@@ -100,7 +121,6 @@ export class UserService {
     }
 
     const { email, status, modules, is_blacklisted } = updateUserDto;
-
 
     if (email !== undefined) user.email = email;
     if (status !== undefined) user.status = status;
@@ -132,13 +152,13 @@ export class UserService {
     return user;
   }
 
-  async findOneByUsername(username: string): Promise<User | null> {
+  async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
     return await this.userRepository.findOne({
       where: { username },
-      select: ['id', 'username', 'password', 'role', 'is_blacklisted'], // ✅ 加入 role
+      select: ['id', 'username', 'password', 'role', 'is_blacklisted'],
+      relations,
     });
   }
-
 
   async findOneWithModules(id: number): Promise<any> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -149,7 +169,7 @@ export class UserService {
       relations: ['module'],
     });
 
-    const modules = userModules.map(um => um.module.code);
+    const modules = userModules.map((um) => um.module.code);
 
     return {
       id: user.id,
@@ -194,35 +214,30 @@ export class UserService {
 
     const companyModes = user.company?.passwordModes ?? ['OLD_PASSWORD'];
 
-    // 1. 舊密碼驗證
     if (companyModes.includes('OLD_PASSWORD')) {
       if (!dto.oldPassword) throw new BadRequestException('請輸入舊密碼');
       const match = await bcrypt.compare(dto.oldPassword, user.password);
       if (!match) throw new UnauthorizedException('舊密碼錯誤');
     }
 
-    // 2. Email 驗證
     if (companyModes.includes('EMAIL')) {
       if (!dto.emailCode || dto.emailCode !== '123456') {
         throw new UnauthorizedException('Email 驗證碼錯誤');
       }
     }
 
-    // 3. SMS 驗證
     if (companyModes.includes('SMS')) {
       if (!dto.smsCode || dto.smsCode !== '666666') {
         throw new UnauthorizedException('簡訊驗證碼錯誤');
       }
     }
 
-    // 修改密碼
     const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
     user.password = hashedPassword;
     await this.userRepository.save(user);
 
     return { message: '密碼變更成功' };
   }
-
 
   async softDelete(id: number): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -236,5 +251,10 @@ export class UserService {
     return { message: '使用者已刪除' };
   }
 
-
+  async findByCompany(companyId: number) {
+    return this.userRepository.find({
+      where: { company: { id: companyId } },
+      relations: ['company'],
+    });
+  }
 }

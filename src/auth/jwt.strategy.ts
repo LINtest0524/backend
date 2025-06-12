@@ -14,11 +14,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    console.log('🧠 解碼 payload:', payload);
     return {
       userId: payload.sub,
       username: payload.username,
       role: payload.role,
+      companyId: payload.companyId,
     };
   }
 }
