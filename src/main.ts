@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 console.log('✅ NestJS is starting...');
+console.log('目前 JWT_SECRET:', process.env.JWT_SECRET)
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
