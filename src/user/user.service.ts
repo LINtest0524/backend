@@ -290,4 +290,60 @@ export class UserService {
       relations: ['company'],
     });
   }
+
+  async updateLoginInfo(userId: number, ip: string, platform: string) {
+    await this.userRepository.update(
+      { id: userId },
+      {
+        last_login_ip: ip,
+        last_login_at: new Date(),
+        last_login_platform: platform,
+      },
+    )
+  }
+
+  async findAllWithCompany(): Promise<User[]> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.company', 'company')
+      .select([
+        'user.id',
+        'user.username',
+        'user.email',
+        'user.created_at',
+        'user.status',
+        'user.last_login_ip',
+        'user.last_login_at',
+        'user.last_login_platform',
+        'company.id',
+        'company.name',
+      ])
+      .orderBy('user.created_at', 'DESC')
+      .getMany()
+  }
+
+  // ✅ 專給 SUPER_ADMIN 使用的完整欄位查詢
+  async findAllWithLoginInfo(): Promise<User[]> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.company', 'company')
+      .select([
+        'user.id',
+        'user.username',
+        'user.email',
+        'user.created_at',
+        'user.status',
+        'user.last_login_ip',
+        'user.last_login_at',
+        'user.last_login_platform',
+        'company.id',
+        'company.name',
+      ])
+      .orderBy('user.last_login_at', 'DESC')
+      .addOrderBy('user.created_at', 'DESC')
+      .getMany();
+  }
+
+
+
 }

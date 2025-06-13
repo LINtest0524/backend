@@ -41,6 +41,7 @@ export class AuthService {
     username: string,
     password: string,
     clientIp: string,
+    platform: string, // ✅ 新增 platform 傳入
   ): Promise<{ user: any; token: string }> {
     console.log('⚙️ login service hit');
 
@@ -49,6 +50,9 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // ✅ 寫入登入記錄資訊（IP、時間、平台）
+    await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
     const payload = {
       userId: user.id,
@@ -59,7 +63,6 @@ export class AuthService {
 
     const token = this.jwtService.sign(payload);
 
-    // ✅ 回傳 user 資訊給 controller
     return {
       token,
       user: {
@@ -67,7 +70,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
         companyId: user.company?.id ?? null,
-        company: user.company ?? null, // ✅ 傳給 JwtStrategy 用
+        company: user.company ?? null,
       },
     };
   }

@@ -50,7 +50,7 @@ export class UserController {
     const user = req.user;
 
     if (user.role === 'SUPER_ADMIN') {
-      return await this.userService.findAll(user);
+      return await this.userService.findAllWithLoginInfo();
     }
 
     if (!user.companyId) {

@@ -10,10 +10,16 @@ export class AuthController {
     console.log('✅ login controller route hit'); // 👈 測試是否有進入
 
     const { username, password } = body;
-    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
-    console.log('🧾 請求來自 IP:', clientIp);
 
-    const result = await this.authService.login(username, password, clientIp);
+    const clientIp =
+      req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || 'unknown';
+    const platform = req.headers['user-agent'] || 'unknown';
+
+    console.log('🧾 請求來自 IP:', clientIp);
+    console.log('💻 裝置平台:', platform);
+
+    const result = await this.authService.login(username, password, clientIp, platform);
+
     return {
       message: 'Login successful',
       token: result.token,
