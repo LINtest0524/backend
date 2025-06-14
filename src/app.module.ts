@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { BlacklistModule } from './blacklist/blacklist.module';
+import { PortalModule } from './portal/portal.module'
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { BlacklistModule } from './blacklist/blacklist.module';
     AuthModule,
     UserModule,
     BlacklistModule,
+    PortalModule,
   ],
   controllers: [],
   providers: [], // ✅ 保持空陣列，不要註冊 APP_GUARD

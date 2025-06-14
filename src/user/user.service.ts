@@ -14,6 +14,7 @@ import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
+import { UserRole } from './user.entity'
 
 @Injectable()
 export class UserService {
@@ -211,27 +212,19 @@ export class UserService {
     };
   }
 
-  async findById(id: number): Promise<any> {
-    const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
+  async findById(id: number): Promise<User> {
+  const user = await this.userRepository.findOne({
+    where: { id },
+    relations: ['company'],
+  });
 
-    const userModules = await this.userModuleRepository.find({
-      where: { user: { id: user.id } },
-      relations: ['module'],
-    });
-
-    const modules = userModules.map((um) => um.module.code);
-
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      status: user.status,
-      created_at: user.created_at,
-      updated_at: user.updated_at,
-      modules,
-    };
+  if (!user) {
+    throw new NotFoundException('User not found');
   }
+
+  return user;
+}
+
 
   async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({
@@ -343,6 +336,57 @@ export class UserService {
       .addOrderBy('user.created_at', 'DESC')
       .getMany();
   }
+
+
+ async validatePortalUser(username: string, password: string): Promise<User | null> {
+  console.log('🔍 正在驗證會員帳號：', username)
+
+  const user = await this.userRepository.findOne({
+    where: { username },
+    relations: ['company'],
+  })
+
+  console.log('✅ 會員查詢結果：', user?.id, user?.role)
+
+  if (!user) return null
+
+  const isMatch = await bcrypt.compare(password, user.password)
+  console.log('🔑 密碼比對結果：', isMatch)
+
+  if (!isMatch || user.is_blacklisted) {
+    console.log('❌ 登入失敗：密碼錯誤或黑名單帳號')
+    return null
+  }
+
+  console.log('✅ 登入驗證成功：', user.username)
+  return user
+}
+
+
+async createFromPortal(dto: { username: string; password: string; email?: string }): Promise<User> {
+  const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+  const user = this.userRepository.create({
+    username: dto.username,
+    password: hashedPassword,
+    email: dto.email ?? null,
+    role: UserRole.USER, // ✅ 使用 enum 正確指定
+    status: 'ACTIVE',
+    is_blacklisted: false,
+    company: { id: 1 } as any,
+  });
+
+  const savedUser: User = await this.userRepository.save(user); // ✅ 明確型別避免誤判
+
+  return this.findById(savedUser.id); // ✅ 不會報錯
+}
+
+
+
+
+
+  
+
 
 
 
