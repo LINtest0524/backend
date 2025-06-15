@@ -3,11 +3,13 @@ import { JwtModule } from '@nestjs/jwt'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { PortalAuthController } from './portal-auth.controller'
 import { UserModule } from '../user/user.module'
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
     ConfigModule,
     UserModule,
+    AuditLogModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
