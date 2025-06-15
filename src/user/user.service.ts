@@ -141,46 +141,51 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto, currentUser: User): Promise<User> {
-    if (currentUser.role === 'AGENT_SUPPORT') {
-      throw new UnauthorizedException('AGENT_SUPPORT 不可修改使用者');
-    }
 
-    const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    console.log('🧪 PATCH updateUserDto =', updateUserDto);
 
-    const { email, status, modules, is_blacklisted } = updateUserDto;
 
-    if (email !== undefined) user.email = email;
-    if (status !== undefined) user.status = status;
-    if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
-
-    await this.userRepository.save(user);
-
-    if (modules) {
-      const moduleEntities = await this.moduleRepository.find({
-        where: { code: In(modules) },
-      });
-
-      if (moduleEntities.length !== modules.length) {
-        throw new NotFoundException('Some modules not found');
-      }
-
-      await this.userModuleRepository.delete({ user: { id: user.id } });
-
-      const userModules = moduleEntities.map((module) => {
-        return this.userModuleRepository.create({
-          user: { id: user.id },
-          module,
-        });
-      });
-
-      await this.userModuleRepository.save(userModules);
-    }
-
-    return user;
+  if (currentUser.role === 'AGENT_SUPPORT') {
+    throw new UnauthorizedException('AGENT_SUPPORT 不可修改使用者');
   }
+
+  const user = await this.userRepository.findOne({ where: { id } });
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  const { email, status, modules, is_blacklisted } = updateUserDto;
+
+  if (email !== undefined) user.email = email;
+  if (status !== undefined) user.status = status;
+  if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
+
+  await this.userRepository.save(user);
+
+  if (modules) {
+    const moduleEntities = await this.moduleRepository.find({
+      where: { code: In(modules) },
+    });
+
+    if (moduleEntities.length !== modules.length) {
+      throw new NotFoundException('Some modules not found');
+    }
+
+    await this.userModuleRepository.delete({ user: { id: user.id } });
+
+    const userModules = moduleEntities.map((module) => {
+      return this.userModuleRepository.create({
+        user: { id: user.id },
+        module,
+      });
+    });
+
+    await this.userModuleRepository.save(userModules);
+  }
+
+  return user;
+}
+
 
   async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
     return await this.userRepository.findOne({
@@ -329,6 +334,7 @@ export class UserService {
         'user.last_login_ip',
         'user.last_login_at',
         'user.last_login_platform',
+        'user.is_blacklisted',
         'company.id',
         'company.name',
       ])
@@ -353,9 +359,19 @@ export class UserService {
   const isMatch = await bcrypt.compare(password, user.password)
   console.log('🔑 密碼比對結果：', isMatch)
 
-  if (!isMatch || user.is_blacklisted) {
-    console.log('❌ 登入失敗：密碼錯誤或黑名單帳號')
+  if (!isMatch) {
+    console.log('❌ 登入失敗：密碼錯誤')
     return null
+  }
+
+  if (user.is_blacklisted) {
+    console.log('⛔ 使用者被列入黑名單，登入失敗')
+    throw new UnauthorizedException('此帳號已被封鎖，請聯絡客服')
+  }
+
+
+  if (user.status !== 'ACTIVE') {
+    throw new UnauthorizedException('帳號已停用');
   }
 
   console.log('✅ 登入驗證成功：', user.username)
