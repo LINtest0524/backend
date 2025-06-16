@@ -9,7 +9,10 @@ export class Company {
   @Column()
   name: string;
 
-  @Column('simple-array', { default: 'OLD_PASSWORD' }) // 可為 OLD_PASSWORD,EMAIL,SMS
+  @Column({ nullable: true })
+  code: string; // ✅ 新增欄位：代碼
+
+  @Column('simple-array', { default: 'OLD_PASSWORD' })
   passwordModes: string[];
 
   @OneToMany(() => Banner, banner => banner.company)

@@ -10,6 +10,7 @@ import {
   UseGuards,
   UploadedFile,
   UseInterceptors,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -31,22 +32,26 @@ export class BannerController {
   constructor(private readonly bannerService: BannerService) {}
 
   @Get()
-  findAll() {
-    return this.bannerService.findAll();
+  findAll(@Req() req: any) {
+    const user = req.user;
+    return this.bannerService.findAll(user.companyId);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.bannerService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const user = req.user;
+    return this.bannerService.findOne(id, user.companyId);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Post()
-  create(@Body() dto: CreateBannerDto) {
+  create(@Body() dto: CreateBannerDto, @Req() req: any) {
+    const user = req.user;
+    dto.company = { id: user.companyId };
     return this.bannerService.create(dto);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBannerDto) {
     return this.bannerService.update(id, dto);
@@ -58,31 +63,30 @@ export class BannerController {
     return this.bannerService.remove(id);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Post('upload')
-@UseInterceptors(
-  FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './public/uploads/banner',
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const filename = `${uuid()}${ext}`;
-        cb(null, filename);
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './public/uploads/banner',
+        filename: (req, file, cb) => {
+          const ext = path.extname(file.originalname);
+          const filename = `${uuid()}${ext}`;
+          cb(null, filename);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (allowed.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('只接受 jpg/png/webp 圖片'), false);
+        }
       },
     }),
-    fileFilter: (req, file, cb) => {
-      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-      if (allowed.includes(file.mimetype)) {
-        cb(null, true);
-      } else {
-        cb(new Error('只接受 jpg/png/webp 圖片'), false);
-      }
-    },
-  }),
-)
-uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
-  const url = `/uploads/banner/${file.filename}`; // ✅ 保持這樣（相對路徑）
-  return { url };
-}
-
+  )
+  uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
+    const url = `/uploads/banner/${file.filename}`;
+    return { url };
+  }
 }

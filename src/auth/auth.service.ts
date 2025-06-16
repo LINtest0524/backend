@@ -11,8 +11,13 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(username: string, pass: string): Promise<User | null> {
-    console.log('🧩 validateUser called:', username);
+  // ✅ 改成比對 company.code（網址中的代碼）
+  async validateUser(
+    username: string,
+    pass: string,
+    companyCode?: string, // ✅ 改名為 companyCode 更清楚
+  ): Promise<User | null> {
+    console.log('🧩 validateUser called:', username, companyCode);
     const user = await this.userService.findOneByUsername(username, ['company']);
 
     console.log('🔍 查詢帳號:', user);
@@ -20,6 +25,17 @@ export class AuthService {
     if (!user) {
       console.log('❌ 查無此帳號');
       return null;
+    }
+
+    if (companyCode) {
+      const decodedCode = decodeURIComponent(companyCode);
+      if (user.company?.code !== decodedCode) {
+
+        console.log(`Company code mismatch: user = ${user.company?.code}, from URL = ${decodedCode}`);
+
+
+        return null;
+      }
     }
 
     const isMatch = await bcrypt.compare(pass, user.password);
@@ -41,17 +57,17 @@ export class AuthService {
     username: string,
     password: string,
     clientIp: string,
-    platform: string, // ✅ 新增 platform 傳入
+    platform: string,
+    companyCode?: string, // ✅ 改為 companyCode
   ): Promise<{ user: any; token: string }> {
-    console.log('⚙️ login service hit');
+    console.log('⚙️ login service hit', companyCode);
 
-    const user = await this.validateUser(username, password);
+    const user = await this.validateUser(username, password, companyCode);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('帳號、密碼或公司錯誤');
     }
 
-    // ✅ 寫入登入記錄資訊（IP、時間、平台）
     await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
     const payload = {

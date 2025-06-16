@@ -1,4 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Company } from '../company/company.entity';
 
 export enum BannerStatus {
@@ -32,6 +38,10 @@ export class Banner {
   @Column({ type: 'enum', enum: BannerStatus, default: BannerStatus.INACTIVE })
   status: BannerStatus;
 
-  @ManyToOne(() => Company, company => company.banners, { eager: true })
+  @Column({ name: 'companyId' }) 
+  companyId: number; // ✅ 新增欄位
+
+  @ManyToOne(() => Company, company => company.banners)
+  @JoinColumn({ name: 'companyId' }) // ✅ 明確關聯欄位
   company: Company;
 }

@@ -1,0 +1,79 @@
+列出資料夾 PATH
+磁碟區序號為 E2F6-7C6C
+D:.
+|   app.controller.spec.ts
+|   app.module.ts
+|   main.ts
+|   project-structure.txt
+|   
++---audit-log
+|       audit-log.controller.ts
+|       audit-log.entity.ts
+|       audit-log.module.ts
+|       audit-log.service.ts
+|       
++---auth
+|   |   auth.controller.ts
+|   |   auth.module.ts
+|   |   auth.service.spec.ts
+|   |   auth.service.ts
+|   |   jwt-auth.guard.ts
+|   |   jwt.strategy.ts
+|   |   roles.decorator.ts
+|   |   roles.guard.ts
+|   |   
+|   \---dto
+|           login.dto.ts
+|           
++---banner
+|   |   banner.controller.ts
+|   |   banner.entity.ts
+|   |   banner.module.ts
+|   |   banner.service.ts
+|   |   
+|   \---dto
+|           create-banner.dto.ts
+|           update-banner.dto.ts
+|           
++---blacklist
+|   |   blacklist.controller.ts
+|   |   blacklist.entity.ts
+|   |   blacklist.module.ts
+|   |   blacklist.service.ts
+|   |   
+|   \---dto
+|           create-blacklist.dto.ts
+|           
++---company
+|       company.entity.ts
+|       company.module.ts
+|       
++---module
+|       module.entity.ts
+|       module.module.ts
+|       
++---portal
+|   |   auth.controller.ts
+|   |   portal-auth.controller.ts
+|   |   portal.module.ts
+|   |   
+|   \---dto
+|           register.dto.ts
+|           
++---user
+|   |   create-user.dto.ts
+|   |   update-user.dto.ts
+|   |   user.controller.spec.ts
+|   |   user.controller.ts
+|   |   user.entity.ts
+|   |   user.module.ts
+|   |   user.service.spec.ts
+|   |   user.service.ts
+|   |   
+|   \---dto
+|           change-password.dto.ts
+|           
+\---user-module
+        user-module.entity.ts
+        user-module.module.ts
+        
