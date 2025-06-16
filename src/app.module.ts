@@ -7,6 +7,8 @@ import { UserModule } from './user/user.module';
 import { BlacklistModule } from './blacklist/blacklist.module';
 import { PortalModule } from './portal/portal.module'
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { BannerModule } from './banner/banner.module';
+
 
 @Module({
   imports: [
@@ -29,6 +31,7 @@ import { AuditLogModule } from './audit-log/audit-log.module';
     BlacklistModule,
     PortalModule,
     AuditLogModule,
+    BannerModule,
   ],
   controllers: [],
   providers: [], // ✅ 保持空陣列，不要註冊 APP_GUARD
