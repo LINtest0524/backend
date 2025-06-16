@@ -1,13 +1,16 @@
+import { join } from 'path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-console.log('✅ NestJS is starting...');
-console.log('目前 JWT_SECRET:', process.env.JWT_SECRET)
-
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // ✅ 加這段：允許來自前端的跨網域請求
+  // ✅ 註冊靜態資源路徑
+  app.useStaticAssets(join(__dirname, '..', 'public', 'uploads'), {
+    prefix: '/uploads',
+  });
+
   app.enableCors({
     origin: 'http://localhost:3000',
     credentials: true,
@@ -15,5 +18,4 @@ async function bootstrap() {
 
   await app.listen(3001);
 }
-
 bootstrap();

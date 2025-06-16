@@ -25,7 +25,6 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/user.entity';
 import { Express } from 'express';
 
-
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('banners')
 export class BannerController {
@@ -60,29 +59,30 @@ export class BannerController {
   }
 
   @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER)
-    @Post('upload')
-    @UseInterceptors(
-    FileInterceptor('file', {
-        storage: diskStorage({
-        destination: './public/uploads/banner',
-        filename: (req, file, cb) => {
-            const ext = path.extname(file.originalname);
-            const filename = `${uuid()}${ext}`;
-            cb(null, filename);
-        },
-        }),
-        fileFilter: (req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-        if (allowed.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('只接受 jpg/png/webp 圖片'), false);
-        }
-        },
-    })
-    )
-    uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
-    const url = `/uploads/banner/${file.filename}`;
-    return { url };
-    }
+  @Post('upload')
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './public/uploads/banner',
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const filename = `${uuid()}${ext}`;
+        cb(null, filename);
+      },
+    }),
+    fileFilter: (req, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+      if (allowed.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('只接受 jpg/png/webp 圖片'), false);
+      }
+    },
+  }),
+)
+uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
+  const url = `/uploads/banner/${file.filename}`; // ✅ 保持這樣（相對路徑）
+  return { url };
+}
+
 }
