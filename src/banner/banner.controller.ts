@@ -60,28 +60,28 @@ export class BannerController {
   }
 
   @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER)
-  @Post('upload')
-  @UseInterceptors(
+    @Post('upload')
+    @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
+        storage: diskStorage({
         destination: './public/uploads/banner',
         filename: (req, file, cb) => {
-          const ext = path.extname(file.originalname);
-          const filename = `${uuid()}${ext}`;
-          cb(null, filename);
+            const ext = path.extname(file.originalname);
+            const filename = `${uuid()}${ext}`;
+            cb(null, filename);
         },
-      }),
-      fileFilter: (req, file, cb) => {
+        }),
+        fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
         if (allowed.includes(file.mimetype)) {
-          cb(null, true);
+            cb(null, true);
         } else {
-          cb(new Error('只接受 jpg/png/webp 圖片'), false);
+            cb(new Error('只接受 jpg/png/webp 圖片'), false);
         }
-      },
+        },
     })
-  )
-  uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
+    )
+    uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
     const url = `/uploads/banner/${file.filename}`;
     return { url };
     }
