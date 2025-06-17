@@ -5,10 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { BlacklistModule } from './blacklist/blacklist.module';
-import { PortalModule } from './portal/portal.module'
+import { PortalModule } from './portal/portal.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { BannerModule } from './banner/banner.module';
-
+import { CompanyModuleModule } from './company-module/company-module.module';
 
 @Module({
   imports: [
@@ -32,8 +32,9 @@ import { BannerModule } from './banner/banner.module';
     PortalModule,
     AuditLogModule,
     BannerModule,
+    CompanyModuleModule, // ✅ 新增模組註冊
   ],
   controllers: [],
-  providers: [], // ✅ 保持空陣列，不要註冊 APP_GUARD
+  providers: [],
 })
 export class AppModule {}

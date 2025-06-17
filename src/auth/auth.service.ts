@@ -1,21 +1,25 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UserService } from '../user/user.service';
 import { User } from '../user/user.entity';
+import { CompanyModule } from '../company-module/company-module.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    @InjectRepository(CompanyModule)
+    private readonly moduleRepo: Repository<CompanyModule>,
   ) {}
 
-  // ✅ 改成比對 company.code（網址中的代碼）
   async validateUser(
     username: string,
     pass: string,
-    companyCode?: string, // ✅ 改名為 companyCode 更清楚
+    companyCode?: string,
   ): Promise<User | null> {
     console.log('🧩 validateUser called:', username, companyCode);
     const user = await this.userService.findOneByUsername(username, ['company']);
@@ -30,10 +34,7 @@ export class AuthService {
     if (companyCode) {
       const decodedCode = decodeURIComponent(companyCode);
       if (user.company?.code !== decodedCode) {
-
         console.log(`Company code mismatch: user = ${user.company?.code}, from URL = ${decodedCode}`);
-
-
         return null;
       }
     }
@@ -58,7 +59,7 @@ export class AuthService {
     password: string,
     clientIp: string,
     platform: string,
-    companyCode?: string, // ✅ 改為 companyCode
+    companyCode?: string,
   ): Promise<{ user: any; token: string }> {
     console.log('⚙️ login service hit', companyCode);
 
@@ -79,6 +80,11 @@ export class AuthService {
 
     const token = this.jwtService.sign(payload);
 
+    // ✅ 查詢該公司啟用的模組
+    const enabledModules = await this.moduleRepo.find({
+      where: { company: { id: user.company.id }, enabled: true },
+    });
+
     return {
       token,
       user: {
@@ -87,6 +93,9 @@ export class AuthService {
         role: user.role,
         companyId: user.company?.id ?? null,
         company: user.company ?? null,
+        enabledModules: Object.fromEntries(
+          enabledModules.map((m) => [m.module_key, true])
+        ),
       },
     };
   }
