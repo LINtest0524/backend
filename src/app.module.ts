@@ -9,6 +9,7 @@ import { PortalModule } from './portal/portal.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { BannerModule } from './banner/banner.module';
 import { CompanyModuleModule } from './company-module/company-module.module';
+import { ModuleModule } from './module/module.module'
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CompanyModuleModule } from './company-module/company-module.module';
     PortalModule,
     AuditLogModule,
     BannerModule,
+    ModuleModule,
     CompanyModuleModule, // ✅ 新增模組註冊
   ],
   controllers: [],
