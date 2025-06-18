@@ -1,31 +1,47 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+} from '@nestjs/common'
 import { MarqueeService } from './marquee.service'
 
-@Controller('admin/marquee') // ✅ 改這行，從 admin/module/marquee ➜ admin/marquee
+@Controller()
 export class MarqueeController {
   constructor(private readonly marqueeService: MarqueeService) {}
 
-  @Get(':companyId')
+  // ✅ 前台 API（新增）
+  @Get('portal/marquee')
+  getForPortal(@Query('company') company: string) {
+    return this.marqueeService.findByCompanyCode(company)
+  }
+
+  // ✅ 後台 API
+  @Get('admin/marquee/:companyId')
   getAll(@Param('companyId') companyId: number) {
     return this.marqueeService.findAll(companyId)
   }
 
-  @Get('item/:id')
+  @Get('admin/marquee/item/:id')
   getOne(@Param('id') id: number) {
     return this.marqueeService.findOne(id)
   }
 
-  @Post()
+  @Post('admin/marquee')
   create(@Body() body: any) {
     return this.marqueeService.create(body, { id: body.companyId } as any)
   }
 
-  @Put(':id')
+  @Put('admin/marquee/:id')
   update(@Param('id') id: number, @Body() body: any) {
     return this.marqueeService.update(id, body)
   }
 
-  @Delete(':id')
+  @Delete('admin/marquee/:id')
   delete(@Param('id') id: number) {
     return this.marqueeService.remove(id)
   }

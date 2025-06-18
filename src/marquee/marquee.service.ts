@@ -34,4 +34,16 @@ export class MarqueeService {
   remove(id: number) {
     return this.marqueeRepo.delete(id)
   }
+
+  // ✅ 新增：給前台用的查詢方法
+  findByCompanyCode(companyCode: string) {
+    return this.marqueeRepo.find({
+      where: {
+        company: { code: companyCode },
+        isActive: true,
+      },
+      order: { createdAt: 'DESC' },
+      relations: ['company'],
+    })
+  }
 }
