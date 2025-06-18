@@ -10,6 +10,8 @@ import { AuditLogModule } from './audit-log/audit-log.module';
 import { BannerModule } from './banner/banner.module';
 import { CompanyModuleModule } from './company-module/company-module.module';
 import { ModuleModule } from './module/module.module'
+import { MarqueeModule } from './marquee/marquee.module'
+
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { ModuleModule } from './module/module.module'
     AuditLogModule,
     BannerModule,
     ModuleModule,
+    MarqueeModule,
     CompanyModuleModule, // ✅ 新增模組註冊
   ],
   controllers: [],

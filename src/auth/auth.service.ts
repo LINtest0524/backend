@@ -55,48 +55,54 @@ export class AuthService {
   }
 
   async login(
-    username: string,
-    password: string,
-    clientIp: string,
-    platform: string,
-    companyCode?: string,
-  ): Promise<{ user: any; token: string }> {
-    console.log('⚙️ login service hit', companyCode);
+  username: string,
+  password: string,
+  clientIp: string,
+  platform: string,
+  companyCode?: string,
+): Promise<{ user: any; token: string }> {
+  console.log('⚙️ login service hit', companyCode);
 
-    const user = await this.validateUser(username, password, companyCode);
+  const user = await this.validateUser(username, password, companyCode);
 
-    if (!user) {
-      throw new UnauthorizedException('帳號、密碼或公司錯誤');
-    }
+  if (!user) {
+    throw new UnauthorizedException('帳號、密碼或公司錯誤');
+  }
 
-    await this.userService.updateLoginInfo(user.id, clientIp, platform);
+  await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
-    const payload = {
+  const payload = {
+    userId: user.id,
+    username: user.username,
+    role: user.role,
+    companyId: user.company?.id ?? null,
+  };
+
+  const token = this.jwtService.sign(payload);
+
+  let enabledModules: CompanyModule[] = []
+
+
+  // ✅ 如果有綁定公司，才查詢公司啟用模組
+  if (user.company?.id) {
+    enabledModules = await this.moduleRepo.find({
+      where: { company: { id: user.company.id }, enabled: true },
+    });
+  }
+
+  return {
+    token,
+    user: {
       userId: user.id,
       username: user.username,
       role: user.role,
       companyId: user.company?.id ?? null,
-    };
+      company: user.company ?? null,
+      enabledModules: Object.fromEntries(
+        enabledModules.map((m) => [m.module_key, true])
+      ),
+    },
+  };
+}
 
-    const token = this.jwtService.sign(payload);
-
-    // ✅ 查詢該公司啟用的模組
-    const enabledModules = await this.moduleRepo.find({
-      where: { company: { id: user.company.id }, enabled: true },
-    });
-
-    return {
-      token,
-      user: {
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        companyId: user.company?.id ?? null,
-        company: user.company ?? null,
-        enabledModules: Object.fromEntries(
-          enabledModules.map((m) => [m.module_key, true])
-        ),
-      },
-    };
-  }
 }
