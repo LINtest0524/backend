@@ -15,6 +15,8 @@ import { UpdateUserDto } from './update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from './user.entity'
+import { Company } from '../company/company.entity'
+
 
 @Injectable()
 export class UserService {
@@ -25,6 +27,8 @@ export class UserService {
     private readonly moduleRepository: Repository<Module>,
     @InjectRepository(UserModule)
     private readonly userModuleRepository: Repository<UserModule>,
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
   ) {}
 
   async create(createUserDto: CreateUserDto, creator: User): Promise<User> {
@@ -379,23 +383,41 @@ export class UserService {
 }
 
 
-async createFromPortal(dto: { username: string; password: string; email?: string }): Promise<User> {
-  const hashedPassword = await bcrypt.hash(dto.password, 10);
+async createFromPortal(dto: {
+  username: string
+  password: string
+  email?: string
+  companyCode: string
+}): Promise<User> {
+  const { username, password, email, companyCode } = dto;
+
+  const existing = await this.userRepository.findOne({ where: { username } });
+  if (existing) {
+    throw new ConflictException('帳號已存在');
+  }
+
+  const company = await this.companyRepository.findOne({ where: { code: companyCode } });
+  if (!company) {
+    throw new NotFoundException('公司代碼無效');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
 
   const user = this.userRepository.create({
-    username: dto.username,
+    username,
     password: hashedPassword,
-    email: dto.email ?? null,
-    role: UserRole.USER, // ✅ 使用 enum 正確指定
+    email: email ?? null,
+    role: UserRole.USER,
     status: 'ACTIVE',
     is_blacklisted: false,
-    company: { id: 1 } as any,
+    company,
   });
 
-  const savedUser: User = await this.userRepository.save(user); // ✅ 明確型別避免誤判
-
-  return this.findById(savedUser.id); // ✅ 不會報錯
+  const savedUser = await this.userRepository.save(user);
+  return this.findById(savedUser.id);
 }
+
+
 
 
 

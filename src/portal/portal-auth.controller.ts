@@ -25,33 +25,48 @@ export class PortalAuthController {
   ) {}
 
   @Post('register')
-  async register(@Body() body: RegisterDto, @Req() req: any) {
-    const existing = await this.userService.findOneByUsername(body.username);
-    if (existing) {
-      throw new ConflictException('帳號已存在');
-    }
+async register(@Body() body: RegisterDto, @Req() req: any) {
+  const companyCode = req.query.company
 
-    const user = await this.userService.createFromPortal(body);
-    const fullUser = await this.userService.findById(user.id);
-
-    const payload = {
-      userId: fullUser.id,
-      username: fullUser.username,
-      companyId: fullUser.company?.id ?? null,
-    };
-
-    const token = this.jwtService.sign(payload);
-
-    return {
-      message: '註冊成功',
-      token,
-      user: {
-        id: fullUser.id,
-        username: fullUser.username,
-        email: fullUser.email,
-      },
-    };
+  if (!companyCode) {
+    throw new UnauthorizedException('缺少公司代碼');
   }
+
+  const existing = await this.userService.findOneByUsername(body.username);
+  if (existing) {
+    throw new ConflictException('帳號已存在');
+  }
+
+  const user = await this.userService.createFromPortal({
+    ...body,        // username, password, email
+    companyCode,    // ✅ 補上這行才能通過 TS 檢查
+  });
+
+  const fullUser = await this.userService.findById(user.id);
+
+  const payload = {
+    userId: fullUser.id,
+    username: fullUser.username,
+    companyId: fullUser.company?.id ?? null,
+  };
+
+  const token = this.jwtService.sign(payload);
+
+  return {
+    message: '註冊成功',
+    token,
+    user: {
+      id: fullUser.id,
+      username: fullUser.username,
+      email: fullUser.email,
+      company: {
+        id: fullUser.company.id,
+        code: fullUser.company.code,
+      },
+    },
+  };
+}
+
 
  @Post('login')
 async login(@Body() body: { username: string; password: string }, @Req() req: any) {
