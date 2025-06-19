@@ -235,40 +235,62 @@ export class UserService {
 }
 
 
-  async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['company'],
-    });
+async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
+  console.log('🧩 [changePassword] JWT 傳入 userId:', userId);
 
-    if (!user) throw new NotFoundException('使用者不存在');
+  const user = await this.userRepository.findOne({
+    where: { id: userId },
+    relations: ['company'],
+  });
 
-    const companyModes = user.company?.passwordModes ?? ['OLD_PASSWORD'];
-
-    if (companyModes.includes('OLD_PASSWORD')) {
-      if (!dto.oldPassword) throw new BadRequestException('請輸入舊密碼');
-      const match = await bcrypt.compare(dto.oldPassword, user.password);
-      if (!match) throw new UnauthorizedException('舊密碼錯誤');
-    }
-
-    if (companyModes.includes('EMAIL')) {
-      if (!dto.emailCode || dto.emailCode !== '123456') {
-        throw new UnauthorizedException('Email 驗證碼錯誤');
-      }
-    }
-
-    if (companyModes.includes('SMS')) {
-      if (!dto.smsCode || dto.smsCode !== '666666') {
-        throw new UnauthorizedException('簡訊驗證碼錯誤');
-      }
-    }
-
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
-    user.password = hashedPassword;
-    await this.userRepository.save(user);
-
-    return { message: '密碼變更成功' };
+  if (!user) {
+    console.log('❌ 找不到 user，id:', userId);
+    throw new NotFoundException('使用者不存在');
   }
+
+  console.log('👤 取得使用者:', user.username);
+  console.log('🔐 資料庫密碼雜湊:', user.password);
+  console.log('📨 傳入舊密碼:', dto.oldPassword);
+
+  const companyModes = user.company?.passwordModes ?? ['OLD_PASSWORD'];
+
+  if (companyModes.includes('OLD_PASSWORD')) {
+    if (!dto.oldPassword) {
+      console.log('❗ 未提供舊密碼');
+      throw new BadRequestException('請輸入舊密碼');
+    }
+
+    const match = await bcrypt.compare(dto.oldPassword, user.password);
+    console.log('🧪 密碼比對結果:', match);
+
+    if (!match) {
+      console.log('❌ 舊密碼錯誤');
+      throw new UnauthorizedException('舊密碼錯誤');
+    }
+  }
+
+  if (companyModes.includes('EMAIL')) {
+    if (!dto.emailCode || dto.emailCode !== '123456') {
+      console.log('❌ Email 驗證碼錯誤');
+      throw new UnauthorizedException('Email 驗證碼錯誤');
+    }
+  }
+
+  if (companyModes.includes('SMS')) {
+    if (!dto.smsCode || dto.smsCode !== '666666') {
+      console.log('❌ SMS 驗證碼錯誤');
+      throw new UnauthorizedException('簡訊驗證碼錯誤');
+    }
+  }
+
+  const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+  user.password = hashedPassword;
+  await this.userRepository.save(user);
+
+  console.log('✅ 密碼變更成功:', user.username);
+  return { message: '密碼變更成功' };
+}
+
 
   async softDelete(id: number, currentUser: User): Promise<{ message: string }> {
     if (currentUser.role === 'AGENT_SUPPORT') {

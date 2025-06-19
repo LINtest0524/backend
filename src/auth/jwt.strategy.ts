@@ -6,19 +6,25 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
+    const jwtSecret = configService.get<string>('JWT_SECRET') || 'fallback_secret';
+
+    console.log('✅ JWT_SECRET used for verify:', jwtSecret); // <== 加這行
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'fallback_secret',
+      secretOrKey: jwtSecret,
     });
   }
 
   async validate(payload: any) {
-    return {
-      userId: payload.sub,
-      username: payload.username,
-      role: payload.role,
-      companyId: payload.companyId,
-    };
-  }
+  return {
+    userId: payload.userId, // 👈 這才對
+    username: payload.username,
+    role: payload.role,
+    companyId: payload.companyId,
+  };
 }
+
+}
+

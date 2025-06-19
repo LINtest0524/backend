@@ -1,4 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+console.log('✅ auth.service.ts loaded') // ← 加這行
+
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -65,6 +67,9 @@ export class AuthService {
 
   const user = await this.validateUser(username, password, companyCode);
 
+  console.log('JWT_SECRET used for sign:', this.jwtService['_options'].secret)
+
+
   if (!user) {
     throw new UnauthorizedException('帳號、密碼或公司錯誤');
   }
@@ -72,11 +77,14 @@ export class AuthService {
   await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
   const payload = {
-    userId: user.id,
+    userId: user.id, 
     username: user.username,
     role: user.role,
     companyId: user.company?.id ?? null,
   };
+
+  console.log('🔥 login payload:', payload)
+
 
   const token = this.jwtService.sign(payload);
 

@@ -92,6 +92,7 @@ export class UserController {
   @Post('change-password')
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     const userId = req.user.userId;
+
     return this.userService.changePassword(userId, dto);
   }
 
