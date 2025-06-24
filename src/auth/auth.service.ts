@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-console.log('✅ auth.service.ts loaded') // ← 加這行
+
 
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -8,12 +8,15 @@ import { Repository } from 'typeorm';
 import { UserService } from '../user/user.service';
 import { User } from '../user/user.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
+  
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     @InjectRepository(CompanyModule)
     private readonly moduleRepo: Repository<CompanyModule>,
   ) {}
@@ -67,9 +70,6 @@ export class AuthService {
 
   const user = await this.validateUser(username, password, companyCode);
 
-  console.log('JWT_SECRET used for sign:', this.jwtService['_options'].secret)
-
-
   if (!user) {
     throw new UnauthorizedException('帳號、密碼或公司錯誤');
   }
@@ -83,15 +83,12 @@ export class AuthService {
     companyId: user.company?.id ?? null,
   };
 
-  console.log('🔥 login payload:', payload)
+  const secret = this.configService.get('JWT_SECRET');
+  console.log(`✅ 正在簽發 JWT，使用的 secret 是: ${secret}`);
+  const token = this.jwtService.sign(payload, { secret });
 
+  let enabledModules: CompanyModule[] = [];
 
-  const token = this.jwtService.sign(payload);
-
-  let enabledModules: CompanyModule[] = []
-
-
-  // ✅ 如果有綁定公司，才查詢公司啟用模組
   if (user.company?.id) {
     enabledModules = await this.moduleRepo.find({
       where: { company: { id: user.company.id }, enabled: true },
@@ -112,5 +109,7 @@ export class AuthService {
     },
   };
 }
+
+
 
 }

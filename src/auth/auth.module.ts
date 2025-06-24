@@ -7,10 +7,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthController } from './auth.controller';
-import { JwtAuthGuard } from './jwt-auth.guard';
 
 import { UserModule } from '../user/user.module';
-import { CompanyModule } from '../company-module/company-module.entity';
+import { CompanyModule as CompanyModuleEntity } from '../company-module/company-module.entity'; // ✅ 改名避免與 Nest 的 Module 撞名
 
 @Module({
   imports: [
@@ -18,20 +17,19 @@ import { CompanyModule } from '../company-module/company-module.entity';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
+      inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET') || 'fallback_secret',
         signOptions: { expiresIn: '1d' },
       }),
-      inject: [ConfigService],
     }),
     UserModule,
-    TypeOrmModule.forFeature([CompanyModule]),
+    TypeOrmModule.forFeature([CompanyModuleEntity]), // ✅ 用改名後的 Entity
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
     JwtStrategy,
-    //  JwtAuthGuard 不建議放這裡
   ],
   exports: [AuthService],
 })
