@@ -11,6 +11,7 @@ import { BannerModule } from './banner/banner.module';
 import { CompanyModuleModule } from './company-module/company-module.module';
 import { ModuleModule } from './module/module.module'
 import { MarqueeModule } from './marquee/marquee.module'
+import { IdentityVerificationModule } from './identity-verification/identity-verification.module';
 
 
 @Module({
@@ -38,6 +39,7 @@ import { MarqueeModule } from './marquee/marquee.module'
     ModuleModule,
     MarqueeModule,
     CompanyModuleModule, // ✅ 新增模組註冊
+    IdentityVerificationModule,
   ],
   controllers: [],
   providers: [],
