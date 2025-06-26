@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   UseGuards,
   Req,
   UseInterceptors,
@@ -21,6 +22,7 @@ export class IdentityVerificationController {
     private readonly identityService: IdentityVerificationService,
   ) {}
 
+  // ✅ 上傳身分驗證圖片
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('files', 3)) // 限制最多3張圖
@@ -53,5 +55,17 @@ export class IdentityVerificationController {
       console.error('❌ 上傳處理失敗：', error);
       throw new InternalServerErrorException('Server error');
     }
+  }
+
+  // ✅ 查詢目前使用者的驗證紀錄
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMyVerification(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+
+    return await this.identityService.findByUserId(userId);
   }
 }

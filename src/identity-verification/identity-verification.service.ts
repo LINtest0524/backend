@@ -24,13 +24,15 @@ export class IdentityVerificationService {
     const filenames: string[] = [];
 
     for (const file of files) {
-      const filename = `${uuidv4()}-${file.originalname}`;
-      const filepath = path.join(uploadDir, filename);
+      const ext = path.extname(file.originalname); // 保留副檔名
+      const cleanName = `${uuidv4()}${ext}`;   // 避免特殊字元亂碼
 
-      console.log('📂 儲存檔案:', filename);
+      const filepath = path.join(uploadDir, cleanName);
+
+      console.log('📂 儲存檔案:', cleanName);
 
       await fs.promises.writeFile(filepath, file.buffer);
-      filenames.push(filename);
+      filenames.push(cleanName);
     }
 
     const [front, back, selfie] = filenames;
@@ -45,4 +47,13 @@ export class IdentityVerificationService {
 
     return this.identityRepo.save(record);
   }
+
+
+  async findByUserId(userId: number) {
+    return await this.identityRepo.findOne({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
 }
