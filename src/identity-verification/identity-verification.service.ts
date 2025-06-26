@@ -56,4 +56,8 @@ export class IdentityVerificationService {
     });
   }
 
+  async deleteVerificationByUserId(userId: number) {
+    return await this.identityRepo.delete({ userId });
+  }
+
 }

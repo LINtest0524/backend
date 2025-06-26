@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   UseGuards,
   Req,
   UseInterceptors,
@@ -59,13 +60,35 @@ export class IdentityVerificationController {
 
   // ✅ 查詢目前使用者的驗證紀錄
   @UseGuards(JwtAuthGuard)
-  @Get('me')
-  async getMyVerification(@Req() req: Request) {
+@Get('me')
+async getMyVerification(@Req() req: Request) {
+  const userId = (req as any).user?.userId;
+  if (!userId) {
+    throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+  }
+
+  const record = await this.identityService.findByUserId(userId);
+  if (!record) {
+    throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
+  }
+
+  return record;
+}
+
+
+  @Delete()
+  @UseGuards(JwtAuthGuard)
+  async deleteMyVerification(@Req() req: Request) {
     const userId = (req as any).user?.userId;
     if (!userId) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
 
-    return await this.identityService.findByUserId(userId);
+    try {
+      return await this.identityService.deleteVerificationByUserId(userId);
+    } catch (err) {
+      console.error('❌ 刪除驗證資料失敗：', err);
+      throw new InternalServerErrorException('刪除失敗');
+    }
   }
 }
