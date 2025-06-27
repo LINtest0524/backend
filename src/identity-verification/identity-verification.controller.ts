@@ -17,6 +17,10 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { Express } from 'express';
 
+import { Body, Param } from '@nestjs/common';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+
 @Controller('api/id-verification')
 export class IdentityVerificationController {
   constructor(
@@ -91,4 +95,34 @@ async getMyVerification(@Req() req: Request) {
       throw new InternalServerErrorException('刪除失敗');
     }
   }
+
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Post('admin/:id/review')
+  async reviewVerification(
+    @Param('id') id: number,
+    @Req() req: Request,
+    @Body() body: { status: 'APPROVED' | 'REJECTED'; note?: string }
+  ) {
+    const reviewerId = (req as any).user?.userId;
+    if (!reviewerId) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+
+    return this.identityService.review(id, reviewerId, body.status, body.note);
+  }
+
+
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Get('admin')
+  async findAllForAdmin(@Req() req: Request) {
+    const currentUser = req.user as any;
+    const companyId = currentUser?.companyId;
+
+    return this.identityService.findAllForCompany(companyId);
+  }
+
 }

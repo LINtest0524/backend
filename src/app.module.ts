@@ -14,6 +14,7 @@ import { MarqueeModule } from './marquee/marquee.module'
 import { IdentityVerificationModule } from './identity-verification/identity-verification.module';
 
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -40,6 +41,7 @@ import { IdentityVerificationModule } from './identity-verification/identity-ver
     MarqueeModule,
     CompanyModuleModule, // ✅ 新增模組註冊
     IdentityVerificationModule,
+
   ],
   controllers: [],
   providers: [],

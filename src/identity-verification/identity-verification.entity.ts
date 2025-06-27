@@ -27,6 +27,9 @@ export class IdentityVerification {
   @Column({ type: 'varchar', default: 'PENDING' })
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 
+  @Column({ type: 'varchar', nullable: true }) // ✅ 新增這行
+  note: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 } 
