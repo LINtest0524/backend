@@ -125,4 +125,23 @@ async getMyVerification(@Req() req: Request) {
     return this.identityService.findAllForCompany(companyId);
   }
 
+
+  @Post('admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  async review(@Req() req: Request, @Body() body: {
+    identity_verification_id: number
+    status: 'APPROVED' | 'REJECTED'
+    note?: string
+  }) {
+    const reviewerId = (req.user as any).userId;
+    return this.identityService.review(
+      body.identity_verification_id,
+      reviewerId,
+      body.status,
+      body.note,
+    );
+  }
+
+
 }
