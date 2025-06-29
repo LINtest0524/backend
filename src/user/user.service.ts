@@ -87,51 +87,96 @@ export class UserService {
     return savedUser;
   }
 
-  async findAll(currentUser: JwtUserPayload): Promise<any[]> {
-    const isAdmin = currentUser.role === 'SUPER_ADMIN';
-    const where: any = { deleted_at: IsNull() };
+  async findAll(currentUser: JwtUserPayload, query: any): Promise<any[]> {
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
-    if (!isAdmin) {
-      if (!currentUser.companyId) {
-        throw new UnauthorizedException('找不到使用者的公司資訊');
-      }
-      where.company = { id: currentUser.companyId };
+  const qb = this.userRepository
+    .createQueryBuilder('user')
+    .leftJoinAndSelect('user.company', 'company')
+    .where('user.deleted_at IS NULL');
+
+  if (!isAdmin) {
+    if (!currentUser.companyId) {
+      throw new UnauthorizedException('找不到使用者的公司資訊');
     }
+    qb.andWhere('company.id = :companyId', { companyId: currentUser.companyId });
+  }
 
-    const users: User[] = await this.userRepository.find({
-      where,
-      relations: ['company'],
-      order: { id: 'ASC' },
+  const {
+    username,
+    status,
+    blacklist,
+    createdFrom,
+    createdTo,
+    loginFrom,
+    loginTo,
+  } = query;
+
+  if (username) {
+    qb.andWhere('user.username ILIKE :username', { username: `%${username}%` });
+  }
+
+  if (status) {
+    qb.andWhere('user.status = :status', { status });
+  }
+
+  if (blacklist === 'true') {
+    qb.andWhere('user.is_blacklisted = true');
+  } else if (blacklist === 'false') {
+    qb.andWhere('user.is_blacklisted = false');
+  }
+
+  if (createdFrom) {
+    qb.andWhere('user.created_at >= :createdFrom', { createdFrom });
+  }
+  if (createdTo) {
+    qb.andWhere('user.created_at <= :createdTo', { createdTo });
+  }
+
+  if (loginFrom) {
+    qb.andWhere('user.last_login_at >= :loginFrom', { loginFrom });
+  }
+  if (loginTo) {
+    qb.andWhere('user.last_login_at <= :loginTo', { loginTo });
+  }
+
+  qb.orderBy('user.id', 'ASC');
+
+  const users = await qb.getMany();
+
+  const results: any[] = [];
+  for (const user of users) {
+    const userModules = await this.userModuleRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['module'],
     });
 
-    const results: any[] = [];
-    for (const user of users) {
-      const userModules = await this.userModuleRepository.find({
-        where: { user: { id: user.id } },
-        relations: ['module'],
-      });
+    const modules = userModules.map((um) => um.module.code);
 
-      const modules = userModules.map((um) => um.module.code);
-
-      results.push({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        status: user.status,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-        modules,
-        company: user.company
-          ? {
-              id: user.company.id,
-              name: user.company.name,
-            }
-          : null,
-      });
-    }
-
-    return results;
+    results.push({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      status: user.status,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      last_login_ip: user.last_login_ip,
+      last_login_at: user.last_login_at,
+      last_login_platform: user.last_login_platform,
+      is_blacklisted: user.is_blacklisted,
+      modules,
+      company: user.company
+        ? {
+            id: user.company.id,
+            name: user.company.name,
+          }
+        : null,
+    });
   }
+
+  return results;
+}
+
 
   async update(id: number, updateUserDto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {
     const user = await this.userRepository.findOne({

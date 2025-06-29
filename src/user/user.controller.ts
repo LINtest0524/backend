@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Request,
+  Query,
   UseGuards,
   UnauthorizedException,
   ForbiddenException,
@@ -38,7 +39,6 @@ export class UserController {
     @Body() createUserDto: CreateUserDto,
     @Request() req,
   ): Promise<User> {
-    // ✅ 重新查詢完整 user（含 company）
     const fullUser = await this.userService.findById(req.user.userId);
     return this.userService.create(createUserDto, fullUser);
   }
@@ -46,18 +46,14 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Get()
-  async findAll(@Request() req) {
+  async findAll(@Request() req, @Query() query: any) {
     const user = req.user;
 
-    if (user.role === 'SUPER_ADMIN') {
-      return await this.userService.findAllWithLoginInfo();
-    }
-
-    if (!user.companyId) {
+    if (!user.companyId && user.role !== 'SUPER_ADMIN') {
       throw new UnauthorizedException('無法辨識所屬公司');
     }
 
-    return await this.userService.findByCompany(user.companyId);
+    return this.userService.findAll(user, query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -74,21 +70,19 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
-@Patch(':id')
-async update(
-  @Param('id') id: number,
-  @Body() updateUserDto: UpdateUserDto,
-  @Request() req,
-) {
-  return this.userService.update(id, updateUserDto, req.user);
-}
-
+  @Patch(':id')
+  async update(
+    @Param('id') id: number,
+    @Body() updateUserDto: UpdateUserDto,
+    @Request() req,
+  ) {
+    return this.userService.update(id, updateUserDto, req.user);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     const userId = req.user.userId;
-
     return this.userService.changePassword(userId, dto);
   }
 
@@ -99,8 +93,7 @@ async update(
     if (user.role === 'AGENT_SUPPORT') {
       throw new ForbiddenException('AGENT_SUPPORT 不可刪除使用者');
     }
-
-    return this.userService.softDelete(id, req.user);
+    return this.userService.softDelete(id, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
