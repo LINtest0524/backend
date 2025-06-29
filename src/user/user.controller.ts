@@ -74,19 +74,15 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
-  async update(
-    @Param('id') id: number,
-    @Body() updateUserDto: UpdateUserDto,
-    @Request() req,
-  ) {
-    const user = req.user;
-    if (user.role === 'AGENT_SUPPORT') {
-      throw new ForbiddenException('AGENT_SUPPORT 不可修改使用者');
-    }
+@Patch(':id')
+async update(
+  @Param('id') id: number,
+  @Body() updateUserDto: UpdateUserDto,
+  @Request() req,
+) {
+  return this.userService.update(id, updateUserDto, req.user);
+}
 
-    return this.userService.update(id, updateUserDto, req.user);
-  }
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')

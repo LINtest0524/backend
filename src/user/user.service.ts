@@ -14,9 +14,9 @@ import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
-import { UserRole } from './user.entity'
-import { Company } from '../company/company.entity'
-
+import { UserRole } from './user.entity';
+import { Company } from '../company/company.entity';
+import { JwtUserPayload } from '../types/jwt-payload';
 
 @Injectable()
 export class UserService {
@@ -32,11 +32,8 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto, creator: User): Promise<User> {
-
     const { username, password, email, modules, role, companyId } = createUserDto;
-    console.log('creator.company.id =', creator.company?.id, 'target companyId =', companyId);
 
-    // ========== 安全限制：AGENT_SUPPORT 禁止新增 ==========
     if (creator.role === 'AGENT_SUPPORT') {
       throw new UnauthorizedException('AGENT_SUPPORT 不可新增帳號');
     }
@@ -49,63 +46,56 @@ export class UserService {
       if (!creator.company || Number(companyId) !== Number(creator.company.id)) {
         throw new BadRequestException('只能建立自己公司底下的員工帳號');
       }
-
-
-
     }
 
     const existingUser = await this.userRepository.findOne({ where: { username } });
-      if (existingUser) {
-        throw new ConflictException('Username already exists');
-      }
+    if (existingUser) {
+      throw new ConflictException('Username already exists');
+    }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-      const user = this.userRepository.create({
-        username,
-        password: hashedPassword,
-        email: email ?? null,
-        role: role as any,
-        company: { id: companyId } as any,
+    const user = this.userRepository.create({
+      username,
+      password: hashedPassword,
+      email: email ?? null,
+      role: role as any,
+      company: { id: companyId } as any,
+    });
+
+    const savedUser: User = await this.userRepository.save(user);
+
+    if (modules && modules.length > 0) {
+      const moduleEntities = await this.moduleRepository.find({
+        where: { code: In(modules) },
       });
 
-      const savedUser: User = await this.userRepository.save(user);
-
-      if (modules && modules.length > 0) {
-        const moduleEntities = await this.moduleRepository.find({
-          where: { code: In(modules) },
-        });
-
-        if (moduleEntities.length !== modules.length) {
-          throw new NotFoundException('Some modules not found');
-        }
-
-        const userModules = moduleEntities.map((module) => {
-          return this.userModuleRepository.create({
-            user: savedUser,
-            module,
-          });
-        });
-
-        await this.userModuleRepository.save(userModules);
+      if (moduleEntities.length !== modules.length) {
+        throw new NotFoundException('Some modules not found');
       }
 
-      return savedUser;
+      const userModules = moduleEntities.map((module) => {
+        return this.userModuleRepository.create({
+          user: savedUser,
+          module,
+        });
+      });
 
+      await this.userModuleRepository.save(userModules);
+    }
+
+    return savedUser;
   }
 
-  async findAll(currentUser: User): Promise<any[]> {
+  async findAll(currentUser: JwtUserPayload): Promise<any[]> {
     const isAdmin = currentUser.role === 'SUPER_ADMIN';
-
-    const where: any = {
-      deleted_at: IsNull(),
-    };
+    const where: any = { deleted_at: IsNull() };
 
     if (!isAdmin) {
-      if (!currentUser.company?.id) {
+      if (!currentUser.companyId) {
         throw new UnauthorizedException('找不到使用者的公司資訊');
       }
-      where.company = { id: currentUser.company.id };
+      where.company = { id: currentUser.companyId };
     }
 
     const users: User[] = await this.userRepository.find({
@@ -115,7 +105,6 @@ export class UserService {
     });
 
     const results: any[] = [];
-
     for (const user of users) {
       const userModules = await this.userModuleRepository.find({
         where: { user: { id: user.id } },
@@ -144,52 +133,68 @@ export class UserService {
     return results;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto, currentUser: User): Promise<User> {
-
-    console.log('🧪 PATCH updateUserDto =', updateUserDto);
-
-
-  if (currentUser.role === 'AGENT_SUPPORT') {
-    throw new UnauthorizedException('AGENT_SUPPORT 不可修改使用者');
-  }
-
-  const user = await this.userRepository.findOne({ where: { id } });
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
-
-  const { email, status, modules, is_blacklisted } = updateUserDto;
-
-  if (email !== undefined) user.email = email;
-  if (status !== undefined) user.status = status;
-  if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
-
-  await this.userRepository.save(user);
-
-  if (modules) {
-    const moduleEntities = await this.moduleRepository.find({
-      where: { code: In(modules) },
+  async update(id: number, updateUserDto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: {
+        id,
+        company: { id: currentUser.companyId },
+      },
+      relations: ['company'],
     });
 
-    if (moduleEntities.length !== modules.length) {
-      throw new NotFoundException('Some modules not found');
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
-    await this.userModuleRepository.delete({ user: { id: user.id } });
+    const { email, status, modules, is_blacklisted } = updateUserDto;
 
-    const userModules = moduleEntities.map((module) => {
-      return this.userModuleRepository.create({
-        user: { id: user.id },
-        module,
+    if (email !== undefined) user.email = email;
+    if (status !== undefined) user.status = status;
+    if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
+
+    await this.userRepository.save(user);
+
+    if (modules) {
+      const moduleEntities = await this.moduleRepository.find({
+        where: { code: In(modules) },
       });
-    });
 
-    await this.userModuleRepository.save(userModules);
+      if (moduleEntities.length !== modules.length) {
+        throw new NotFoundException('Some modules not found');
+      }
+
+      await this.userModuleRepository.delete({ user: { id: user.id } });
+
+      const userModules = moduleEntities.map((module) => {
+        return this.userModuleRepository.create({
+          user: { id: user.id },
+          module,
+        });
+      });
+
+      await this.userModuleRepository.save(userModules);
+    }
+
+    return user;
   }
 
-  return user;
-}
+  async softDelete(id: number, currentUser: JwtUserPayload): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: {
+        id,
+        company: { id: currentUser.companyId },
+      },
+    });
 
+    if (!user) {
+      throw new NotFoundException('使用者不存在');
+    }
+
+    user.deleted_at = new Date();
+    await this.userRepository.save(user);
+
+    return { message: '使用者已刪除' };
+  }
 
   async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
     return await this.userRepository.findOne({
@@ -222,90 +227,51 @@ export class UserService {
   }
 
   async findById(id: number): Promise<User> {
-  const user = await this.userRepository.findOne({
-    where: { id },
-    relations: ['company'],
-  });
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: ['company'],
+    });
 
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
-
-  return user;
-}
-
-
-async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
-  console.log('🧩 [changePassword] JWT 傳入 userId:', userId);
-
-  const user = await this.userRepository.findOne({
-    where: { id: userId },
-    relations: ['company'],
-  });
-
-  if (!user) {
-    console.log('❌ 找不到 user，id:', userId);
-    throw new NotFoundException('使用者不存在');
-  }
-
-  console.log('👤 取得使用者:', user.username);
-  console.log('🔐 資料庫密碼雜湊:', user.password);
-  console.log('📨 傳入舊密碼:', dto.oldPassword);
-
-  const companyModes = user.company?.passwordModes ?? ['OLD_PASSWORD'];
-
-  if (companyModes.includes('OLD_PASSWORD')) {
-    if (!dto.oldPassword) {
-      console.log('❗ 未提供舊密碼');
-      throw new BadRequestException('請輸入舊密碼');
-    }
-
-    const match = await bcrypt.compare(dto.oldPassword, user.password);
-    console.log('🧪 密碼比對結果:', match);
-
-    if (!match) {
-      console.log('❌ 舊密碼錯誤');
-      throw new UnauthorizedException('舊密碼錯誤');
-    }
-  }
-
-  if (companyModes.includes('EMAIL')) {
-    if (!dto.emailCode || dto.emailCode !== '123456') {
-      console.log('❌ Email 驗證碼錯誤');
-      throw new UnauthorizedException('Email 驗證碼錯誤');
-    }
-  }
-
-  if (companyModes.includes('SMS')) {
-    if (!dto.smsCode || dto.smsCode !== '666666') {
-      console.log('❌ SMS 驗證碼錯誤');
-      throw new UnauthorizedException('簡訊驗證碼錯誤');
-    }
-  }
-
-  const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
-  user.password = hashedPassword;
-  await this.userRepository.save(user);
-
-  console.log('✅ 密碼變更成功:', user.username);
-  return { message: '密碼變更成功' };
-}
-
-
-  async softDelete(id: number, currentUser: User): Promise<{ message: string }> {
-    if (currentUser.role === 'AGENT_SUPPORT') {
-      throw new UnauthorizedException('AGENT_SUPPORT 不可刪除帳號');
-    }
-
-    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('使用者不存在');
+      throw new NotFoundException('User not found');
     }
 
-    user.deleted_at = new Date();
+    return user;
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['company'],
+    });
+
+    if (!user) throw new NotFoundException('使用者不存在');
+
+    const companyModes = user.company?.passwordModes ?? ['OLD_PASSWORD'];
+
+    if (companyModes.includes('OLD_PASSWORD')) {
+      if (!dto.oldPassword) throw new BadRequestException('請輸入舊密碼');
+      const match = await bcrypt.compare(dto.oldPassword, user.password);
+      if (!match) throw new UnauthorizedException('舊密碼錯誤');
+    }
+
+    if (companyModes.includes('EMAIL')) {
+      if (!dto.emailCode || dto.emailCode !== '123456') {
+        throw new UnauthorizedException('Email 驗證碼錯誤');
+      }
+    }
+
+    if (companyModes.includes('SMS')) {
+      if (!dto.smsCode || dto.smsCode !== '666666') {
+        throw new UnauthorizedException('簡訊驗證碼錯誤');
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    user.password = hashedPassword;
     await this.userRepository.save(user);
 
-    return { message: '使用者已刪除' };
+    return { message: '密碼變更成功' };
   }
 
   async findByCompany(companyId: number) {
@@ -323,7 +289,7 @@ async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message:
         last_login_at: new Date(),
         last_login_platform: platform,
       },
-    )
+    );
   }
 
   async findAllWithCompany(): Promise<User[]> {
@@ -343,10 +309,9 @@ async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message:
         'company.name',
       ])
       .orderBy('user.created_at', 'DESC')
-      .getMany()
+      .getMany();
   }
 
-  // ✅ 專給 SUPER_ADMIN 使用的完整欄位查詢
   async findAllWithLoginInfo(): Promise<User[]> {
     return this.userRepository
       .createQueryBuilder('user')
@@ -369,85 +334,60 @@ async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message:
       .getMany();
   }
 
+  async validatePortalUser(username: string, password: string): Promise<User | null> {
+    const user = await this.userRepository.findOne({
+      where: { username },
+      relations: ['company'],
+    });
 
- async validatePortalUser(username: string, password: string): Promise<User | null> {
-  console.log('🔍 正在驗證會員帳號：', username)
+    if (!user) return null;
 
-  const user = await this.userRepository.findOne({
-    where: { username },
-    relations: ['company'],
-  })
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) throw new UnauthorizedException('密碼錯誤');
 
-  console.log('✅ 會員查詢結果：', user?.id, user?.role)
 
-  if (!user) return null
+    if (user.is_blacklisted) {
+      throw new UnauthorizedException('此帳號已被封鎖，請聯絡客服');
+    }
 
-  const isMatch = await bcrypt.compare(password, user.password)
-  console.log('🔑 密碼比對結果：', isMatch)
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('帳號已停用');
+    }
 
-  if (!isMatch) {
-    console.log('❌ 登入失敗：密碼錯誤')
-    return null
+    return user;
   }
 
-  if (user.is_blacklisted) {
-    console.log('⛔ 使用者被列入黑名單，登入失敗')
-    throw new UnauthorizedException('此帳號已被封鎖，請聯絡客服')
+  async createFromPortal(dto: {
+    username: string;
+    password: string;
+    email?: string;
+    companyCode: string;
+  }): Promise<User> {
+    const { username, password, email, companyCode } = dto;
+
+    const existing = await this.userRepository.findOne({ where: { username } });
+    if (existing) {
+      throw new ConflictException('帳號已存在');
+    }
+
+    const company = await this.companyRepository.findOne({ where: { code: companyCode } });
+    if (!company) {
+      throw new NotFoundException('公司代碼無效');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = this.userRepository.create({
+      username,
+      password: hashedPassword,
+      email: email ?? null,
+      role: UserRole.USER,
+      status: 'ACTIVE',
+      is_blacklisted: false,
+      company,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+    return this.findById(savedUser.id);
   }
-
-
-  if (user.status !== 'ACTIVE') {
-    throw new UnauthorizedException('帳號已停用');
-  }
-
-  console.log('✅ 登入驗證成功：', user.username)
-  return user
-}
-
-
-async createFromPortal(dto: {
-  username: string
-  password: string
-  email?: string
-  companyCode: string
-}): Promise<User> {
-  const { username, password, email, companyCode } = dto;
-
-  const existing = await this.userRepository.findOne({ where: { username } });
-  if (existing) {
-    throw new ConflictException('帳號已存在');
-  }
-
-  const company = await this.companyRepository.findOne({ where: { code: companyCode } });
-  if (!company) {
-    throw new NotFoundException('公司代碼無效');
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const user = this.userRepository.create({
-    username,
-    password: hashedPassword,
-    email: email ?? null,
-    role: UserRole.USER,
-    status: 'ACTIVE',
-    is_blacklisted: false,
-    company,
-  });
-
-  const savedUser = await this.userRepository.save(user);
-  return this.findById(savedUser.id);
-}
-
-
-
-
-
-
-
-  
-
-
-
-
 }

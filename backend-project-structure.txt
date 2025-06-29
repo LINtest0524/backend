@@ -1,0 +1,100 @@
++---src
+|   |   app.controller.spec.ts
+|   |   app.module.ts
+|   |   main.ts
+|   |   «áºÝproject-structure.txt
+|   |   
+|   +---audit-log
+|   |       audit-log.controller.ts
+|   |       audit-log.entity.ts
+|   |       audit-log.module.ts
+|   |       audit-log.service.ts
+|   |       
+|   +---auth
+|   |   |   auth.controller.ts
+|   |   |   auth.module.ts
+|   |   |   auth.service.spec.ts
+|   |   |   auth.service.ts
+|   |   |   jwt-auth.guard.ts
+|   |   |   jwt.strategy.ts
+|   |   |   roles.decorator.ts
+|   |   |   roles.guard.ts
+|   |   |   
+|   |   \---dto
+|   |           login-response.dto.ts
+|   |           login.dto.ts
+|   |           
+|   +---banner
+|   |   |   banner.controller.ts
+|   |   |   banner.entity.ts
+|   |   |   banner.module.ts
+|   |   |   banner.service.ts
+|   |   |   
+|   |   \---dto
+|   |           create-banner.dto.ts
+|   |           update-banner.dto.ts
+|   |           
+|   +---blacklist
+|   |   |   blacklist.controller.ts
+|   |   |   blacklist.entity.ts
+|   |   |   blacklist.module.ts
+|   |   |   blacklist.service.ts
+|   |   |   
+|   |   \---dto
+|   |           create-blacklist.dto.ts
+|   |           
+|   +---company
+|   |       company.entity.ts
+|   |       company.module.ts
+|   |       
+|   +---company-module
+|   |       company-module.controller.ts
+|   |       company-module.entity.ts
+|   |       company-module.module.ts
+|   |       company-module.service.ts
+|   |       
+|   +---identity-verification
+|   |       identity-verification.controller.ts
+|   |       identity-verification.entity.ts
+|   |       identity-verification.module.ts
+|   |       identity-verification.service.ts
+|   |       
+|   +---marquee
+|   |       marquee.controller.ts
+|   |       marquee.entity.ts
+|   |       marquee.module.ts
+|   |       marquee.service.ts
+|   |       
+|   +---module
+|   |       admin-module.controller.ts
+|   |       module.entity.ts
+|   |       module.module.ts
+|   |       
+|   +---portal
+|   |   |   auth.controller.ts
+|   |   |   portal-auth.controller.ts
+|   |   |   portal-banner.controller.ts
+|   |   |   portal-module.controller.ts
+|   |   |   portal.module.ts
+|   |   |   
+|   |   \---dto
+|   |           register.dto.ts
+|   |           
+|   +---user
+|   |   |   create-user.dto.ts
+|   |   |   update-user.dto.ts
+|   |   |   user.controller.spec.ts
+|   |   |   user.controller.ts
+|   |   |   user.entity.ts
+|   |   |   user.module.ts
+|   |   |   user.service.spec.ts
+|   |   |   user.service.ts
+|   |   |   
+|   |   \---dto
+|   |           change-password.dto.ts
+|   |           
+|   \---user-module
+|           user-module.entity.ts
+|           user-module.module.ts
+|           
+
