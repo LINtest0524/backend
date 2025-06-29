@@ -87,21 +87,10 @@ export class UserService {
     return savedUser;
   }
 
-  async findAll(currentUser: JwtUserPayload, query: any): Promise<any[]> {
-  const isAdmin = currentUser.role === 'SUPER_ADMIN';
-
-  const qb = this.userRepository
-    .createQueryBuilder('user')
-    .leftJoinAndSelect('user.company', 'company')
-    .where('user.deleted_at IS NULL');
-
-  if (!isAdmin) {
-    if (!currentUser.companyId) {
-      throw new UnauthorizedException('找不到使用者的公司資訊');
-    }
-    qb.andWhere('company.id = :companyId', { companyId: currentUser.companyId });
-  }
-
+  async findAll(
+  currentUser: JwtUserPayload,
+  query: any,
+): Promise<{ data: any[]; totalPages: number; totalCount: number }> {
   const {
     username,
     status,
@@ -110,8 +99,24 @@ export class UserService {
     createdTo,
     loginFrom,
     loginTo,
+    limit = 20,
+    page = 1,
   } = query;
 
+  const qb = this.userRepository
+    .createQueryBuilder('user')
+    .leftJoinAndSelect('user.company', 'company')
+    .where('user.deleted_at IS NULL');
+
+  // 權限控制：非 SUPER_ADMIN 只能看自己公司
+  if (currentUser.role !== 'SUPER_ADMIN') {
+    if (!currentUser.companyId) {
+      throw new UnauthorizedException('找不到使用者的公司資訊');
+    }
+    qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
+  }
+
+  // 搜尋條件
   if (username) {
     qb.andWhere('user.username ILIKE :username', { username: `%${username}%` });
   }
@@ -129,6 +134,7 @@ export class UserService {
   if (createdFrom) {
     qb.andWhere('user.created_at >= :createdFrom', { createdFrom });
   }
+
   if (createdTo) {
     qb.andWhere('user.created_at <= :createdTo', { createdTo });
   }
@@ -136,14 +142,22 @@ export class UserService {
   if (loginFrom) {
     qb.andWhere('user.last_login_at >= :loginFrom', { loginFrom });
   }
+
   if (loginTo) {
     qb.andWhere('user.last_login_at <= :loginTo', { loginTo });
   }
 
   qb.orderBy('user.id', 'ASC');
 
-  const users = await qb.getMany();
+  // 分頁處理
+  qb.take(Number(limit));
+  qb.skip((Number(page) - 1) * Number(limit));
 
+  const [users, total] = await qb.getManyAndCount();
+
+  const totalPages = Math.ceil(total / Number(limit));
+
+  // 查 user_module 資訊
   const results: any[] = [];
   for (const user of users) {
     const userModules = await this.userModuleRepository.find({
@@ -160,10 +174,6 @@ export class UserService {
       status: user.status,
       created_at: user.created_at,
       updated_at: user.updated_at,
-      last_login_ip: user.last_login_ip,
-      last_login_at: user.last_login_at,
-      last_login_platform: user.last_login_platform,
-      is_blacklisted: user.is_blacklisted,
       modules,
       company: user.company
         ? {
@@ -174,8 +184,16 @@ export class UserService {
     });
   }
 
-  return results;
+  return {
+    data: results,
+    totalPages: Math.ceil(total / Number(limit)),
+    totalCount: total,
+  };
+
+
+
 }
+
 
 
   async update(id: number, updateUserDto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {

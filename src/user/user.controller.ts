@@ -53,8 +53,16 @@ export class UserController {
       throw new UnauthorizedException('無法辨識所屬公司');
     }
 
-    return this.userService.findAll(user, query);
+    const result = await this.userService.findAll(user, query);
+
+    return {
+      totalPages: result.totalPages,
+      totalCount: result.totalCount,
+      data: result.data,
+    };
+
   }
+
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN')
