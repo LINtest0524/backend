@@ -44,12 +44,12 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Get()
   async findAll(@Request() req, @Query() query: any) {
     const user = req.user;
 
-    if (!user.companyId && user.role !== 'SUPER_ADMIN') {
+    if (!user.companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
       throw new UnauthorizedException('無法辨識所屬公司');
     }
 
@@ -60,8 +60,8 @@ export class UserController {
       totalCount: result.totalCount,
       data: result.data,
     };
-
   }
+
 
 
   @UseGuards(JwtAuthGuard, RolesGuard)

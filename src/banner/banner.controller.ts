@@ -43,7 +43,7 @@ export class BannerController {
     return this.bannerService.findOne(id, user.companyId);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Post()
   create(@Body() dto: CreateBannerDto, @Req() req: any) {
     const user = req.user;
@@ -51,19 +51,19 @@ export class BannerController {
     return this.bannerService.create(dto);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBannerDto) {
     return this.bannerService.update(id, dto);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.bannerService.remove(id);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {

@@ -28,6 +28,26 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('權限不足或未驗證');
     }
 
-    return requiredRoles.includes(user.role);
+    const roleHierarchy: Record<UserRole, number> = {
+      [UserRole.SUPER_ADMIN]: 5,
+      [UserRole.GLOBAL_ADMIN]: 4,
+      [UserRole.AGENT_OWNER]: 3,
+      [UserRole.AGENT_SUPPORT]: 2,
+      [UserRole.USER]: 1,
+    };
+
+    const userLevel = roleHierarchy[user.role];
+
+    // 通過檢查：只要 user 的層級 >= 任一 requiredRole 的層級
+    const hasAccess = requiredRoles.some((role) => {
+      const requiredLevel = roleHierarchy[role];
+      return userLevel >= requiredLevel;
+    });
+
+    if (!hasAccess) {
+      throw new ForbiddenException('權限不足');
+    }
+
+    return true;
   }
 }

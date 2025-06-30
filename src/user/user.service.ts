@@ -88,6 +88,7 @@ export class UserService {
   }
 
   async findAll(
+    
   currentUser: JwtUserPayload,
   query: any,
 ): Promise<{ data: any[]; totalPages: number; totalCount: number }> {
@@ -109,12 +110,20 @@ export class UserService {
     .where('user.deleted_at IS NULL');
 
   // 權限控制：非 SUPER_ADMIN 只能看自己公司
-  if (currentUser.role !== 'SUPER_ADMIN') {
+
+
+  const isGlobalViewRole = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
+
+  if (!isGlobalViewRole) {
     if (!currentUser.companyId) {
       throw new UnauthorizedException('找不到使用者的公司資訊');
     }
     qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
   }
+
+ 
+
+
 
   // 搜尋條件
   if (username) {
@@ -356,6 +365,8 @@ export class UserService {
   }
 
   async findAllWithCompany(): Promise<User[]> {
+    
+
     return this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.company', 'company')
@@ -398,27 +409,29 @@ export class UserService {
   }
 
   async validatePortalUser(username: string, password: string): Promise<User | null> {
-    const user = await this.userRepository.findOne({
-      where: { username },
-      relations: ['company'],
-    });
+    
+  const user = await this.userRepository.findOne({
+    where: { username },
+    relations: ['company'],
+  });
 
-    if (!user) return null;
+  if (!user) return null;
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) throw new UnauthorizedException('密碼錯誤');
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) throw new UnauthorizedException('密碼錯誤');
 
-
-    if (user.is_blacklisted) {
-      throw new UnauthorizedException('此帳號已被封鎖，請聯絡客服');
-    }
-
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('帳號已停用');
-    }
-
-    return user;
+  if (user.is_blacklisted) {
+    throw new UnauthorizedException('此帳號已被封鎖，請聯絡客服');
   }
+
+  if (user.status !== 'ACTIVE') {
+    throw new UnauthorizedException('帳號已停用');
+  }
+
+
+  return user;
+}
+
 
   async createFromPortal(dto: {
     username: string;

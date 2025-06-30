@@ -22,42 +22,58 @@ export class AuthService {
   ) {}
 
   async validateUser(
-    username: string,
-    pass: string,
-    companyCode?: string,
-  ): Promise<User | null> {
-    console.log('🧩 validateUser called:', username, companyCode);
-    const user = await this.userService.findOneByUsername(username, ['company']);
+  username: string,
+  pass: string,
+  companyCode?: string,
+): Promise<User | null> {
+  console.log('🧩 validateUser called:', username, companyCode);
 
-    console.log('🔍 查詢帳號:', user);
+  
+  const user = await this.userService.findOneByUsername(username, ['company']);
 
-    if (!user) {
-      console.log('❌ 查無此帳號');
-      return null;
-    }
+  console.log('🔍 查詢帳號:', user);
+  
 
-    if (companyCode) {
-      const decodedCode = decodeURIComponent(companyCode);
-      if (user.company?.code !== decodedCode) {
-        console.log(`Company code mismatch: user = ${user.company?.code}, from URL = ${decodedCode}`);
-        return null;
-      }
-    }
-
-    const isMatch = await bcrypt.compare(pass, user.password);
-    console.log('🔑 密碼比對結果:', isMatch);
-
-    if (!isMatch) {
-      console.log('❌ 密碼錯誤');
-      return null;
-    }
-
-    if (user.is_blacklisted) {
-      throw new UnauthorizedException('此帳號已被列入黑名單，無法登入');
-    }
-
-    return user;
+  if (!user) {
+    console.log('❌ 查無此帳號');
+    return null;
   }
+
+  if (companyCode) {
+    const decodedCode = decodeURIComponent(companyCode);
+    if (user.company?.code !== decodedCode) {
+      console.log(`Company code mismatch: user = ${user.company?.code}, from URL = ${decodedCode}`);
+      return null;
+    }
+  }
+
+  const isMatch = await bcrypt.compare(pass, user.password);
+  
+  console.log('🔑 密碼比對結果:', isMatch);
+
+  if (!isMatch) {
+    console.log('❌ 密碼錯誤');
+    return null;
+  }
+
+  if (user.is_blacklisted) {
+    throw new UnauthorizedException('此帳號已被列入黑名單，無法登入');
+  }
+
+  // ✅ 僅允許特定角色登入後台
+  const allowedRoles = [
+    'SUPER_ADMIN',
+    'GLOBAL_ADMIN',
+    'AGENT_OWNER',
+    'AGENT_SUPPORT',
+  ];
+  if (!allowedRoles.includes(user.role)) {
+    throw new UnauthorizedException(`角色 ${user.role} 無權限登入管理後台`);
+  }
+
+  return user;
+}
+
 
   async login(
   username: string,

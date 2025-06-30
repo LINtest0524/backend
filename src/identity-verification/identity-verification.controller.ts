@@ -100,7 +100,7 @@ export class IdentityVerificationController {
 
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Get('admin')
   async findAllForAdmin(@Req() req: Request) {
     const currentUser = req.user as any;
@@ -108,8 +108,9 @@ export class IdentityVerificationController {
     return this.identityService.findAllForCompany(companyId);
   }
 
+
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Post('admin/:id/review')
   async reviewVerification(
     @Param('id') id: number,
@@ -123,4 +124,5 @@ export class IdentityVerificationController {
 
     return this.identityService.review(id, reviewerId, body.status, body.note);
   }
+
 }
