@@ -1,3 +1,4 @@
+// backend/src/user/user.controller.ts（修正後）
 import {
   Controller,
   Get,
@@ -35,10 +36,7 @@ export class UserController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'AGENT_OWNER')
-  async create(
-    @Body() createUserDto: CreateUserDto,
-    @Request() req,
-  ): Promise<User> {
+  async create(@Body() createUserDto: CreateUserDto, @Request() req): Promise<User> {
     const fullUser = await this.userService.findById(req.user.userId);
     return this.userService.create(createUserDto, fullUser);
   }
@@ -53,15 +51,9 @@ export class UserController {
       throw new UnauthorizedException('無法辨識所屬公司');
     }
 
-    const result = await this.userService.findAll(user, query);
-
-    return {
-      totalPages: result.totalPages,
-      totalCount: result.totalCount,
-      data: result.data,
-    };
+    const excludeUserRole = query.excludeUserRole === 'true'; // ✅ 讀 query
+    return this.userService.findAll(user, query, { excludeUserRole }); // ✅ 傳給 service
   }
-
 
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -73,8 +65,8 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(@Param('id') id: number) {
-    return this.userService.findOneWithModules(id);
+  async findOne(@Param('id') id: number, @Request() req) {
+    return this.userService.findOneSecured(id, req.user);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -84,7 +76,14 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
     @Request() req,
   ) {
-    return this.userService.update(id, updateUserDto, req.user);
+    return this.userService.updateSecured(id, updateUserDto, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/password')
+  async resetPassword(@Param('id') id: number, @Body() dto: ChangePasswordDto, @Request() req) {
+    return this.userService.resetPasswordSecured(id, dto.newPassword, req.user);
+
   }
 
   @UseGuards(JwtAuthGuard)
@@ -101,13 +100,13 @@ export class UserController {
     if (user.role === 'AGENT_SUPPORT') {
       throw new ForbiddenException('AGENT_SUPPORT 不可刪除使用者');
     }
-    return this.userService.softDelete(id, user);
+    return this.userService.softDeleteSecured(id, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN')
   @Patch(':id/unblacklist')
   async removeFromBlacklist(@Param('id') id: number, @Request() req) {
-    return this.userService.update(id, { is_blacklisted: false }, req.user);
+    return this.userService.updateSecured(id, { is_blacklisted: false }, req.user);
   }
 }

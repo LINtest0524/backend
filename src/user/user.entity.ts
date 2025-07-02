@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Company } from '../company/company.entity';
 
@@ -71,4 +72,9 @@ export class User {
 
   @ManyToOne(() => Company)
   company: Company;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'created_by' })
+  created_by?: User;
 }
+

@@ -23,6 +23,7 @@ D:.
 |   |   roles.guard.ts
 |   |   
 |   \---dto
+|           login-response.dto.ts
 |           login.dto.ts
 |           
 +---banner
@@ -48,18 +49,42 @@ D:.
 |       company.entity.ts
 |       company.module.ts
 |       
++---company-module
+|       company-module.controller.ts
+|       company-module.entity.ts
+|       company-module.module.ts
+|       company-module.service.ts
+|       
++---identity-verification
+|       identity-verification.controller.ts
+|       identity-verification.entity.ts
+|       identity-verification.module.ts
+|       identity-verification.service.ts
+|       
++---marquee
+|       marquee.controller.ts
+|       marquee.entity.ts
+|       marquee.module.ts
+|       marquee.service.ts
+|       
 +---module
+|       admin-module.controller.ts
 |       module.entity.ts
 |       module.module.ts
 |       
 +---portal
 |   |   auth.controller.ts
 |   |   portal-auth.controller.ts
+|   |   portal-banner.controller.ts
+|   |   portal-module.controller.ts
 |   |   portal.module.ts
 |   |   
 |   \---dto
 |           register.dto.ts
 |           
++---types
+|       jwt-payload.ts
+|       
 +---user
 |   |   create-user.dto.ts
 |   |   update-user.dto.ts

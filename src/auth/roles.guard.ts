@@ -22,7 +22,6 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    console.log('🧱 RolesGuard 中的 req.user =', user);
 
     if (!user || !user.role) {
       throw new ForbiddenException('權限不足或未驗證');

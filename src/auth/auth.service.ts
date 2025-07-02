@@ -60,6 +60,10 @@ export class AuthService {
     throw new UnauthorizedException('此帳號已被列入黑名單，無法登入');
   }
 
+  if (user.status !== 'ACTIVE') {
+    throw new UnauthorizedException('帳號已停用或封鎖，無法登入');
+  }
+
   // ✅ 僅允許特定角色登入後台
   const allowedRoles = [
     'SUPER_ADMIN',

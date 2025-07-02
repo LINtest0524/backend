@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
@@ -31,6 +32,9 @@ export class UserService {
     private readonly companyRepository: Repository<Company>,
   ) {}
 
+
+
+
   async create(createUserDto: CreateUserDto, creator: User): Promise<User> {
     const { username, password, email, modules, role, companyId } = createUserDto;
 
@@ -42,7 +46,6 @@ export class UserService {
       if (role !== 'AGENT_SUPPORT') {
         throw new BadRequestException('AGENT_OWNER 僅可建立 AGENT_SUPPORT 帳號');
       }
-
       if (!creator.company || Number(companyId) !== Number(creator.company.id)) {
         throw new BadRequestException('只能建立自己公司底下的員工帳號');
       }
@@ -55,12 +58,20 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const company = await this.companyRepository.findOne({
+      where: { id: companyId },
+    });
+    if (!company) {
+      throw new BadRequestException('指定的公司不存在');
+    }
+
     const user = this.userRepository.create({
       username,
       password: hashedPassword,
       email: email ?? null,
       role: role as any,
-      company: { id: companyId } as any,
+      company,
+      created_by: creator,
     });
 
     const savedUser: User = await this.userRepository.save(user);
@@ -74,12 +85,9 @@ export class UserService {
         throw new NotFoundException('Some modules not found');
       }
 
-      const userModules = moduleEntities.map((module) => {
-        return this.userModuleRepository.create({
-          user: savedUser,
-          module,
-        });
-      });
+      const userModules = moduleEntities.map((module) =>
+        this.userModuleRepository.create({ user: savedUser, module })
+      );
 
       await this.userModuleRepository.save(userModules);
     }
@@ -87,10 +95,12 @@ export class UserService {
     return savedUser;
   }
 
+
   async findAll(
     
   currentUser: JwtUserPayload,
   query: any,
+  options?: { excludeUserRole?: boolean } //這
 ): Promise<{ data: any[]; totalPages: number; totalCount: number }> {
   const {
     username,
@@ -107,10 +117,19 @@ export class UserService {
   const qb = this.userRepository
     .createQueryBuilder('user')
     .leftJoinAndSelect('user.company', 'company')
+    .leftJoinAndSelect('user.created_by', 'created_by')
     .where('user.deleted_at IS NULL');
 
   // 權限控制：非 SUPER_ADMIN 只能看自己公司
 
+  if (options?.excludeUserRole === true) {
+    qb.andWhere('user.role != :userRole', { userRole: 'USER' });
+  } else if (options?.excludeUserRole === false) {
+    qb.andWhere('user.role = :userRole', { userRole: 'USER' });
+  }
+
+
+ 
 
   const isGlobalViewRole = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
 
@@ -181,8 +200,15 @@ export class UserService {
       username: user.username,
       email: user.email,
       status: user.status,
+      role: user.role,
+      last_login_at: user.last_login_at,
+      last_login_ip: user.last_login_ip,
+
+      created_by: user.created_by ?? null,
+
       created_at: user.created_at,
       updated_at: user.updated_at,
+      is_blacklisted: user.is_blacklisted,
       modules,
       company: user.company
         ? {
@@ -191,6 +217,7 @@ export class UserService {
           }
         : null,
     });
+
   }
 
   return {
@@ -271,10 +298,18 @@ export class UserService {
   async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
     return await this.userRepository.findOne({
       where: { username },
-      select: ['id', 'username', 'password', 'role', 'is_blacklisted'],
+      select: [
+        'id',
+        'username',
+        'password',
+        'role',
+        'status',         
+        'is_blacklisted',
+      ],
       relations,
     });
   }
+
 
   async findOneWithModules(id: number): Promise<any> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -466,4 +501,49 @@ export class UserService {
     const savedUser = await this.userRepository.save(user);
     return this.findById(savedUser.id);
   }
+
+
+async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id, company: { id: currentUser.companyId }, deleted_at: IsNull() },
+      relations: ['company'],
+    });
+    if (!user) {
+      throw new NotFoundException('找不到該使用者或不屬於你的公司');
+    }
+    return user;
+  }
+
+  async updateSecured(id: number, dto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {
+    const user = await this.findOneSecured(id, currentUser);
+    return this.update(user.id, dto, currentUser);
+  }
+
+  async resetPasswordSecured(id: number, newPassword: string, currentUser: JwtUserPayload): Promise<{ message: string }> {
+    if (!newPassword) {
+      throw new BadRequestException('新密碼不得為空');
+    }
+
+    const user = await this.findOneSecured(id, currentUser);
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    await this.userRepository.save(user);
+    return { message: '密碼已重設' };
+  }
+
+
+  async softDeleteSecured(id: number, currentUser: JwtUserPayload): Promise<{ message: string }> {
+    const user = await this.findOneSecured(id, currentUser);
+    user.deleted_at = new Date();
+    await this.userRepository.save(user);
+    return { message: '使用者已刪除' };
+  }
+
+
+
+
+
+
+
+
 }
