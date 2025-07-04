@@ -233,49 +233,55 @@ export class UserService {
 
 
   async update(id: number, updateUserDto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {
-    const user = await this.userRepository.findOne({
-      where: {
-        id,
-        company: { id: currentUser.companyId },
-      },
-      relations: ['company'],
+  const user = await this.userRepository.findOne({
+    where: {
+      id,
+      company: { id: currentUser.companyId },
+    },
+    relations: ['company'],
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  // ✅ 防呆：若沒給任何可更新欄位，直接擋
+  if (!updateUserDto || Object.keys(updateUserDto).length === 0) {
+    throw new BadRequestException('更新資料不可為空');
+  }
+
+  const { email, status, modules, is_blacklisted } = updateUserDto;
+
+  if (email !== undefined) user.email = email;
+  if (status !== undefined) user.status = status;
+  if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
+
+  await this.userRepository.save(user);
+
+  if (modules) {
+    const moduleEntities = await this.moduleRepository.find({
+      where: { code: In(modules) },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+    if (moduleEntities.length !== modules.length) {
+      throw new NotFoundException('Some modules not found');
     }
 
-    const { email, status, modules, is_blacklisted } = updateUserDto;
+    await this.userModuleRepository.delete({ user: { id: user.id } });
 
-    if (email !== undefined) user.email = email;
-    if (status !== undefined) user.status = status;
-    if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
-
-    await this.userRepository.save(user);
-
-    if (modules) {
-      const moduleEntities = await this.moduleRepository.find({
-        where: { code: In(modules) },
+    const userModules = moduleEntities.map((module) => {
+      return this.userModuleRepository.create({
+        user: { id: user.id },
+        module,
       });
+    });
 
-      if (moduleEntities.length !== modules.length) {
-        throw new NotFoundException('Some modules not found');
-      }
-
-      await this.userModuleRepository.delete({ user: { id: user.id } });
-
-      const userModules = moduleEntities.map((module) => {
-        return this.userModuleRepository.create({
-          user: { id: user.id },
-          module,
-        });
-      });
-
-      await this.userModuleRepository.save(userModules);
-    }
-
-    return user;
+    await this.userModuleRepository.save(userModules);
   }
+
+  return user;
+}
+
 
   async softDelete(id: number, currentUser: JwtUserPayload): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({

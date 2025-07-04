@@ -43,13 +43,22 @@ export class BannerController {
     return this.bannerService.findOne(id, user.companyId);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.GLOBAL_ADMIN,
+    UserRole.AGENT_OWNER,
+    UserRole.AGENT_SUPPORT
+  )
   @Post()
-  create(@Body() dto: CreateBannerDto, @Req() req: any) {
+  async create(@Body() dto: CreateBannerDto, @Req() req: any) {
     const user = req.user;
+    const ip = req.ip;
+    const platform = req.headers['user-agent'] || 'unknown';
+
     dto.company = { id: user.companyId };
-    return this.bannerService.create(dto);
+    return this.bannerService.create(dto, user, ip, platform);
   }
+
 
   @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
   @Patch(':id')

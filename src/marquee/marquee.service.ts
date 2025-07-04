@@ -34,9 +34,13 @@ export class MarqueeService {
     return this.marqueeRepo.save(item)
   }
 
-  update(id: number, data: Partial<Marquee>) {
+  async update(id: number, data: Partial<Marquee>) {
+    if (!data || Object.keys(data).length === 0) {
+      throw new Error('更新資料不可為空')
+    }
     return this.marqueeRepo.update(id, data)
   }
+
 
   remove(id: number) {
     return this.marqueeRepo.delete(id)
