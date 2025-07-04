@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { v4 as uuid } from 'uuid';
+import * as UAParser from 'ua-parser-js';
 
 import { BannerService } from './banner.service';
 import { CreateBannerDto } from './dto/create-banner.dto';
@@ -53,14 +54,31 @@ export class BannerController {
   async create(@Body() dto: CreateBannerDto, @Req() req: any) {
     const user = req.user;
     const ip = req.ip;
-    const platform = req.headers['user-agent'] || 'unknown';
+
+    // ✅ 平台格式化：裝置 / 作業系統 / 瀏覽器
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
 
     dto.company = { id: user.companyId };
     return this.bannerService.create(dto, user, ip, platform);
   }
 
-
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.GLOBAL_ADMIN,
+    UserRole.AGENT_OWNER,
+    UserRole.AGENT_SUPPORT
+  )
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBannerDto) {
     return this.bannerService.update(id, dto);
@@ -72,7 +90,12 @@ export class BannerController {
     return this.bannerService.remove(id);
   }
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_SUPPORT)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.GLOBAL_ADMIN,
+    UserRole.AGENT_OWNER,
+    UserRole.AGENT_SUPPORT
+  )
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -92,7 +115,7 @@ export class BannerController {
           cb(new Error('只接受 jpg/png/webp 圖片'), false);
         }
       },
-    }),
+    })
   )
   uploadBannerImage(@UploadedFile() file: Express.Multer.File) {
     const url = `/uploads/banner/${file.filename}`;
