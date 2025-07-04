@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  ManyToOne,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
 import { User } from '../user/user.entity';
 
 @Entity()
@@ -12,15 +6,19 @@ export class AuditLog {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User)
-  user: User;
-
-  @Column({ type: 'varchar', nullable: true })
+  @Column()
   ip: string;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column()
   platform: string;
+
+  @Column()
+  action: string;
 
   @CreateDateColumn()
   created_at: Date;
+
+  @ManyToOne(() => User, { eager: true })
+  @JoinColumn({ name: 'user_id' }) // ✅ 加上這行
+  user: User;
 }

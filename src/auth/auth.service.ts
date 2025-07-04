@@ -9,6 +9,8 @@ import { UserService } from '../user/user.service';
 import { User } from '../user/user.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
 import { ConfigService } from '@nestjs/config';
+import { AuditLogService } from '../audit-log/audit-log.service';
+
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     @InjectRepository(CompanyModule)
     private readonly moduleRepo: Repository<CompanyModule>,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async validateUser(
@@ -27,6 +30,7 @@ export class AuthService {
   companyCode?: string,
 ): Promise<User | null> {
   console.log('🧩 validateUser called:', username, companyCode);
+  
 
   
   const user = await this.userService.findOneByUsername(username, ['company']);
@@ -80,55 +84,61 @@ export class AuthService {
 
 
   async login(
-  username: string,
-  password: string,
-  clientIp: string,
-  platform: string,
-  companyCode?: string,
-): Promise<{ user: any; token: string }> {
-  console.log('⚙️ login service hit', companyCode);
+    username: string,
+    password: string,
+    clientIp: string,
+    platform: string,
+    companyCode?: string,
+  ): Promise<{ user: any; token: string }> {
+    console.log('⚙️ login service hit', companyCode);
 
-  const user = await this.validateUser(username, password, companyCode);
+    const user = await this.validateUser(username, password, companyCode);
 
-  if (!user) {
-    throw new UnauthorizedException('帳號、密碼或公司錯誤');
-  }
+    if (!user) {
+      throw new UnauthorizedException('帳號、密碼或公司錯誤');
+    }
 
-  await this.userService.updateLoginInfo(user.id, clientIp, platform);
+    // ✅ 更新 user 資料
+    await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
-  const payload = {
-    userId: user.id, 
-    username: user.username,
-    role: user.role,
-    companyId: user.company?.id ?? null,
-  };
+    // ✅ 寫入後台登入紀錄
+    await this.auditLogService.logLogin(user, clientIp, platform, '登入後台');
 
-  const secret = this.configService.get('JWT_SECRET');
-  console.log(`✅ 正在簽發 JWT，使用的 secret 是: ${secret}`);
-  const token = this.jwtService.sign(payload, { secret });
 
-  let enabledModules: CompanyModule[] = [];
-
-  if (user.company?.id) {
-    enabledModules = await this.moduleRepo.find({
-      where: { company: { id: user.company.id }, enabled: true },
-    });
-  }
-
-  return {
-    token,
-    user: {
+    const payload = {
       userId: user.id,
       username: user.username,
       role: user.role,
       companyId: user.company?.id ?? null,
-      company: user.company ?? null,
-      enabledModules: Object.fromEntries(
-        enabledModules.map((m) => [m.module_key, true])
-      ),
-    },
-  };
-}
+    };
+
+    const secret = this.configService.get('JWT_SECRET');
+    console.log(`✅ 正在簽發 JWT，使用的 secret 是: ${secret}`);
+    const token = this.jwtService.sign(payload, { secret });
+
+    let enabledModules: CompanyModule[] = [];
+
+    if (user.company?.id) {
+      enabledModules = await this.moduleRepo.find({
+        where: { company: { id: user.company.id }, enabled: true },
+      });
+    }
+
+    return {
+      token,
+      user: {
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+        companyId: user.company?.id ?? null,
+        company: user.company ?? null,
+        enabledModules: Object.fromEntries(
+          enabledModules.map((m) => [m.module_key, true])
+        ),
+      },
+    };
+  }
+
 
 
 

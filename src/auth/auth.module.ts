@@ -11,8 +11,12 @@ import { AuthController } from './auth.controller';
 import { UserModule } from '../user/user.module';
 import { CompanyModule as CompanyModuleEntity } from '../company-module/company-module.entity'; // ✅ 改名避免與 Nest 的 Module 撞名
 
+import { AuditLogModule } from '../audit-log/audit-log.module';
+
+
 @Module({
   imports: [
+    AuditLogModule,
     ConfigModule,
     PassportModule,
     JwtModule.registerAsync({

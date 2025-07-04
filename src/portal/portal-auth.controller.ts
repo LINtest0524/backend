@@ -15,8 +15,6 @@ import { Repository } from 'typeorm';
 import { CompanyModule } from '../company-module/company-module.entity';
 import * as UAParser from 'ua-parser-js';
 
-
-
 @Controller('portal/auth')
 export class PortalAuthController {
   constructor(
@@ -88,19 +86,17 @@ export class PortalAuthController {
       throw new UnauthorizedException('帳號或密碼錯誤');
     }
 
-    // ✅ 抓 IP + UA
     const clientIp =
       (req.headers['x-forwarded-for'] as string) ||
       req.socket?.remoteAddress ||
       req.ip ||
       'unknown';
 
-
     const userAgent = req.headers['user-agent'] || '';
     const parser = new UAParser.UAParser(userAgent);
     const info = parser.getResult();
 
-    let deviceType = info.device.type ?? 'desktop'; // fallback 為 desktop
+    let deviceType = info.device.type ?? 'desktop';
     let device: string;
 
     if (deviceType === 'mobile') {
@@ -108,21 +104,17 @@ export class PortalAuthController {
     } else if (deviceType === 'tablet') {
       device = '平板';
     } else {
-      device = '電腦';
+      device = '電腦'; // ✅ 改這行，把 unknown 譯為「電腦」
     }
-
-
 
     const os = `${info.os.name} ${info.os.version}`;
     const browser = `${info.browser.name} ${info.browser.version}`;
-
-    // ✅ 最終組合
     const platform = `${device} / ${os} / ${browser}`;
 
-
-
-    // ✅ 更新會員登入資訊（這才是你要後台看到的）
+    // ✅ 寫入操作紀錄：登入代理商官網
     await this.userService.updateLoginInfo(user.id, clientIp, platform);
+    await this.auditLogService.logLogin(user, clientIp, platform, `登入代理商${user.company?.code ?? ''}官網`);
+
 
     const token = this.jwtService.sign({
       userId: user.id,
@@ -149,5 +141,4 @@ export class PortalAuthController {
       },
     };
   }
-
 }

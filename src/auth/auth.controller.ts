@@ -34,14 +34,28 @@ export class AuthController {
       req.ip ||
       'unknown';
 
+
+
+
+
     const userAgent = req.headers['user-agent'] || '';
-
     const parser = new UAParser.UAParser(userAgent);
-
-
     const info = parser.getResult();
 
-    const platform = `${info.device.model || info.device.type || 'unknown'} / ${info.os.name} ${info.os.version} / ${info.browser.name} ${info.browser.version}`.trim();
+    let deviceType = info.device.type ?? 'desktop'; // fallback 為 desktop
+    let device: string;
+
+    if (deviceType === 'mobile') {
+      device = '手機';
+    } else if (deviceType === 'tablet') {
+      device = '平板';
+    } else {
+      device = '電腦'; // ✅ 改這裡，後台登入也顯示為中文
+    }
+
+    const os = `${info.os.name} ${info.os.version}`;
+    const browser = `${info.browser.name} ${info.browser.version}`;
+    const platform = `${device} / ${os} / ${browser}`;
 
 
     const result = await this.authService.login(
