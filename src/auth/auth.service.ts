@@ -101,8 +101,14 @@ export class AuthService {
     // ✅ 更新 user 資料
     await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
-    // ✅ 寫入後台登入紀錄
-    await this.auditLogService.logLogin(user, clientIp, platform, '登入後台');
+    // ✅ 寫入操作紀錄（登入後台）
+    await this.auditLogService.record({
+      user,
+      action: '登入後台',
+      ip: clientIp,
+      platform,
+    });
+
 
 
     const payload = {

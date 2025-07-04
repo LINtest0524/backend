@@ -113,7 +113,13 @@ export class PortalAuthController {
 
     // ✅ 寫入操作紀錄：登入代理商官網
     await this.userService.updateLoginInfo(user.id, clientIp, platform);
-    await this.auditLogService.logLogin(user, clientIp, platform, `登入代理商${user.company?.code ?? ''}官網`);
+    await this.auditLogService.record({
+      user,
+      action: `登入代理商${user.company?.code ?? ''}官網`,
+      ip: clientIp,
+      platform,
+    });
+
 
 
     const token = this.jwtService.sign({

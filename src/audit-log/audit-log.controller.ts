@@ -1,38 +1,42 @@
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Request,
-  UnauthorizedException,
-} from '@nestjs/common';
-
-import { AuditLogService } from './audit-log.service';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { AuditLogService } from './audit-log.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { AuditLog } from './audit-log.entity';
+import { Repository } from 'typeorm';
+import { User } from '../user/user.entity';
 
 @Controller('audit-log')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class AuditLogController {
-  constructor(private readonly auditLogService: AuditLogService) {}
+  constructor(
+    private readonly auditLogService: AuditLogService,
+    @InjectRepository(AuditLog)
+    private readonly auditRepo: Repository<AuditLog>,
+  ) {}
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
-  async findAll(@Request() req) {
-    const user = req.user;
+  async getLogs(@Req() req: Request) {
+    const user = req.user as any;
 
-    console.log('👤 取得登入使用者：', user);
+    let where: any = {};
 
-    // ✅ SUPER_ADMIN 可看所有紀錄
-    if (user.role === 'SUPER_ADMIN') {
-      return this.auditLogService.findAll();
+    // 👤 AGENT 只能看自己公司紀錄
+    if (
+      user.role === 'AGENT_OWNER' ||
+      user.role === 'AGENT_SUPPORT'
+    ) {
+      where = {
+        user: { company: { id: user.companyId } },
+      };
     }
 
-    // ✅ 其他角色需有 companyId，否則禁止存取
-    if (!user.companyId) {
-      throw new UnauthorizedException('無公司代碼，無法取得紀錄');
-    }
-
-    return this.auditLogService.findByCompany(user.companyId);
+    // SUPER_ADMIN / GLOBAL_ADMIN 可看全部
+    return this.auditRepo.find({
+      where,
+      order: { created_at: 'DESC' },
+      relations: ['user'],
+    });
   }
 }
