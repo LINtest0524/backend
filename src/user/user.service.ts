@@ -203,7 +203,7 @@ export class UserService {
       role: user.role,
       last_login_at: user.last_login_at,
       last_login_ip: user.last_login_ip,
-
+      last_login_platform: user.last_login_platform,
       created_by: user.created_by ?? null,
 
       created_at: user.created_at,
