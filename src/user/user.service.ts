@@ -37,7 +37,26 @@ export class UserService {
 
 
 
-  async create(createUserDto: CreateUserDto, creator: User): Promise<User> {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  async create(createUserDto: CreateUserDto, creator: User, ip?: string, platform?: string): Promise<User> {
     const { username, password, email, modules, role, companyId } = createUserDto;
 
     if (creator.role === 'AGENT_SUPPORT') {
@@ -60,9 +79,7 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const company = await this.companyRepository.findOne({
-      where: { id: companyId },
-    });
+    const company = await this.companyRepository.findOne({ where: { id: companyId } });
     if (!company) {
       throw new BadRequestException('指定的公司不存在');
     }
@@ -94,15 +111,247 @@ export class UserService {
       await this.userModuleRepository.save(userModules);
     }
 
+    if (this.auditLogService && ip && platform) {
+      await this.auditLogService.record({
+        user: { id: creator.id },
+        action: `新增後台使用者 - ${savedUser.username}（角色：${savedUser.role}）`,
+        ip,
+        platform,
+        target: `admin-user:${savedUser.id}`,
+        after: {
+          username: savedUser.username,
+          role: savedUser.role,
+          email: savedUser.email,
+          modules: modules ?? [],
+        },
+      });
+    }
+
     return savedUser;
   }
 
 
-  async findAll(
-    
+
+
+
+
+
+
+
+
+
+
+
+
+async update(
+  id: number,
+  updateUserDto: UpdateUserDto,
+  currentUser: JwtUserPayload,
+  ip?: string,
+  platform?: string,
+): Promise<User> {
+  const user = await this.userRepository.findOne({
+    where: {
+      id,
+      company: { id: currentUser.companyId },
+    },
+    relations: ['company'],
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  if (!updateUserDto || Object.keys(updateUserDto).length === 0) {
+    throw new BadRequestException('更新資料不可為空');
+  }
+
+  const { email, status, modules, is_blacklisted } = updateUserDto;
+  const before = { ...user };
+
+  if (email !== undefined) user.email = email;
+  if (status !== undefined) user.status = status;
+  if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
+
+  await this.userRepository.save(user);
+
+  if (modules) {
+    const moduleEntities = await this.moduleRepository.find({
+      where: { code: In(modules) },
+    });
+
+    if (moduleEntities.length !== modules.length) {
+      throw new NotFoundException('Some modules not found');
+    }
+
+    await this.userModuleRepository.delete({ user: { id: user.id } });
+
+    const userModules = moduleEntities.map((module) =>
+      this.userModuleRepository.create({ user: { id: user.id }, module })
+    );
+
+    await this.userModuleRepository.save(userModules);
+  }
+
+  // ✅ log1：紀錄黑名單變更（獨立記錄）
+if (
+  this.auditLogService &&
+  is_blacklisted !== undefined &&
+  is_blacklisted !== before.is_blacklisted &&
+  ip &&
+  platform
+) {
+  await this.auditLogService.record({
+    user: { id: currentUser.userId },
+    action: `修改會員黑名單 - ${user.username}（${is_blacklisted ? '加入' : '移除'}）`,
+    ip,
+    platform,
+    target: `blacklist:${user.id}`,  // ✅ 改成這樣
+    before: { is_blacklisted: before.is_blacklisted },
+    after: { is_blacklisted: user.is_blacklisted },
+  });
+}
+
+
+  // ✅ log2：紀錄其他變更（不包含黑名單）
+  if (
+    this.auditLogService &&
+    ip &&
+    platform &&
+    (
+      email !== before.email ||
+      status !== before.status
+    )
+  ) {
+    const diffs: string[] = [];
+    if (email !== before.email) diffs.push(`📧 Email：${before.email ?? '-'} → ${email ?? '-'}`);
+    if (status !== before.status) diffs.push(`📌 狀態：${before.status} → ${status}`);
+
+    await this.auditLogService.record({
+      user: { id: currentUser.userId },
+      action: `編輯後台使用者2 - ${user.username}（${diffs.join('、') || '未變更'}）`,
+      ip,
+      platform,
+      target: `admin-user:${user.id}`,
+      before: {
+        email: before.email,
+        status: before.status,
+      },
+      after: {
+        email: user.email,
+        status: user.status,
+      },
+    });
+  }
+
+  return user;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  async softDelete(id: number, currentUser: JwtUserPayload, ip?: string, platform?: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: {
+        id,
+        company: { id: currentUser.companyId },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('使用者不存在');
+    }
+
+    user.deleted_at = new Date();
+    await this.userRepository.save(user);
+
+    if (this.auditLogService && ip && platform) {
+      await this.auditLogService.record({
+        user: { id: currentUser.userId },
+        action: `刪除後台使用者 - ${user.username}`,
+        ip,
+        platform,
+        target: `admin-user:${user.id}`,
+        before: {
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          is_blacklisted: user.is_blacklisted,
+        },
+      });
+    }
+
+    return { message: '使用者已刪除' };
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ✅ 查詢帳號 (給後台、portal 登入用)
+async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
+  return await this.userRepository.findOne({
+    where: { username },
+    select: [
+      'id',
+      'username',
+      'password',
+      'role',
+      'status',
+      'is_blacklisted',
+    ],
+    relations,
+  });
+}
+
+
+
+// ✅ 查詢全部使用者（會員 / 管理員）
+async findAll(
   currentUser: JwtUserPayload,
   query: any,
-  options?: { excludeUserRole?: boolean } //這
+  options?: { excludeUserRole?: boolean }
 ): Promise<{ data: any[]; totalPages: number; totalCount: number }> {
   const {
     username,
@@ -122,31 +371,20 @@ export class UserService {
     .leftJoinAndSelect('user.created_by', 'created_by')
     .where('user.deleted_at IS NULL');
 
-  // 權限控制：非 SUPER_ADMIN 只能看自己公司
-
   if (options?.excludeUserRole === true) {
     qb.andWhere('user.role != :userRole', { userRole: 'USER' });
   } else if (options?.excludeUserRole === false) {
     qb.andWhere('user.role = :userRole', { userRole: 'USER' });
   }
 
-
- 
-
-  const isGlobalViewRole = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
-
-  if (!isGlobalViewRole) {
+  const isGlobal = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
+  if (!isGlobal) {
     if (!currentUser.companyId) {
       throw new UnauthorizedException('找不到使用者的公司資訊');
     }
     qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
   }
 
- 
-
-
-
-  // 搜尋條件
   if (username) {
     qb.andWhere('user.username ILIKE :username', { username: `%${username}%` });
   }
@@ -178,17 +416,12 @@ export class UserService {
   }
 
   qb.orderBy('user.id', 'ASC');
-
-  // 分頁處理
   qb.take(Number(limit));
   qb.skip((Number(page) - 1) * Number(limit));
 
   const [users, total] = await qb.getManyAndCount();
-
-  const totalPages = Math.ceil(total / Number(limit));
-
-  // 查 user_module 資訊
   const results: any[] = [];
+
   for (const user of users) {
     const userModules = await this.userModuleRepository.find({
       where: { user: { id: user.id } },
@@ -207,19 +440,14 @@ export class UserService {
       last_login_ip: user.last_login_ip,
       last_login_platform: user.last_login_platform,
       created_by: user.created_by ?? null,
-
       created_at: user.created_at,
       updated_at: user.updated_at,
       is_blacklisted: user.is_blacklisted,
       modules,
       company: user.company
-        ? {
-            id: user.company.id,
-            name: user.company.name,
-          }
+        ? { id: user.company.id, name: user.company.name }
         : null,
     });
-
   }
 
   return {
@@ -227,126 +455,62 @@ export class UserService {
     totalPages: Math.ceil(total / Number(limit)),
     totalCount: total,
   };
-
-
-
 }
 
 
 
-  async update(
-  id: number,
-  updateUserDto: UpdateUserDto,
-  currentUser: JwtUserPayload,
-  ip?: string,
-  platform?: string,
-): Promise<User> {
-  const user = await this.userRepository.findOne({
-    where: {
-      id,
-      company: { id: currentUser.companyId },
-    },
-    relations: ['company'],
-  });
-
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
-
-  // ✅ 防呆：若沒給任何可更新欄位，直接擋
-  if (!updateUserDto || Object.keys(updateUserDto).length === 0) {
-    throw new BadRequestException('更新資料不可為空');
-  }
-
-  const { email, status, modules, is_blacklisted } = updateUserDto;
-  const before = { ...user };
-
-  if (email !== undefined) user.email = email;
-  if (status !== undefined) user.status = status;
-  if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
-
-  await this.userRepository.save(user);
-
-  if (modules) {
-    const moduleEntities = await this.moduleRepository.find({
-      where: { code: In(modules) },
-    });
-
-    if (moduleEntities.length !== modules.length) {
-      throw new NotFoundException('Some modules not found');
-    }
-
-    await this.userModuleRepository.delete({ user: { id: user.id } });
-
-    const userModules = moduleEntities.map((module) => {
-      return this.userModuleRepository.create({
-        user: { id: user.id },
-        module,
-      });
-    });
-
-    await this.userModuleRepository.save(userModules);
-  }
-
-  // ✅ 寫入操作紀錄（黑名單變更）
-  if (
-    this.auditLogService &&
-    is_blacklisted !== undefined &&
-    before.is_blacklisted !== is_blacklisted &&
-    ip &&
-    platform
-  ) {
-    await this.auditLogService.record({
-
-      user: { id: currentUser.userId },
-
-
-      action: `修改使用者黑名單 - ${user.username}（${is_blacklisted ? '加入' : '移除'}）`,
-      ip,
-      platform,
-      target: `user:${user.id}`,
-      before: { is_blacklisted: before.is_blacklisted },
-      after: { is_blacklisted: user.is_blacklisted },
-    });
-  }
-
-  return user;
-}
 
 
 
-  async softDelete(id: number, currentUser: JwtUserPayload): Promise<{ message: string }> {
-    const user = await this.userRepository.findOne({
-      where: {
-        id,
-        company: { id: currentUser.companyId },
-      },
-    });
 
-    if (!user) {
-      throw new NotFoundException('使用者不存在');
-    }
 
-    user.deleted_at = new Date();
-    await this.userRepository.save(user);
 
-    return { message: '使用者已刪除' };
-  }
 
-  async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
-    return await this.userRepository.findOne({
-      where: { username },
-      select: [
-        'id',
-        'username',
-        'password',
-        'role',
-        'status',         
-        'is_blacklisted',
-      ],
-      relations,
-    });
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   async findOneWithModules(id: number): Promise<any> {
@@ -577,12 +741,35 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
   }
 
 
-  async softDeleteSecured(id: number, currentUser: JwtUserPayload): Promise<{ message: string }> {
+  async softDeleteSecured(
+    id: number,
+    currentUser: JwtUserPayload,
+    ip?: string,
+    platform?: string
+  ): Promise<{ message: string }> {
     const user = await this.findOneSecured(id, currentUser);
     user.deleted_at = new Date();
     await this.userRepository.save(user);
+
+    if (this.auditLogService && ip && platform) {
+      await this.auditLogService.record({
+        user: { id: currentUser.userId },
+        action: `刪除後台使用者 - ${user.username}`,
+        ip,
+        platform,
+        target: `admin-user:${user.id}`,
+        before: {
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          is_blacklisted: user.is_blacklisted,
+        },
+      });
+    }
+
     return { message: '使用者已刪除' };
   }
+
 
 
 

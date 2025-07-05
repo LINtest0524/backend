@@ -39,8 +39,28 @@ export class UserController {
   @Roles('SUPER_ADMIN', 'AGENT_OWNER')
   async create(@Body() createUserDto: CreateUserDto, @Request() req): Promise<User> {
     const fullUser = await this.userService.findById(req.user.userId);
-    return this.userService.create(createUserDto, fullUser);
+
+    const ip =
+      (req.headers['x-forwarded-for'] as string) ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      'unknown';
+
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.userService.create(createUserDto, fullUser, ip, platform);
   }
+
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
@@ -110,6 +130,7 @@ export class UserController {
     return this.userService.changePassword(userId, dto);
   }
 
+
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: number, @Request() req) {
@@ -117,8 +138,30 @@ export class UserController {
     if (user.role === 'AGENT_SUPPORT') {
       throw new ForbiddenException('AGENT_SUPPORT 不可刪除使用者');
     }
-    return this.userService.softDeleteSecured(id, user);
+
+    const ip =
+      (req.headers['x-forwarded-for'] as string) ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      'unknown';
+
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.userService.softDeleteSecured(id, user, ip, platform);
+
+
   }
+
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN')
