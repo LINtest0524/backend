@@ -118,6 +118,7 @@ export class PortalAuthController {
       action: `登入代理商${user.company?.code ?? ''}官網`,
       ip: clientIp,
       platform,
+      target: `login-portal:${user.id}`, // ✅ 必須補上，讓前台能篩選登入紀錄
     });
 
 
