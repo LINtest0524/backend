@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { User } from './user.entity';
+import * as UAParser from 'ua-parser-js';
 
 @Controller('user')
 export class UserController {
@@ -76,8 +77,24 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
     @Request() req,
   ) {
-    return this.userService.updateSecured(id, updateUserDto, req.user);
+    const user = req.user;
+    const ip = req.ip;
+
+    // ✅ 平台格式化：裝置 / 作業系統 / 瀏覽器
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.userService.updateSecured(id, updateUserDto, user, ip, platform);
   }
+
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/password')

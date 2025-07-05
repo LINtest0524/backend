@@ -18,6 +18,7 @@ import * as bcrypt from 'bcrypt';
 import { UserRole } from './user.entity';
 import { Company } from '../company/company.entity';
 import { JwtUserPayload } from '../types/jwt-payload';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class UserService {
@@ -30,6 +31,7 @@ export class UserService {
     private readonly userModuleRepository: Repository<UserModule>,
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
 
@@ -232,7 +234,13 @@ export class UserService {
 
 
 
-  async update(id: number, updateUserDto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {
+  async update(
+  id: number,
+  updateUserDto: UpdateUserDto,
+  currentUser: JwtUserPayload,
+  ip?: string,
+  platform?: string,
+): Promise<User> {
   const user = await this.userRepository.findOne({
     where: {
       id,
@@ -251,6 +259,7 @@ export class UserService {
   }
 
   const { email, status, modules, is_blacklisted } = updateUserDto;
+  const before = { ...user };
 
   if (email !== undefined) user.email = email;
   if (status !== undefined) user.status = status;
@@ -279,8 +288,31 @@ export class UserService {
     await this.userModuleRepository.save(userModules);
   }
 
+  // ✅ 寫入操作紀錄（黑名單變更）
+  if (
+    this.auditLogService &&
+    is_blacklisted !== undefined &&
+    before.is_blacklisted !== is_blacklisted &&
+    ip &&
+    platform
+  ) {
+    await this.auditLogService.record({
+
+      user: { id: currentUser.userId },
+
+
+      action: `修改使用者黑名單 - ${user.username}（${is_blacklisted ? '加入' : '移除'}）`,
+      ip,
+      platform,
+      target: `user:${user.id}`,
+      before: { is_blacklisted: before.is_blacklisted },
+      after: { is_blacklisted: user.is_blacklisted },
+    });
+  }
+
   return user;
 }
+
 
 
   async softDelete(id: number, currentUser: JwtUserPayload): Promise<{ message: string }> {
@@ -520,10 +552,17 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
     return user;
   }
 
-  async updateSecured(id: number, dto: UpdateUserDto, currentUser: JwtUserPayload): Promise<User> {
+  async updateSecured(
+    id: number,
+    dto: UpdateUserDto,
+    currentUser: JwtUserPayload,
+    ip?: string,
+    platform?: string,
+  ): Promise<User> {
     const user = await this.findOneSecured(id, currentUser);
-    return this.update(user.id, dto, currentUser);
+    return this.update(user.id, dto, currentUser, ip, platform);
   }
+
 
   async resetPasswordSecured(id: number, newPassword: string, currentUser: JwtUserPayload): Promise<{ message: string }> {
     if (!newPassword) {
