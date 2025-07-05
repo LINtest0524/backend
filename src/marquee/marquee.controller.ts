@@ -9,14 +9,18 @@ import {
   Query,
   BadRequestException,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { MarqueeService } from './marquee.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '../company/company.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
-import * as UAParser from 'ua-parser-js'; // ✅ UA 分析
+import * as UAParser from 'ua-parser-js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller()
 export class MarqueeController {
   constructor(

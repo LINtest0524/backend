@@ -61,8 +61,20 @@ export class MarqueeService {
     const item = this.marqueeRepo.create({ ...data, company });
     const saved = await this.marqueeRepo.save(item);
 
+    console.log('🧪 測試參數：', { user, ip, platform });
+
     if (user && ip && platform) {
       try {
+
+        const userId = user.userId ?? user.id;
+
+      console.log('📢 [MarqueeService] 正在寫入紀錄', {
+        userId,
+        action: `新增跑馬燈 - ${saved.content}`,
+      });
+
+
+
         await this.auditLogService.record({
           user: { id: user.userId },
           action: `新增跑馬燈 - ${saved.content?.slice(0, 10) || '（無內容）'}`,
@@ -98,10 +110,20 @@ export class MarqueeService {
 
     if (user && ip && platform && before && after) {
       const diffText = this.generateMarqueeDiff(before, after);
+
+      // ✅ 判斷內容是否變動（決定是否顯示 ➡️）
+      const beforeContent = (before.content || '').trim();
+      const afterContent = (after.content || '').trim();
+      const contentChanged = beforeContent !== afterContent;
+
+      const titlePart = contentChanged
+        ? `${beforeContent || '(空)'} ➡️ ${afterContent || '(空)'}`
+        : `${beforeContent || '(空)'}`;
+
       try {
         await this.auditLogService.record({
-          user: { id: user.userId },
-          action: `編輯跑馬燈 - ${before.content?.slice(0, 10) || '（無內容）'}（${diffText || '未變動'}）`,
+          user: { id: user.userId ?? user.id },
+          action: `編輯跑馬燈 - ${titlePart}（${diffText || '未變動'}）`,
           ip,
           platform,
           target: `marquee:${id}`,
@@ -116,6 +138,8 @@ export class MarqueeService {
     return after;
   }
 
+
+
   async remove(id: number, user?: any, ip?: string, platform?: string) {
     const before = await this.marqueeRepo.findOne({ where: { id } });
     if (!before) throw new Error('跑馬燈不存在');
@@ -124,6 +148,10 @@ export class MarqueeService {
 
     if (user && ip && platform) {
       try {
+
+
+
+
         await this.auditLogService.record({
           user: { id: user.userId },
           action: `刪除跑馬燈 - ${before.content?.slice(0, 10) || '（無內容）'}`,
@@ -179,14 +207,29 @@ export class MarqueeService {
   private generateMarqueeDiff(before: any, after: any): string {
     const diffs: string[] = [];
 
-    if (before?.content !== after?.content) {
-      diffs.push(`📝 內容異動`);
+    const trim = (v: any) => (typeof v === 'string' ? v.trim() : v);
+
+    if (trim(before?.title) !== trim(after?.title)) {
+      diffs.push(`📝 標題：${before?.title || '(空)'} → ${after?.title || '(空)'}`);
+    }
+
+    if (trim(before?.content) !== trim(after?.content)) {
+      diffs.push(`📋 內容：${before?.content || '(空)'} → ${after?.content || '(空)'}`);
+    }
+
+    if (trim(before?.link) !== trim(after?.link)) {
+      diffs.push(`🔗 連結：${before?.link || '(無)'} → ${after?.link || '(無)'}`);
     }
 
     if (before?.isActive !== after?.isActive) {
-      diffs.push(`🔔 狀態：${before.isActive ? '啟用' : '停用'} → ${after.isActive ? '啟用' : '停用'}`);
+      diffs.push(
+        `🔔 狀態：${before?.isActive ? '啟用' : '停用'} → ${after?.isActive ? '啟用' : '停用'}`
+      );
     }
 
     return diffs.join('、');
   }
+
+
+
 }
