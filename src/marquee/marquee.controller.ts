@@ -8,12 +8,14 @@ import {
   Body,
   Query,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { MarqueeService } from './marquee.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '../company/company.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
+import * as UAParser from 'ua-parser-js'; // ✅ UA 分析
 
 @Controller()
 export class MarqueeController {
@@ -67,17 +69,59 @@ export class MarqueeController {
   }
 
   @Post('admin/marquee')
-  create(@Body() body: any) {
-    return this.marqueeService.create(body, { id: body.companyId } as any);
+  async create(@Body() body: any, @Req() req: any) {
+    const user = req.user;
+    const ip = req.ip;
+
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.marqueeService.create(body, { id: body.companyId } as any, user, ip, platform);
   }
 
   @Put('admin/marquee/:id')
-  update(@Param('id') id: number, @Body() body: any) {
-    return this.marqueeService.update(id, body);
+  async update(@Param('id') id: number, @Body() body: any, @Req() req: any) {
+    const user = req.user;
+    const ip = req.ip;
+
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.marqueeService.update(id, body, user, ip, platform);
   }
 
   @Delete('admin/marquee/:id')
-  delete(@Param('id') id: number) {
-    return this.marqueeService.remove(id);
+  async delete(@Param('id') id: number, @Req() req: any) {
+    const user = req.user;
+    const ip = req.ip;
+
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.marqueeService.remove(id, user, ip, platform);
   }
 }
