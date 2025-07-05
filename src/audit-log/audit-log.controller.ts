@@ -1,42 +1,45 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Req,
+  UseGuards,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuditLogService } from './audit-log.service';
-import { InjectRepository } from '@nestjs/typeorm';
-import { AuditLog } from './audit-log.entity';
-import { Repository } from 'typeorm';
-import { User } from '../user/user.entity';
 
 @Controller('audit-log')
 export class AuditLogController {
-  constructor(
-    private readonly auditLogService: AuditLogService,
-    @InjectRepository(AuditLog)
-    private readonly auditRepo: Repository<AuditLog>,
-  ) {}
+  constructor(private readonly auditLogService: AuditLogService) {}
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getLogs(@Req() req: Request) {
-    const user = req.user as any;
+  async getLogs(
+    @Req() req: Request,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('search') search?: string,
+    @Query('user') user?: string,
+    @Query('ip') ip?: string,
+    @Query('target') target?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
+  ) {
+    const currentUser = req.user as any;
 
-    let where: any = {};
-
-    // 👤 AGENT 只能看自己公司紀錄
-    if (
-      user.role === 'AGENT_OWNER' ||
-      user.role === 'AGENT_SUPPORT'
-    ) {
-      where = {
-        user: { company: { id: user.companyId } },
-      };
-    }
-
-    // SUPER_ADMIN / GLOBAL_ADMIN 可看全部
-    return this.auditRepo.find({
-      where,
-      order: { created_at: 'DESC' },
-      relations: ['user'],
+    return this.auditLogService.findFiltered({
+      currentUser,
+      from,
+      to,
+      search,
+      user,
+      ip,
+      target,
+      page,
+      limit,
     });
   }
 }

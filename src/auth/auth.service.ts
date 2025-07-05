@@ -107,6 +107,7 @@ export class AuthService {
       action: '登入後台',
       ip: clientIp,
       platform,
+      target: `login:${user.id}`, // ✅ 一定要補上這行，才能讓後端辨別是哪一類紀錄
     });
 
 

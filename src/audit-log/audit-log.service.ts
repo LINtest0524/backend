@@ -14,6 +14,18 @@ interface AuditLogRecordParams {
   after?: any;
 }
 
+interface FindFilteredParams {
+  currentUser: any;
+  from?: string;
+  to?: string;
+  search?: string;
+  user?: string;
+  ip?: string;
+  target?: string;
+  page: number;
+  limit: number;
+}
+
 @Injectable()
 export class AuditLogService {
   constructor(
@@ -42,7 +54,7 @@ export class AuditLogService {
     }
 
     const log = this.logRepo.create({
-      user: { id: userId }, // ✅ 關鍵：避免 TypeORM 誤認為要 update user entity
+      user: { id: userId },
       action,
       ip,
       platform,
@@ -54,7 +66,6 @@ export class AuditLogService {
     return this.logRepo.save(log);
   }
 
-
   async findAll(): Promise<AuditLog[]> {
     return this.logRepo.find({
       order: { created_at: 'DESC' },
@@ -62,6 +73,67 @@ export class AuditLogService {
     });
   }
 
+  async findFiltered(params: FindFilteredParams) {
+    const {
+      currentUser,
+      from,
+      to,
+      search,
+      user,
+      ip,
+      target,
+      page,
+      limit,
+    } = params;
 
+    const qb = this.logRepo.createQueryBuilder('log')
+      .leftJoinAndSelect('log.user', 'user')
+      .orderBy('log.created_at', 'DESC');
 
+    if (
+      currentUser.role === 'AGENT_OWNER' ||
+      currentUser.role === 'AGENT_SUPPORT'
+    ) {
+      qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
+    }
+
+    if (from) {
+      qb.andWhere('log.created_at >= :from', { from: `${from} 00:00:00` });
+    }
+
+    if (to) {
+      qb.andWhere('log.created_at <= :to', { to: `${to} 23:59:59` });
+    }
+
+    if (search) {
+      qb.andWhere('log.action LIKE :search', { search: `%${search}%` });
+    }
+
+    if (user) {
+      qb.andWhere('user.username LIKE :user', { user: `%${user}%` });
+    }
+
+    if (ip) {
+      qb.andWhere('log.ip LIKE :ip', { ip: `%${ip}%` });
+    }
+
+    if (target) {
+      qb.andWhere('log.target LIKE :target', { target: `%${target}%` });
+    }
+
+    const totalCount = await qb.getCount();
+
+    const data = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data,
+      totalCount,
+      totalPages,
+    };
+  }
 }
