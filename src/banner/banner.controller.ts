@@ -34,6 +34,8 @@ export class BannerController {
 
   @Get()
   findAll(@Req() req: any) {
+    console.log('查詢 banner，登入者公司 ID：', req.user.companyId);
+
     const user = req.user;
     return this.bannerService.findAll(user.companyId);
   }

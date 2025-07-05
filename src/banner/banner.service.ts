@@ -16,11 +16,18 @@ export class BannerService {
 
   // ✅ 合併 create，支援寫入操作紀錄（user / ip / platform 可選）
   async create(
+    
     data: CreateBannerDto,
     user?: any,
     ip?: string,
     platform?: string,
   ) {
+
+    console.log('🧾 user:', user);
+    console.log('🧾 ip:', ip);
+    console.log('🧾 platform:', platform);
+
+
     const banner = this.bannerRepo.create({
       title: data.title,
       desktop_image_url: data.desktop_image_url,
@@ -36,11 +43,17 @@ export class BannerService {
 
     // ✅ 有給 user 才寫 log
     if (user && ip && platform) {
+
+          console.log('🧾 user我自己寫:', user);
+          console.log('🧾 ip我自己寫:', ip);
+          console.log('🧾 platform我自己寫:', platform);
+
+
       try {
         console.log('🧾 寫入 Banner 操作紀錄');
         await this.auditLogService.record({
           user: { id: user.userId },
-          action: `操作: 新增 Banner`,
+          action: `新增 Banner - ${saved.title || '（無標題）'}`,
           ip,
           platform,
           target: `banner:${saved.id}`,

@@ -53,4 +53,15 @@ export class AuditLogService {
 
     return this.logRepo.save(log);
   }
+
+
+  async findAll(): Promise<AuditLog[]> {
+    return this.logRepo.find({
+      order: { created_at: 'DESC' },
+      relations: ['user'],
+    });
+  }
+
+
+
 }
