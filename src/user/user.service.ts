@@ -20,6 +20,10 @@ import { Company } from '../company/company.entity';
 import { JwtUserPayload } from '../types/jwt-payload';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
+import { ExportUserDto } from './dto/export-user.dto';
+import { Response } from 'express';
+import * as ExcelJS from 'exceljs';
+
 @Injectable()
 export class UserService {
   constructor(
@@ -455,6 +459,132 @@ async findAll(
     totalPages: Math.ceil(total / Number(limit)),
     totalCount: total,
   };
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Response): Promise<void> {
+  const {
+    username,
+    status,
+    blacklist,
+    createdFrom,
+    createdTo,
+    loginFrom,
+    loginTo,
+    excludeUserRole,
+    format = 'csv',
+  } = query;
+
+  const qb = this.userRepository
+    .createQueryBuilder('user')
+    .leftJoinAndSelect('user.company', 'company')
+    .where('user.deleted_at IS NULL');
+
+  const isGlobal = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
+  if (!isGlobal) {
+    if (!currentUser.companyId) throw new UnauthorizedException('找不到公司');
+    qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
+  }
+
+  if (excludeUserRole === 'true') {
+    qb.andWhere('user.role != :userRole', { userRole: 'USER' });
+  } else if (excludeUserRole === 'false') {
+    qb.andWhere('user.role = :userRole', { userRole: 'USER' });
+  }
+
+  if (username) qb.andWhere('user.username ILIKE :username', { username: `%${username}%` });
+  if (status) qb.andWhere('user.status = :status', { status });
+  if (blacklist === 'true') qb.andWhere('user.is_blacklisted = true');
+  if (blacklist === 'false') qb.andWhere('user.is_blacklisted = false');
+  if (createdFrom) qb.andWhere('user.created_at >= :createdFrom', { createdFrom });
+  if (createdTo) qb.andWhere('user.created_at <= :createdTo', { createdTo });
+  if (loginFrom) qb.andWhere('user.last_login_at >= :loginFrom', { loginFrom });
+  if (loginTo) qb.andWhere('user.last_login_at <= :loginTo', { loginTo });
+
+  qb.orderBy('user.id', 'ASC');
+
+  const users = await qb.getMany();
+
+  const formatTime = (date?: Date | string | null): string => {
+  if (!date) return '';
+  const d = new Date(date);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  return ' ' + `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ` +
+         `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+
+  const rows = users.map((u) => ({
+    ID: u.id,
+    帳號: u.username,
+    Email: u.email ?? '',
+    狀態: u.status,
+    黑名單: u.is_blacklisted ? '是' : '否',
+    公司名稱: u.company?.name ?? '',
+    註冊時間: formatTime(u.created_at),        // ✅ 沒有加 `="..."`！
+    最後登入時間: formatTime(u.last_login_at),
+    最後登入IP: u.last_login_ip ?? '',
+    登入平台: u.last_login_platform ?? '',
+  }));
+
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+
+  if (format === 'xlsx') {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Users');
+
+    sheet.columns = Object.keys(rows[0]).map((key) => ({
+      header: key,
+      key,
+      width: 20,
+    }));
+
+    sheet.addRows(rows);
+
+    res.setHeader('Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=users_${dateStr}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } else {
+    const csvHeader = Object.keys(rows[0]).join(',') + '\n';
+    const csvBody = rows.map((row) =>
+      Object.entries(row)
+      .map(([key, val]) => {
+        const str = String(val ?? '');
+        const isSensitiveNumeric = /^[0-9]{8,}$/.test(str); // 8 碼以上純數字
+        if (isSensitiveNumeric) return `="` + str + `"`;
+        return `"${str.replace(/"/g, '""')}"`; // 正常處理其他欄位
+      })
+
+        .join(',')
+    ).join('\n');
+
+    const csv = '\uFEFF' + csvHeader + csvBody;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=users_${dateStr}.csv`);
+    res.send(csv);
+  }
 }
 
 

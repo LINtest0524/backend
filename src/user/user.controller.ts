@@ -23,6 +23,11 @@ import { Roles } from '../auth/roles.decorator';
 import { User } from './user.entity';
 import * as UAParser from 'ua-parser-js';
 
+import { ExportUserDto } from './dto/export-user.dto';
+import { Response } from 'express';
+import { Res } from '@nestjs/common';
+
+
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -33,6 +38,56 @@ export class UserController {
     const userId = req.user?.userId;
     return this.userService.findById(userId);
   }
+
+
+
+
+
+  
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Get('export')
+  async exportUsers(
+    @Request() req,
+    @Query() query: ExportUserDto,
+    @Res() res: Response,
+  ) {
+    const user = req.user;
+
+    // 代理商角色必須驗證公司
+    if (!user.companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
+      throw new UnauthorizedException('無法辨識所屬公司');
+    }
+
+    return this.userService.exportUsers(user, query, res);
+  }
+
+
+
+
+
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN')
+  @Get('admin-only')
+  getAdminOnlyRoute() {
+    return { message: '你是管理員，歡迎進入此路由！' };
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -77,12 +132,7 @@ export class UserController {
   }
 
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
-  @Get('admin-only')
-  getAdminOnlyRoute() {
-    return { message: '你是管理員，歡迎進入此路由！' };
-  }
+  
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
@@ -169,4 +219,7 @@ export class UserController {
   async removeFromBlacklist(@Param('id') id: number, @Request() req) {
     return this.userService.updateSecured(id, { is_blacklisted: false }, req.user);
   }
+
+
+
 }
