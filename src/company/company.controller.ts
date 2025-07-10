@@ -16,10 +16,10 @@ export class CompanyController {
   ) {}
 
   @Get()
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN')
   async getAllCompanies() {
     return await this.companyRepository.find({
-      select: ['id', 'name'], // 如果只需要這兩個欄位
+      select: ['id', 'name'], 
       order: { id: 'ASC' },
     });
   }

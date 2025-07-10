@@ -73,6 +73,9 @@ export class AuditLogService {
     });
   }
 
+
+
+
   async findFiltered(params: FindFilteredParams) {
     const {
       currentUser,
@@ -135,5 +138,24 @@ export class AuditLogService {
       totalCount,
       totalPages,
     };
+  }
+
+  async create(payload: {
+    action: string;
+    target: string;
+    targetId: number;
+    user: User;
+    ip: string;
+    platform: string;
+    snapshot: any;
+  }) {
+    return this.record({
+      user: payload.user,
+      action: payload.action,
+      ip: payload.ip,
+      platform: payload.platform,
+      target: `${payload.target}:${payload.targetId}`,
+      after: payload.snapshot,
+    });
   }
 }

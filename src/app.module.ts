@@ -12,7 +12,7 @@ import { CompanyModuleModule } from './company-module/company-module.module';
 import { ModuleModule } from './module/module.module'
 import { MarqueeModule } from './marquee/marquee.module'
 import { IdentityVerificationModule } from './identity-verification/identity-verification.module';
-
+import { LoanProductModule } from './loan-product/loan-product.module';
 
 
 @Module({
@@ -39,8 +39,9 @@ import { IdentityVerificationModule } from './identity-verification/identity-ver
     BannerModule,
     ModuleModule,
     MarqueeModule,
-    CompanyModuleModule, // ✅ 新增模組註冊
+    CompanyModuleModule, 
     IdentityVerificationModule,
+    LoanProductModule,
 
   ],
   controllers: [],
