@@ -25,48 +25,90 @@ export class PortalAuthController {
     private readonly moduleRepo: Repository<CompanyModule>,
   ) {}
 
-  @Post('register')
-  async register(@Body() body: RegisterDto, @Req() req: any) {
-    const companyCode = req.query.company;
 
-    if (!companyCode) {
-      throw new UnauthorizedException('缺少公司代碼');
-    }
 
-    const existing = await this.userService.findOneByUsername(body.username);
-    if (existing) {
-      throw new ConflictException('帳號已存在');
-    }
 
-    const user = await this.userService.createFromPortal({
-      ...body,
-      companyCode,
-    });
 
-    const fullUser = await this.userService.findById(user.id);
 
-    const payload = {
-      userId: fullUser.id,
-      username: fullUser.username,
-      companyId: fullUser.company?.id ?? null,
-    };
+@Post('register')
+async register(@Body() body: RegisterDto, @Req() req: any) {
+  const companyCode = req.query.company;
 
-    const token = this.jwtService.sign(payload);
-
-    return {
-      message: '註冊成功',
-      token,
-      user: {
-        id: fullUser.id,
-        username: fullUser.username,
-        email: fullUser.email,
-        company: {
-          id: fullUser.company.id,
-          code: fullUser.company.code,
-        },
-      },
-    };
+  if (!companyCode) {
+    throw new UnauthorizedException('缺少公司代碼');
   }
+
+  const existing = await this.userService.findOneByUsername(body.username);
+  if (existing) {
+    throw new ConflictException('帳號已存在');
+  }
+
+  const user = await this.userService.createFromPortal({
+    ...body,
+    companyCode,
+  });
+
+  const fullUser = await this.userService.findById(user.id);
+
+  // 🔹 收集 IP 與平台裝置資訊
+  const clientIp =
+    (req.headers['x-forwarded-for'] as string) ||
+    req.socket?.remoteAddress ||
+    req.ip ||
+    'unknown';
+
+  const userAgent = req.headers['user-agent'] || '';
+  const parser = new UAParser.UAParser(userAgent);
+  const info = parser.getResult();
+
+  let deviceType = info.device.type ?? 'desktop';
+  let device: string;
+
+  if (deviceType === 'mobile') {
+    device = '手機';
+  } else if (deviceType === 'tablet') {
+    device = '平板';
+  } else {
+    device = '電腦';
+  }
+
+  const os = `${info.os.name} ${info.os.version}`;
+  const browser = `${info.browser.name} ${info.browser.version}`;
+  const platform = `${device} / ${os} / ${browser}`;
+
+  // 🔹 記錄登入資訊與操作紀錄
+  await this.userService.updateLoginInfo(fullUser.id, clientIp, platform);
+  await this.auditLogService.record({
+    user: fullUser,
+    action: `註冊並登入代理商${fullUser.company?.code ?? ''}官網`,
+    ip: clientIp,
+    platform,
+    target: `register-portal:${fullUser.id}`,
+  });
+
+  const payload = {
+    userId: fullUser.id,
+    username: fullUser.username,
+    companyId: fullUser.company?.id ?? null,
+  };
+
+  const token = this.jwtService.sign(payload);
+
+  return {
+    message: '註冊成功',
+    token,
+    user: {
+      id: fullUser.id,
+      username: fullUser.username,
+      email: fullUser.email,
+      company: {
+        id: fullUser.company.id,
+        code: fullUser.company.code,
+      },
+    },
+  };
+}
+
 
   @Post('login')
   async login(

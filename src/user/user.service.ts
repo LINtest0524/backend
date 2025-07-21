@@ -491,6 +491,8 @@ async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Respon
     format = 'csv',
   } = query;
 
+  console.log("📤 匯出參數", query, currentUser);
+
   const qb = this.userRepository
     .createQueryBuilder('user')
     .leftJoinAndSelect('user.company', 'company')
@@ -547,25 +549,48 @@ async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Respon
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
 
-  if (format === 'xlsx') {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Users');
+console.log("📤 匯出資料筆數", rows.length, rows[0]);
 
-    sheet.columns = Object.keys(rows[0]).map((key) => ({
-      header: key,
-      key,
-      width: 20,
-    }));
 
-    sheet.addRows(rows);
+if (format === 'xlsx') {
+  if (rows.length === 0) {
+    throw new BadRequestException("查無可匯出資料");
+  }
 
-    res.setHeader('Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=users_${dateStr}.xlsx`);
+  const firstRow = rows[0]; // 🚨 不再過濾，只要有一筆就拿它當欄位來源
 
-    await workbook.xlsx.write(res);
-    res.end();
-  } else {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Users');
+
+  sheet.columns = Object.keys(firstRow).map((key) => ({
+    header: key,
+    key,
+    width: 20,
+  }));
+
+  // 確保資料一致：即便其他筆缺少欄位也補空字串
+  const normalizedRows = rows.map((row) => {
+    const filled: Record<string, string> = {};
+    for (const key of Object.keys(firstRow)) {
+      filled[key] = row[key] ?? '';
+    }
+    return filled;
+  });
+
+  sheet.addRows(normalizedRows);
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename=users_${dateStr}.xlsx`);
+
+  await workbook.xlsx.write(res);
+  res.end();
+
+
+
+} else {
+    if (rows.length === 0) {
+      throw new BadRequestException("查無可匯出資料");
+    }
     const csvHeader = Object.keys(rows[0]).join(',') + '\n';
     const csvBody = rows.map((row) =>
       Object.entries(row)
