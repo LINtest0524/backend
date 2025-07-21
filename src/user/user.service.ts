@@ -491,7 +491,6 @@ async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Respon
     format = 'csv',
   } = query;
 
-  console.log("📤 匯出參數", query, currentUser);
 
   const qb = this.userRepository
     .createQueryBuilder('user')
@@ -549,7 +548,6 @@ async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Respon
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
 
-console.log("📤 匯出資料筆數", rows.length, rows[0]);
 
 
 if (format === 'xlsx') {
@@ -577,7 +575,12 @@ if (format === 'xlsx') {
     return filled;
   });
 
-  sheet.addRows(normalizedRows);
+  if (normalizedRows.length === 1) {
+    sheet.addRow(normalizedRows[0]);
+  } else {
+    sheet.addRows(normalizedRows);
+  }
+
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename=users_${dateStr}.xlsx`);
