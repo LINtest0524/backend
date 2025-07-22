@@ -62,10 +62,20 @@ export class MarqueeController {
   }
 
   // ✅ 後台 API
-  @Get('admin/marquee/:companyId')
-  getAll(@Param('companyId') companyId: number) {
+  // @Get('admin/marquee/:companyId')
+  // getAll(@Param('companyId') companyId: number) {
+  //   return this.marqueeService.findAll(companyId);
+  // }
+
+  @Get('admin/marquee')
+  async getAll(@Req() req: any) {
+    const user = req.user;
+    const companyId = user?.companyId ?? null; // 沒有也沒關係
     return this.marqueeService.findAll(companyId);
   }
+
+
+
 
   @Get('admin/marquee/item/:id')
   getOne(@Param('id') id: number) {

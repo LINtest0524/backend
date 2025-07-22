@@ -38,13 +38,31 @@ export class MarqueeService {
     };
   }
 
-  async findAll(companyId: number) {
-    const list = await this.marqueeRepo.find({
-      where: { company: { id: companyId } },
-      order: { createdAt: 'DESC' },
-    });
+
+
+  // async findAll(companyId: number) {
+  //   const list = await this.marqueeRepo.find({
+  //     where: { company: { id: companyId } },
+  //     order: { createdAt: 'DESC' },
+  //   });
+  //   return list.map(this.formatTimeFields);
+  // }
+  async findAll(companyId?: number) {
+    const query = this.marqueeRepo.createQueryBuilder('marquee')
+      .leftJoinAndSelect('marquee.company', 'company') // 如果有用到關聯
+      .orderBy('marquee.createdAt', 'DESC');
+
+    if (companyId) {
+      query.andWhere('company.id = :companyId', { companyId });
+    }
+
+    const list = await query.getMany();
     return list.map(this.formatTimeFields);
   }
+
+
+
+
 
   async findOne(id: number) {
     const item = await this.marqueeRepo.findOne({ where: { id } });
