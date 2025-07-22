@@ -102,11 +102,34 @@ export class IdentityVerificationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Get('admin')
-  async findAllForAdmin(@Req() req: Request) {
+  async findAllForAdmin(
+    @Req() req: Request,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('username') username?: string,
+    @Query('type') type?: 'ID_CARD' | 'BANK_ACCOUNT',
+    @Query('status') status?: 'PENDING' | 'APPROVED' | 'REJECTED',
+    @Query('createdFrom') createdFrom?: string,
+    @Query('createdTo') createdTo?: string,
+  ) {
     const currentUser = req.user as any;
     const companyId = currentUser?.companyId;
-    return this.identityService.findAllForCompany(companyId);
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+
+    return this.identityService.findAllPaginated(
+      companyId,
+      pageNum,
+      limitNum,
+      { username, type, status, createdFrom, createdTo },
+      currentUser // ✅ 關鍵補上
+    );
   }
+
+
+
+
+
 
 
   @UseGuards(JwtAuthGuard, RolesGuard)

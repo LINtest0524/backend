@@ -164,4 +164,96 @@ export class IdentityVerificationService {
       note: rec.note,
     }));
   }
+
+
+
+
+  async findAllPaginated(
+    companyId: number,
+    page = 1,
+    limit = 20,
+    filters?: {
+      username?: string
+      type?: string
+      status?: string
+      createdFrom?: string
+      createdTo?: string
+    },
+    currentUser?: { role: string } // 傳入目前登入者的角色
+  ) {
+    const qb = this.identityRepo
+      .createQueryBuilder('verification')
+      .leftJoinAndSelect('verification.user', 'user');
+
+    const isGlobalAdmin = currentUser && ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
+
+    if (!isGlobalAdmin) {
+      qb.where('user.companyId = :companyId', { companyId });
+    } else {
+      qb.where('1 = 1'); // 確保 where 開頭可用 andWhere 銜接
+    }
+
+    if (filters?.username) {
+      qb.andWhere('user.username ILIKE :username', {
+        username: `%${filters.username}%`,
+      });
+    }
+
+    if (filters?.type) {
+      qb.andWhere('verification.type = :type', { type: filters.type });
+    }
+
+    if (filters?.status) {
+      qb.andWhere('verification.status = :status', { status: filters.status });
+    }
+
+    if (filters?.createdFrom) {
+      qb.andWhere('verification.createdAt >= :createdFrom', {
+        createdFrom: filters.createdFrom,
+      });
+    }
+
+    if (filters?.createdTo) {
+      qb.andWhere('verification.createdAt <= :createdTo', {
+        createdTo: filters.createdTo,
+      });
+    }
+
+    qb.orderBy('verification.createdAt', 'DESC');
+    qb.skip((page - 1) * limit);
+    qb.take(limit);
+
+    const [records, total] = await qb.getManyAndCount();
+
+    const result = records.map((rec) => ({
+      id: rec.id,
+      username: rec.user?.username ?? '(無)',
+      type: rec.type,
+      createdAt: rec.createdAt,
+      status: rec.status,
+      images:
+        rec.type === 'ID_CARD'
+          ? [
+              `${process.env.API_BASE_URL}/uploads/identity/${rec.frontImage}`,
+              `${process.env.API_BASE_URL}/uploads/identity/${rec.backImage}`,
+              `${process.env.API_BASE_URL}/uploads/identity/${rec.selfieImage}`,
+            ]
+          : [
+              `${process.env.API_BASE_URL}/uploads/identity/${rec.accountImage}`,
+            ],
+      note: rec.note,
+    }));
+
+    return {
+      data: result,
+      totalCount: total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+
+
+
+
+
 }
