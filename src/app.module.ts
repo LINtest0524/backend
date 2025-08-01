@@ -14,6 +14,8 @@ import { MarqueeModule } from './marquee/marquee.module'
 import { IdentityVerificationModule } from './identity-verification/identity-verification.module';
 import { LoanProductModule } from './loan-product/loan-product.module';
 
+import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
+
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { LoanProductModule } from './loan-product/loan-product.module';
     CompanyModuleModule, 
     IdentityVerificationModule,
     LoanProductModule,
+    LuckyPrizeModule,
 
   ],
   controllers: [],
