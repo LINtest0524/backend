@@ -169,8 +169,25 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/password')
   async resetPassword(@Param('id') id: number, @Body() dto: ChangePasswordDto, @Request() req) {
-    return this.userService.resetPasswordSecured(id, dto.newPassword, req.user);
+    const ip =
+      (req.headers['x-forwarded-for'] as string) ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      'unknown';
 
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new UAParser.UAParser(uaString);
+    const info = parser.getResult();
+
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+
+    return this.userService.resetPasswordSecured(id, dto.newPassword, req.user, ip, platform);
   }
 
   @UseGuards(JwtAuthGuard)

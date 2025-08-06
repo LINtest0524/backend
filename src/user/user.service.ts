@@ -197,7 +197,7 @@ async update(
     await this.userModuleRepository.save(userModules);
   }
 
-  // ✅ log1：紀錄黑名單變更（獨立記錄）
+  // ✅ log1：紀錄黑名單變更（區分會員和管理員）
 if (
   this.auditLogService &&
   is_blacklisted !== undefined &&
@@ -205,46 +205,74 @@ if (
   ip &&
   platform
 ) {
+  const blacklistAction = is_blacklisted ? '加入黑名單' : '移除黑名單';
+  const blacklistStatus = is_blacklisted ? '是' : '否';
+  
+  // 判斷是會員還是管理員
+  const isUser = user.role === 'USER';
+  const actionPrefix = isUser ? '🚫 會員' : '🚫 管理員';
+  const targetPrefix = isUser ? 'blacklist' : 'admin-user';
+  
   await this.auditLogService.record({
     user: { id: currentUser.userId },
-    action: `修改會員黑名單 - ${user.username}（${is_blacklisted ? '加入' : '移除'}）`,
+    action: `${actionPrefix}${blacklistAction} - ${user.username}（黑名單：${blacklistStatus}）`,
     ip,
     platform,
-    target: `blacklist:${user.id}`,  // ✅ 改成這樣
+    target: `${targetPrefix}:${user.id}`,
     before: { is_blacklisted: before.is_blacklisted },
     after: { is_blacklisted: user.is_blacklisted },
   });
 }
 
-
-  // ✅ log2：紀錄其他變更（不包含黑名單）
+  // ✅ log2：紀錄狀態變更（區分會員和管理員）
   if (
     this.auditLogService &&
     ip &&
     platform &&
-    (
-      email !== before.email ||
-      status !== before.status
-    )
+    status !== undefined &&
+    status !== before.status
   ) {
-    const diffs: string[] = [];
-    if (email !== before.email) diffs.push(`📧 Email：${before.email ?? '-'} → ${email ?? '-'}`);
-    if (status !== before.status) diffs.push(`📌 狀態：${before.status} → ${status}`);
-
+    const statusMap = {
+      'ACTIVE': '啟用',
+      'INACTIVE': '停用',
+      'BANNED': '封鎖'
+    };
+    
+    const beforeStatusText = statusMap[before.status] || before.status;
+    const afterStatusText = statusMap[status] || status;
+    
+    // 判斷是會員還是管理員
+    const isUser = user.role === 'USER';
+    const actionPrefix = isUser ? '⚡ 變更會員狀態' : '👤 變更管理員狀態';
+    const targetPrefix = isUser ? 'status' : 'admin-user';
+    
     await this.auditLogService.record({
       user: { id: currentUser.userId },
-      action: `編輯後台使用者2 - ${user.username}（${diffs.join('、') || '未變更'}）`,
+      action: `${actionPrefix} - ${user.username}（${beforeStatusText} → ${afterStatusText}）`,
+      ip,
+      platform,
+      target: `${targetPrefix}:${user.id}`,
+      before: { status: before.status },
+      after: { status: user.status },
+    });
+  }
+
+  // ✅ log3：紀錄其他變更（Email等）
+  if (
+    this.auditLogService &&
+    ip &&
+    platform &&
+    email !== undefined &&
+    email !== before.email
+  ) {
+    await this.auditLogService.record({
+      user: { id: currentUser.userId },
+      action: `修改會員資料 - ${user.username}（Email：${before.email ?? '-'} → ${email ?? '-'}）`,
       ip,
       platform,
       target: `admin-user:${user.id}`,
-      before: {
-        email: before.email,
-        status: before.status,
-      },
-      after: {
-        email: user.email,
-        status: user.status,
-      },
+      before: { email: before.email },
+      after: { email: user.email },
     });
   }
 
@@ -886,7 +914,13 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
   }
 
 
-  async resetPasswordSecured(id: number, newPassword: string, currentUser: JwtUserPayload): Promise<{ message: string }> {
+  async resetPasswordSecured(
+    id: number, 
+    newPassword: string, 
+    currentUser: JwtUserPayload,
+    ip?: string,
+    platform?: string
+  ): Promise<{ message: string }> {
     if (!newPassword) {
       throw new BadRequestException('新密碼不得為空');
     }
@@ -895,6 +929,24 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
     const hashed = await bcrypt.hash(newPassword, 10);
     user.password = hashed;
     await this.userRepository.save(user);
+
+    // 記錄密碼重設操作到 audit log
+    if (this.auditLogService && ip && platform) {
+      // 判斷是會員還是管理員
+      const isUser = user.role === 'USER';
+      const userType = isUser ? '會員' : '管理員';
+      
+      await this.auditLogService.record({
+        user: { id: currentUser.userId },
+        action: `🔑 重設${userType}密碼 - ${user.username}`,
+        ip,
+        platform,
+        target: `admin-user:${user.id}`, // 密碼重設都記錄到管理員操作紀錄
+        before: { action: '密碼重設前' },
+        after: { action: '密碼已重設' },
+      });
+    }
+
     return { message: '密碼已重設' };
   }
 
