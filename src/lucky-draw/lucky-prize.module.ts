@@ -3,10 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { LuckyPrizeController } from './lucky-prize.controller';
 import { LuckyPrizeService } from './lucky-prize.service';
 import { LuckyPrize } from './lucky-prize.entity';
+import { LuckyDrawRecord } from './lucky-draw-record.entity';
+import { LuckyDrawEvent } from './lucky-draw-event.entity';
+import { LuckyDrawEventController } from './lucky-draw-event.controller';
+import { LuckyDrawEventService } from './lucky-draw-event.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([LuckyPrize])],
-  controllers: [LuckyPrizeController],
-  providers: [LuckyPrizeService],
+  imports: [TypeOrmModule.forFeature([LuckyPrize, LuckyDrawRecord, LuckyDrawEvent])],
+  controllers: [LuckyPrizeController, LuckyDrawEventController],
+  providers: [LuckyPrizeService, LuckyDrawEventService],
 })
 export class LuckyPrizeModule {}

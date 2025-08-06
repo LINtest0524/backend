@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { LuckyDrawEvent } from './lucky-draw-event.entity';
 
 @Entity('lucky_prize')
 export class LuckyPrize {
@@ -25,4 +26,11 @@ export class LuckyPrize {
 
   @Column({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updatedAt: Date;
+
+  @Column({ name: 'event_id', nullable: true })
+  eventId: number;
+
+  @ManyToOne(() => LuckyDrawEvent, event => event.prizes)
+  @JoinColumn({ name: 'event_id' })
+  event: LuckyDrawEvent;
 }
