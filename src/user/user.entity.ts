@@ -25,8 +25,8 @@ export class User {
   @Column({ type: 'varchar', unique: true })
   username: string;
 
-  @Column({ type: 'varchar' })
-  password: string;
+  @Column({ type: 'varchar', nullable: true })
+  password: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   phone: string | null;
@@ -51,6 +51,18 @@ export class User {
 
   @Column({ type: 'varchar', nullable: true })
   email: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  facebook_id: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  first_name: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  last_name: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  profile_picture: string | null;
 
   @Column({ type: 'varchar', default: 'ACTIVE' })
   status: string;

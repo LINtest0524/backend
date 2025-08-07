@@ -746,6 +746,7 @@ if (format === 'xlsx') {
 
     if (companyModes.includes('OLD_PASSWORD')) {
       if (!dto.oldPassword) throw new BadRequestException('請輸入舊密碼');
+      if (!user.password) throw new BadRequestException('使用者密碼未設定');
       const match = await bcrypt.compare(dto.oldPassword, user.password);
       if (!match) throw new UnauthorizedException('舊密碼錯誤');
     }
@@ -839,6 +840,10 @@ if (format === 'xlsx') {
   });
 
   if (!user) return null;
+
+  if (!user.password) {
+    throw new UnauthorizedException('使用者密碼未設定');
+  }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new UnauthorizedException('密碼錯誤');

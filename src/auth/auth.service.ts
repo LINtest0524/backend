@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserService } from '../user/user.service';
-import { User } from '../user/user.entity';
+import { User, UserRole } from '../user/user.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -21,6 +21,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     @InjectRepository(CompanyModule)
     private readonly moduleRepo: Repository<CompanyModule>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly auditLogService: AuditLogService,
   ) {}
 
@@ -51,6 +53,11 @@ export class AuthService {
     }
   }
 
+  if (!user.password) {
+    console.log('❌ 使用者密碼為空');
+    return null;
+  }
+  
   const isMatch = await bcrypt.compare(pass, user.password);
   
   console.log('🔑 密碼比對結果:', isMatch);
@@ -139,6 +146,99 @@ export class AuthService {
         role: user.role,
         companyId: user.company?.id ?? null,
         company: user.company ?? null,
+        enabledModules: Object.fromEntries(
+          enabledModules.map((m) => [m.module_key, true])
+        ),
+      },
+    };
+  }
+
+  async validateFacebookUser(facebookUser: any): Promise<any> {
+    console.log('🔍 Facebook 用戶資料:', facebookUser);
+    
+    const { facebookId, firstName, lastName, picture } = facebookUser;
+
+    // 先嘗試用 Facebook ID 找用戶
+    let user = await this.userRepository.findOne({
+      where: { facebook_id: facebookId },
+      relations: ['company'],
+    });
+
+    console.log('🔍 找到現有用戶:', user ? 'Yes' : 'No');
+
+    // 如果還是沒找到，創建新用戶
+    if (!user) {
+      console.log('🆕 創建新用戶...');
+      
+      user = this.userRepository.create({
+        username: `fb_${facebookId}`,
+        password: null, // Facebook 用戶沒有密碼
+        facebook_id: facebookId,
+        first_name: firstName,
+        last_name: lastName,
+        profile_picture: picture,
+        role: UserRole.USER, // 預設角色
+        company: { id: 1 }, // 預設公司，您可能需要調整
+        status: 'ACTIVE',
+      });
+      
+      try {
+        await this.userRepository.save(user);
+        console.log('✅ 新用戶創建成功');
+      } catch (error) {
+        console.error('❌ 創建用戶失敗:', error);
+        throw error;
+      }
+    }
+
+    return user;
+  }
+
+  async facebookLogin(user: any, clientIp: string, platform: string) {
+    const validatedUser = await this.validateFacebookUser(user);
+    
+    // ✅ 更新用戶登入資訊（IP、時間、平台）
+    await this.userService.updateLoginInfo(validatedUser.id, clientIp, platform);
+    
+    // 寫入操作紀錄（Facebook 登入）
+    await this.auditLogService.record({
+      user: validatedUser,
+      action: `Facebook登入代理商${validatedUser.company?.code ?? ''}官網`,
+      ip: clientIp,
+      platform,
+      target: `login-portal:${validatedUser.id}`,
+    });
+
+    const payload = {
+      userId: validatedUser.id,
+      username: validatedUser.username,
+      role: validatedUser.role,
+      companyId: validatedUser.company?.id ?? null,
+    };
+
+    const secret = this.configService.get('JWT_SECRET');
+    const token = this.jwtService.sign(payload, { secret });
+
+    let enabledModules: CompanyModule[] = [];
+
+    if (validatedUser.company?.id) {
+      enabledModules = await this.moduleRepo.find({
+        where: { company: { id: validatedUser.company.id }, enabled: true },
+      });
+    }
+
+    return {
+      token,
+      user: {
+        userId: validatedUser.id,
+        username: validatedUser.username,
+        email: validatedUser.email,
+        role: validatedUser.role,
+        companyId: validatedUser.company?.id ?? null,
+        company: validatedUser.company ?? null,
+        firstName: validatedUser.first_name,
+        lastName: validatedUser.last_name,
+        profilePicture: validatedUser.profile_picture,
         enabledModules: Object.fromEntries(
           enabledModules.map((m) => [m.module_key, true])
         ),
