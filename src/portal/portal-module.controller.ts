@@ -6,12 +6,14 @@ import {
   UseGuards,
   Req,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CompanyModule } from '../company-module/company-module.entity';
-import { Company } from '../company/company.entity'; // ✅ 要引入 Company entity
+import { Company } from '../company/company.entity';
+import { MarqueeService } from '../marquee/marquee.service';
 
 // @UseGuards(JwtAuthGuard)
 @Controller('portal/module')
@@ -20,8 +22,10 @@ export class PortalModuleController {
     @InjectRepository(CompanyModule)
     private readonly moduleRepo: Repository<CompanyModule>,
 
-    @InjectRepository(Company) // ✅ 補這個注入
+    @InjectRepository(Company)
     private readonly companyRepo: Repository<Company>,
+
+    private readonly marqueeService: MarqueeService,
   ) {}
 
   @Get('my-modules')
@@ -86,5 +90,32 @@ export class PortalModuleController {
     });
 
     return modules.map((m) => m.module_key);
+  }
+
+  @Get('public/marquee')
+  async getPublicMarquee(@Query('company') companyCode: string) {
+    if (!companyCode) {
+      throw new BadRequestException('缺少 company 參數');
+    }
+
+    const company = await this.companyRepo.findOne({
+      where: { code: companyCode },
+    });
+
+    if (!company) {
+      throw new BadRequestException(`找不到公司：${companyCode}`);
+    }
+
+    const isEnabled = await this.moduleRepo.findOne({
+      where: {
+        companyId: company.id,
+        module_key: 'marquee',
+        enabled: true,
+      },
+    });
+
+    if (!isEnabled) return [];
+
+    return this.marqueeService.findByCompany(company.id);
   }
 }

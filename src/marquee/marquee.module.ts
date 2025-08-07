@@ -18,5 +18,6 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
   ],
   providers: [MarqueeService],
   controllers: [MarqueeController],
+  exports: [MarqueeService], // ✅ 新增這行：導出 MarqueeService
 })
 export class MarqueeModule {}
