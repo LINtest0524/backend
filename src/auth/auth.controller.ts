@@ -95,12 +95,17 @@ export class AuthController {
   async facebookAuth(@Req() req: Request) {
     // 這個路由會重定向到 Facebook
     console.log('🔍 Facebook 認證路由被調用');
+    console.log('🔍 公司代碼:', req.query.company);
   }
 
   @Get('facebook/callback')
   async facebookAuthRedirect(@Req() req: Request, @Res() res: Response, @Ip() ip: string) {
     // 記錄所有查詢參數以便調試
     console.log('🔍 Facebook callback 查詢參數:', req.query);
+    
+    // 獲取公司代碼，用於錯誤重定向
+    const companyCode = req.query.company as string || 'a';
+    const loginUrl = `http://localhost:3000/${companyCode}/login`;
     
     // 檢查是否有錯誤參數（用戶取消授權）
     const error = req.query.error;
@@ -113,12 +118,12 @@ export class AuthController {
       // 用戶取消授權或其他錯誤
       if (error === 'access_denied' || errorReason === 'user_denied') {
         console.log('👤 用戶取消了 Facebook 授權');
-        return res.redirect('http://localhost:3000/a/login?error=facebook_cancelled');
+        return res.redirect(`${loginUrl}?error=facebook_cancelled`);
       }
       
       // 其他錯誤
       console.log('🔍 其他 Facebook 錯誤，重定向到 facebook_error');
-      return res.redirect('http://localhost:3000/a/login?error=facebook_error');
+      return res.redirect(`${loginUrl}?error=facebook_error`);
     }
 
     // 如果沒有錯誤，則使用 Facebook Guard 進行驗證
@@ -127,6 +132,9 @@ export class AuthController {
   }
 
   async handleFacebookCallback(@Req() req: Request, @Res() res: Response, @Ip() ip: string) {
+    // 獲取公司代碼，用於錯誤重定向
+    const companyCode = req.query.company as string || 'a';
+    const loginUrl = `http://localhost:3000/${companyCode}/login`;
     try {
       console.log('🔍 Facebook 回調開始...');
       
@@ -151,13 +159,13 @@ export class AuthController {
         console.error('❌ Facebook Guard 執行錯誤:', guardError);
         console.error('❌ 錯誤詳情:', guardError.message);
         console.error('❌ 錯誤堆疊:', guardError.stack);
-        return res.redirect('http://localhost:3000/a/login?error=facebook_guard_error');
+        return res.redirect(`${loginUrl}?error=facebook_guard_error`);
       }
 
       // 檢查是否有有效的用戶資料
       if (!req.user) {
         console.log('❌ Facebook Guard 沒有返回用戶資料');
-        return res.redirect('http://localhost:3000/a/login?error=facebook_login_failed');
+        return res.redirect(`${loginUrl}?error=facebook_login_failed`);
       }
 
       // 平台格式化
@@ -187,8 +195,14 @@ export class AuthController {
       console.error('❌ Facebook 回調錯誤:', error);
       console.error('❌ 錯誤堆疊:', error.stack);
       
-      // 重定向到錯誤頁面
-      res.redirect('http://localhost:3000/a/login?error=facebook_login_failed');
+      // 檢查是否為 UnauthorizedException（帳號狀態問題）
+      if (error.name === 'UnauthorizedException') {
+        const errorMessage = encodeURIComponent(error.message);
+        return res.redirect(`${loginUrl}?error=facebook_unauthorized&message=${errorMessage}`);
+      }
+      
+      // 其他錯誤重定向到通用錯誤頁面
+      res.redirect(`${loginUrl}?error=facebook_login_failed`);
     }
   }
 }
