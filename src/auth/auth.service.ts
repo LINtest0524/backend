@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { UserService } from '../user/user.service';
 import { User, UserRole } from '../user/user.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
+import { Company } from '../company/company.entity';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
@@ -153,38 +154,64 @@ export class AuthService {
     };
   }
 
-  async validateFacebookUser(facebookUser: any): Promise<any> {
+  async validateFacebookUser(facebookUser: any, companyCode?: string): Promise<any> {
     console.log('🔍 Facebook 用戶資料:', facebookUser);
+    console.log('🔍 登入的公司代碼:', companyCode);
     
     const { facebookId, firstName, lastName, picture } = facebookUser;
 
-    // 先嘗試用 Facebook ID 找用戶
+    // 根據公司代碼找到對應的公司 ID
+    let companyId = 1; // 預設公司 A
+    if (companyCode) {
+      const companyRepo = this.userRepository.manager.getRepository(Company);
+      const company = await companyRepo.findOne({ where: { code: companyCode } });
+      if (company) {
+        companyId = company.id;
+        console.log(`🔍 找到公司: ${company.name} (ID: ${companyId})`);
+      } else {
+        console.log(`⚠️ 找不到公司代碼 ${companyCode}，使用預設公司`);
+      }
+    }
+
+    // 先嘗試用 Facebook ID + 公司 ID 找用戶（允許同一個 FB 用戶在不同公司註冊）
     let user = await this.userRepository.findOne({
-      where: { facebook_id: facebookId },
+      where: { 
+        facebook_id: facebookId,
+        company: { id: companyId }
+      },
       relations: ['company'],
     });
 
-    console.log('🔍 找到現有用戶:', user ? 'Yes' : 'No');
+    console.log('🔍 找到該公司的現有用戶:', user ? 'Yes' : 'No');
 
-    // 如果還是沒找到，創建新用戶
+    // 如果還是沒找到，為該公司創建新用戶
     if (!user) {
-      console.log('🆕 創建新用戶...');
+      console.log(`🆕 為公司 ${companyCode} 創建新的 Facebook 用戶...`);
+      
+      // 生成唯一的用戶名（包含公司代碼以避免衝突）
+      const username = `fb_${facebookId}_${companyCode || 'default'}`;
       
       user = this.userRepository.create({
-        username: `fb_${facebookId}`,
+        username: username,
         password: null, // Facebook 用戶沒有密碼
         facebook_id: facebookId,
         first_name: firstName,
         last_name: lastName,
         profile_picture: picture,
         role: UserRole.USER, // 預設角色
-        company: { id: 1 }, // 預設公司，您可能需要調整
+        company: { id: companyId },
         status: 'ACTIVE',
       });
       
       try {
         await this.userRepository.save(user);
-        console.log('✅ 新用戶創建成功');
+        console.log(`✅ 新用戶創建成功: ${username}`);
+        
+        // 重新查詢以獲取完整的關聯資料
+        user = await this.userRepository.findOne({
+          where: { id: user.id },
+          relations: ['company'],
+        });
       } catch (error) {
         console.error('❌ 創建用戶失敗:', error);
         throw error;
@@ -194,8 +221,8 @@ export class AuthService {
     return user;
   }
 
-  async facebookLogin(user: any, clientIp: string, platform: string) {
-    const validatedUser = await this.validateFacebookUser(user);
+  async facebookLogin(user: any, clientIp: string, platform: string, companyCode?: string) {
+    const validatedUser = await this.validateFacebookUser(user, companyCode);
     
     // ✅ 檢查用戶狀態和黑名單
     if (validatedUser.is_blacklisted) {

@@ -15,6 +15,9 @@ export class Company {
   @Column('simple-array', { default: 'OLD_PASSWORD' })
   passwordModes: string[];
 
+  @Column('simple-array', { default: 'USERNAME_PASSWORD,FACEBOOK' })
+  loginMethods: string[]; // 登入方式：USERNAME_PASSWORD, FACEBOOK, GOOGLE 等
+
   @OneToMany(() => Banner, banner => banner.company)
   banners: Banner[];
 }

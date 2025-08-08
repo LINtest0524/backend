@@ -16,6 +16,7 @@ import { IdentityVerificationModule } from './identity-verification/identity-ver
 import { LoanProductModule } from './loan-product/loan-product.module';
 
 import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
+import { CompanyModule } from './company/company.module';
 
 
 @Module({
@@ -40,6 +41,7 @@ import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
     PortalModule,
     AuditLogModule,
     BannerModule,
+    CompanyModule,
     ModuleModule,
     MarqueeModule,
     FloatingAdModule,

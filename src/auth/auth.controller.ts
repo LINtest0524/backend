@@ -91,20 +91,42 @@ export class AuthController {
   }
 
   @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  async facebookAuth(@Req() req: Request) {
+  async facebookAuth(@Req() req: Request, @Res() res: Response) {
     // 這個路由會重定向到 Facebook
     console.log('🔍 Facebook 認證路由被調用');
     console.log('🔍 公司代碼:', req.query.company);
+    
+    const companyCode = req.query.company as string || 'a';
+    
+    // 將公司代碼保存到 session
+    if (req.query.company) {
+      req.session = req.session || {};
+      req.session.companyCode = req.query.company as string;
+      console.log('🔍 已保存公司代碼到 session:', req.session.companyCode);
+    }
+    
+    // 使用 state 參數傳遞公司代碼，這樣更可靠
+    const passport = require('passport');
+    const authenticateOptions = {
+      scope: ['public_profile'],
+      state: companyCode // 將公司代碼作為 state 參數傳遞
+    };
+    
+    console.log('🔍 Facebook 認證選項:', authenticateOptions);
+    
+    passport.authenticate('facebook', authenticateOptions)(req, res);
   }
 
   @Get('facebook/callback')
   async facebookAuthRedirect(@Req() req: Request, @Res() res: Response, @Ip() ip: string) {
     // 記錄所有查詢參數以便調試
     console.log('🔍 Facebook callback 查詢參數:', req.query);
+    console.log('🔍 State 參數:', req.query.state);
+    console.log('🔍 Session 中的公司代碼:', req.session?.companyCode);
     
-    // 獲取公司代碼，用於錯誤重定向
-    const companyCode = req.query.company as string || 'a';
+    // 獲取公司代碼，優先從 state 參數取得，其次從 session，最後從 query
+    const companyCode = req.query.state as string || req.session?.companyCode || req.query.company as string || 'a';
+    console.log('🔍 最終使用的公司代碼:', companyCode);
     const loginUrl = `http://localhost:3000/${companyCode}/login`;
     
     // 檢查是否有錯誤參數（用戶取消授權）
@@ -132,8 +154,9 @@ export class AuthController {
   }
 
   async handleFacebookCallback(@Req() req: Request, @Res() res: Response, @Ip() ip: string) {
-    // 獲取公司代碼，用於錯誤重定向
-    const companyCode = req.query.company as string || 'a';
+    // 獲取公司代碼，優先從 state 參數取得，其次從 session，最後從 query
+    const companyCode = req.query.state as string || req.session?.companyCode || req.query.company as string || 'a';
+    console.log('🔍 handleFacebookCallback 使用的公司代碼:', companyCode);
     const loginUrl = `http://localhost:3000/${companyCode}/login`;
     try {
       console.log('🔍 Facebook 回調開始...');
@@ -183,11 +206,11 @@ export class AuthController {
       const platform = `${device} / ${os} / ${browser}`;
 
       console.log('🔍 開始 Facebook 登入處理...');
-      const result = await this.authService.facebookLogin(req.user, ip, platform);
+      const result = await this.authService.facebookLogin(req.user, ip, platform, companyCode);
       console.log('✅ Facebook 登入處理成功');
       
-      // 將 token 和用戶資訊傳遞給前端
-      const redirectUrl = `http://localhost:3000/auth/facebook/success?token=${result.token}&user=${encodeURIComponent(JSON.stringify(result.user))}`;
+      // 將 token 和用戶資訊傳遞給前端，包含公司代碼
+      const redirectUrl = `http://localhost:3000/auth/facebook/success?token=${result.token}&user=${encodeURIComponent(JSON.stringify(result.user))}&company=${companyCode}`;
       
       console.log('🔗 重定向到:', redirectUrl);
       res.redirect(redirectUrl);

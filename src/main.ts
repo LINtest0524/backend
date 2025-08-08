@@ -14,10 +14,13 @@ async function bootstrap() {
     session({
       secret: process.env.SESSION_SECRET || 'your-session-secret',
       resave: false,
-      saveUninitialized: false,
+      saveUninitialized: true, // 改為 true，確保 session 被創建
       cookie: {
         maxAge: 1000 * 60 * 60 * 24, // 24 hours
+        secure: false, // 開發環境使用 HTTP
+        httpOnly: false, // 允許客戶端訪問（調試用）
       },
+      name: 'facebook-login-session', // 給 session 一個明確的名稱
     }),
   );
 

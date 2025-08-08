@@ -24,10 +24,12 @@
     "paths": {
       "@/*": ["src/*"],
       "~/*": ["src/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "src/types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
