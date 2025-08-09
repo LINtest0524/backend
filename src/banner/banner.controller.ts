@@ -34,16 +34,17 @@ export class BannerController {
 
   @Get()
   findAll(@Req() req: any) {
-    console.log('查詢 banner，登入者公司 ID：', req.user.companyId);
+    const companyId = req.user.company?.id;
+    console.log('查詢 banner，登入者公司 ID：', companyId);
+    console.log('完整用戶資訊：', req.user);
 
-    const user = req.user;
-    return this.bannerService.findAll(user.companyId);
+    return this.bannerService.findAll(companyId);
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    const user = req.user;
-    return this.bannerService.findOne(id, user.companyId);
+    const companyId = req.user.company?.id;
+    return this.bannerService.findOne(id, companyId);
   }
 
   @Roles(
@@ -71,7 +72,7 @@ export class BannerController {
     const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
     const platform = `${device} / ${os} / ${browser}`;
 
-    dto.company = { id: user.companyId };
+    dto.company = { id: user.company?.id };
     return this.bannerService.create(dto, user, ip, platform);
   }
 
@@ -108,7 +109,7 @@ export class BannerController {
     const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
     const platform = `${device} / ${os} / ${browser}`;
 
-    return this.bannerService.update(id, dto, user, ip, platform);
+    return this.bannerService.update(id, dto, req.user, ip, platform);
   }
 
 
@@ -137,7 +138,7 @@ export class BannerController {
     const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
     const platform = `${device} / ${os} / ${browser}`;
 
-    return this.bannerService.remove(id, user, ip, platform);
+    return this.bannerService.remove(id, req.user, ip, platform);
   }
 
 

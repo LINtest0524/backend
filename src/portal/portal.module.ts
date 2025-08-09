@@ -7,6 +7,8 @@ import { PortalAuthController } from './portal-auth.controller';
 import { PortalBannerController } from './portal-banner.controller';
 import { PortalModuleController } from './portal-module.controller'; // ✅ 正確
 import { PortalFloatingAdController } from './portal-floating-ad.controller';
+import { PortalMenuController } from './portal-menu.controller';
+import { PortalNewsController } from './portal-news.controller';
 
 
 import { UserModule } from '../user/user.module';
@@ -14,6 +16,8 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { BannerModule } from '../banner/banner.module';
 import { MarqueeModule } from '../marquee/marquee.module';
 import { FloatingAdModule } from '../floating-ad/floating-ad.module';
+import { MenuModule } from '../menu/menu.module';
+import { NewsModule } from '../news/news.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -28,6 +32,8 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     BannerModule,
     MarqueeModule,
     FloatingAdModule,
+    MenuModule,
+    NewsModule,
     TypeOrmModule.forFeature([
       Banner,
       Company,
@@ -48,6 +54,8 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalBannerController,
     PortalModuleController, // ✅ 別漏這行
     PortalFloatingAdController,
+    PortalMenuController,
+    PortalNewsController,
   ],
 })
 export class PortalModule {}

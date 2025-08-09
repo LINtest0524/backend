@@ -68,13 +68,14 @@ export class FloatingAdService {
     ip: string,
     platform: string,
   ): Promise<FloatingAd> {
-    const before = await this.findOne(id, user.companyId);
+    const userCompanyId = user.company?.id;
+    const before = await this.findOne(id, userCompanyId);
     if (!before) {
-      throw new Error('浮動廣告不存在');
+      throw new Error('浮動廣告不存在或無權限操作');
     }
 
-    await this.floatingAdRepo.update({ id, companyId: user.companyId }, data);
-    const after = await this.findOne(id, user.companyId);
+    await this.floatingAdRepo.update({ id, companyId: userCompanyId }, data);
+    const after = await this.findOne(id, userCompanyId);
     
     if (!after) {
       throw new Error('更新後找不到浮動廣告');
@@ -103,12 +104,13 @@ export class FloatingAdService {
     ip: string,
     platform: string,
   ): Promise<void> {
-    const floatingAd = await this.findOne(id, user.companyId);
+    const userCompanyId = user.company?.id;
+    const floatingAd = await this.findOne(id, userCompanyId);
     if (!floatingAd) {
-      throw new Error('浮動廣告不存在');
+      throw new Error('浮動廣告不存在或無權限操作');
     }
 
-    await this.floatingAdRepo.delete({ id, companyId: user.companyId });
+    await this.floatingAdRepo.delete({ id, companyId: userCompanyId });
 
     // 寫入審計日誌
     await this.auditLogService.create({

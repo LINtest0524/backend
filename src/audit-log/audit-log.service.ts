@@ -97,7 +97,7 @@ export class AuditLogService {
       currentUser.role === 'AGENT_OWNER' ||
       currentUser.role === 'AGENT_SUPPORT'
     ) {
-      qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
+      qb.andWhere('user.company_id = :companyId', { companyId: currentUser.company_id });
     }
 
     if (from) {

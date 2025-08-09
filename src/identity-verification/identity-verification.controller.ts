@@ -34,27 +34,33 @@ export class IdentityVerificationController {
     @Req() req: Request,
     @Body() body: { type: 'ID_CARD' | 'BANK_ACCOUNT' }
   ) {
-    const userId = (req as any).user?.userId;
+    const userId = (req as any).user?.id;
+    const username = (req as any).user?.username;
     const { type } = body;
+
+    console.log(`🔍 身份驗證上傳請求 - 用戶: ${username} (ID: ${userId}), 類型: ${type}, 文件數量: ${files?.length || 0}`);
 
     if (!userId) throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     if (!type) throw new HttpException('缺少 type', HttpStatus.BAD_REQUEST);
 
     if (type === 'ID_CARD' && files.length !== 3) {
+      console.error(`❌ 身份證驗證文件數量錯誤 - 用戶: ${username}, 預期: 3, 實際: ${files.length}`);
       throw new HttpException('請上傳 3 張身份證圖片', HttpStatus.BAD_REQUEST);
     }
     if (type === 'BANK_ACCOUNT' && files.length !== 1) {
+      console.error(`❌ 銀行帳戶驗證文件數量錯誤 - 用戶: ${username}, 預期: 1, 實際: ${files.length}`);
       throw new HttpException('請上傳 1 張銀行封面圖片', HttpStatus.BAD_REQUEST);
     }
 
     try {
-      await this.identityService.saveVerificationFiles(userId, files, type);
+      const result = await this.identityService.saveVerificationFiles(userId, files, type);
+      console.log(`✅ 身份驗證上傳成功 - 用戶: ${username}, 類型: ${type}, 記錄ID: ${result.id}`);
       return {
         status: 'pending',
         message: '驗證資料已成功上傳，請耐心等待審核。',
       };
     } catch (error) {
-      console.error('❌ 上傳處理失敗：', error);
+      console.error(`❌ 上傳處理失敗 - 用戶: ${username}, 類型: ${type}:`, error);
       throw new InternalServerErrorException('Server error');
     }
   }
@@ -65,7 +71,7 @@ export class IdentityVerificationController {
     @Req() req: Request,
     @Query('type') type: 'ID_CARD' | 'BANK_ACCOUNT'
   ) {
-    const userId = (req as any).user?.userId;
+    const userId = (req as any).user?.id;
     if (!userId) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
@@ -85,7 +91,7 @@ export class IdentityVerificationController {
     @Req() req: Request,
     @Query('type') type: 'ID_CARD' | 'BANK_ACCOUNT' // ✅ 加這個
   ) {
-    const userId = (req as any).user?.userId;
+    const userId = (req as any).user?.id;
     if (!userId) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
@@ -113,7 +119,7 @@ export class IdentityVerificationController {
     @Query('createdTo') createdTo?: string,
   ) {
     const currentUser = req.user as any;
-    const companyId = currentUser?.companyId;
+    const companyId = currentUser?.company_id;
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 20;
 
@@ -140,7 +146,7 @@ export class IdentityVerificationController {
     @Req() req: Request,
     @Body() body: { status: 'APPROVED' | 'REJECTED'; note?: string }
   ) {
-    const reviewerId = (req as any).user?.userId;
+    const reviewerId = (req as any).user?.id;
     if (!reviewerId) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }

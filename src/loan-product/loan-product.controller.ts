@@ -34,7 +34,7 @@ export class LoanProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
   async create(@Body() dto: CreateLoanProductDto, @Request() req): Promise<LoanProduct> {
-    const fullUser = await this.userService.findById(req.user.userId);
+    const fullUser = await this.userService.findById(req.user.id);
     const { ip, platform } = this.extractClientInfo(req);
     return this.loanProductService.create(dto, fullUser, ip, platform);
   }
@@ -44,7 +44,7 @@ export class LoanProductController {
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async findAll(@Request() req, @Query() query: any) {
     const user = req.user;
-    if (!user.companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
+    if (!user.company_id && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
       throw new UnauthorizedException('無法辨識所屬公司');
     }
     return this.loanProductService.findAll(user, query);
@@ -110,7 +110,7 @@ export class LoanProductController {
   async findByCompany(@Param('companyId') companyId: number, @Request() req) {
     const user = req.user;
 
-    if (!['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role) && user.companyId !== companyId) {
+    if (!['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role) && user.company_id !== companyId) {
     throw new ForbiddenException('無權限查看其他公司的貸款產品');
     }
 

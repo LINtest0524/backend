@@ -17,7 +17,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from './user.entity';
 import { Company } from '../company/company.entity';
-import { JwtUserPayload } from '../types/jwt-payload';
+import { JwtUserPayload, JwtUser } from '../types/jwt-payload';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
 import { ExportUserDto } from './dto/export-user.dto';
@@ -150,14 +150,14 @@ export class UserService {
 async update(
   id: number,
   updateUserDto: UpdateUserDto,
-  currentUser: JwtUserPayload,
+  currentUser: JwtUser,
   ip?: string,
   platform?: string,
 ): Promise<User> {
   const user = await this.userRepository.findOne({
     where: {
       id,
-      company: { id: currentUser.companyId },
+      company: { id: currentUser.company_id },
     },
     relations: ['company'],
   });
@@ -214,7 +214,7 @@ if (
   const targetPrefix = isUser ? 'blacklist' : 'admin-user';
   
   await this.auditLogService.record({
-    user: { id: currentUser.userId },
+    user: { id: currentUser.id },
     action: `${actionPrefix}${blacklistAction} - ${user.username}（黑名單：${blacklistStatus}）`,
     ip,
     platform,
@@ -247,7 +247,7 @@ if (
     const targetPrefix = isUser ? 'status' : 'admin-user';
     
     await this.auditLogService.record({
-      user: { id: currentUser.userId },
+      user: { id: currentUser.id },
       action: `${actionPrefix} - ${user.username}（${beforeStatusText} → ${afterStatusText}）`,
       ip,
       platform,
@@ -266,7 +266,7 @@ if (
     email !== before.email
   ) {
     await this.auditLogService.record({
-      user: { id: currentUser.userId },
+      user: { id: currentUser.id },
       action: `修改會員資料 - ${user.username}（Email：${before.email ?? '-'} → ${email ?? '-'}）`,
       ip,
       platform,
@@ -308,11 +308,11 @@ if (
 
 
 
-  async softDelete(id: number, currentUser: JwtUserPayload, ip?: string, platform?: string): Promise<{ message: string }> {
+  async softDelete(id: number, currentUser: JwtUser, ip?: string, platform?: string): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({
       where: {
         id,
-        company: { id: currentUser.companyId },
+        company: { id: currentUser.company_id },
       },
     });
 
@@ -325,7 +325,7 @@ if (
 
     if (this.auditLogService && ip && platform) {
       await this.auditLogService.record({
-        user: { id: currentUser.userId },
+        user: { id: currentUser.id },
         action: `刪除後台使用者 - ${user.username}`,
         ip,
         platform,
@@ -381,7 +381,7 @@ async findOneByUsername(username: string, relations: string[] = []): Promise<Use
 
 // ✅ 查詢全部使用者（會員 / 管理員）
 async findAll(
-  currentUser: JwtUserPayload,
+  currentUser: JwtUser,
   query: any,
   options?: { excludeUserRole?: boolean }
 ): Promise<{ data: any[]; totalPages: number; totalCount: number }> {
@@ -411,10 +411,19 @@ async findAll(
 
   const isGlobal = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
   if (!isGlobal) {
-    if (!currentUser.companyId) {
+    // 從完整用戶實體中取得公司 ID
+    const companyId = currentUser.company?.id || currentUser.company_id;
+    console.log('UserService.findAll 公司檢查:', { 
+      userId: currentUser.id, 
+      role: currentUser.role, 
+      company: currentUser.company, 
+      companyId 
+    });
+    
+    if (!companyId) {
       throw new UnauthorizedException('找不到使用者的公司資訊');
     }
-    qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
+    qb.andWhere('user.company_id = :companyId', { companyId });
   }
 
   if (username) {
@@ -506,7 +515,7 @@ async findAll(
 
 
 
-async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Response): Promise<void> {
+async exportUsers(currentUser: JwtUser, query: ExportUserDto, res: Response): Promise<void> {
   const {
     username,
     status,
@@ -527,8 +536,9 @@ async exportUsers(currentUser: JwtUserPayload, query: ExportUserDto, res: Respon
 
   const isGlobal = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
   if (!isGlobal) {
-    if (!currentUser.companyId) throw new UnauthorizedException('找不到公司');
-    qb.andWhere('user.companyId = :companyId', { companyId: currentUser.companyId });
+    const companyId = currentUser.company?.id || currentUser.company_id;
+    if (!companyId) throw new UnauthorizedException('找不到公司');
+    qb.andWhere('user.company_id = :companyId', { companyId });
   }
 
   if (excludeUserRole === 'true') {
@@ -896,9 +906,9 @@ if (format === 'xlsx') {
   }
 
 
-async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
+async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { id, company: { id: currentUser.companyId }, deleted_at: IsNull() },
+      where: { id, company: { id: currentUser.company_id }, deleted_at: IsNull() },
       relations: ['company'],
     });
     if (!user) {
@@ -910,7 +920,7 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
   async updateSecured(
     id: number,
     dto: UpdateUserDto,
-    currentUser: JwtUserPayload,
+    currentUser: JwtUser,
     ip?: string,
     platform?: string,
   ): Promise<User> {
@@ -922,7 +932,7 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
   async resetPasswordSecured(
     id: number, 
     newPassword: string, 
-    currentUser: JwtUserPayload,
+    currentUser: JwtUser,
     ip?: string,
     platform?: string
   ): Promise<{ message: string }> {
@@ -942,7 +952,7 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
       const userType = isUser ? '會員' : '管理員';
       
       await this.auditLogService.record({
-        user: { id: currentUser.userId },
+        user: { id: currentUser.id },
         action: `🔑 重設${userType}密碼 - ${user.username}`,
         ip,
         platform,
@@ -958,7 +968,7 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
 
   async softDeleteSecured(
     id: number,
-    currentUser: JwtUserPayload,
+    currentUser: JwtUser,
     ip?: string,
     platform?: string
   ): Promise<{ message: string }> {
@@ -968,7 +978,7 @@ async findOneSecured(id: number, currentUser: JwtUserPayload): Promise<User> {
 
     if (this.auditLogService && ip && platform) {
       await this.auditLogService.record({
-        user: { id: currentUser.userId },
+        user: { id: currentUser.id },
         action: `刪除後台使用者 - ${user.username}`,
         ip,
         platform,

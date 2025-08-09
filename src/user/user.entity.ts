@@ -83,7 +83,11 @@ export class User {
   updated_at: Date;
 
   @ManyToOne(() => Company)
+  @JoinColumn({ name: 'company_id' })
   company: Company;
+
+  @Column({ nullable: true })
+  company_id: number;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })

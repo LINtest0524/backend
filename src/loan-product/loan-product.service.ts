@@ -68,7 +68,7 @@ export class LoanProductService {
     where.deleted_at = null;
 
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-        where.company = { id: user.companyId };
+        where.company = { id: user.company_id };
     } else if (query.company_id) {
         where.company = { id: query.company_id };
     }
@@ -93,7 +93,7 @@ export class LoanProductService {
   async findAllActive(user: any) {
     return this.loanProductRepo.find({
         where: {
-        company: { id: user.companyId },
+        company: { id: user.company_id },
         status: 'ACTIVE',
         deleted_at: null,
         } as any,
@@ -108,7 +108,7 @@ export class LoanProductService {
 
     if (!record) throw new NotFoundException('找不到資料');
 
-    const isOwner = user.companyId === record.company?.id;
+    const isOwner = user.company_id === record.company?.id;
     const isAdmin = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role);
     if (!isOwner && !isAdmin) throw new ForbiddenException('無權限查看此資料');
 

@@ -17,6 +17,8 @@ import { LoanProductModule } from './loan-product/loan-product.module';
 
 import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
 import { CompanyModule } from './company/company.module';
+import { MenuModule } from './menu/menu.module';
+import { NewsModule } from './news/news.module';
 
 
 @Module({
@@ -49,6 +51,8 @@ import { CompanyModule } from './company/company.module';
     IdentityVerificationModule,
     LoanProductModule,
     LuckyPrizeModule,
+    MenuModule,
+    NewsModule,
 
   ],
   controllers: [],

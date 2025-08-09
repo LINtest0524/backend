@@ -1,0 +1,39 @@
+-- 建立最新消息表 (PostgreSQL 版本)
+CREATE TABLE IF NOT EXISTS news (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  summary TEXT NOT NULL,
+  content TEXT NOT NULL,
+  image_url VARCHAR(500),
+  publish_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('ACTIVE', 'INACTIVE', 'DRAFT')),
+  category VARCHAR(20) NOT NULL DEFAULT 'GENERAL' CHECK (category IN ('GENERAL', 'ANNOUNCEMENT', 'PROMOTION', 'UPDATE')),
+  sort INTEGER NOT NULL DEFAULT 0,
+  view_count INTEGER NOT NULL DEFAULT 0,
+  is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+  "companyId" INTEGER NOT NULL,
+  "createdAt" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 建立索引
+CREATE INDEX IF NOT EXISTS "IDX_NEWS_COMPANY" ON news ("companyId");
+CREATE INDEX IF NOT EXISTS "IDX_NEWS_STATUS" ON news (status);
+CREATE INDEX IF NOT EXISTS "IDX_NEWS_PUBLISH_DATE" ON news (publish_date);
+CREATE INDEX IF NOT EXISTS "IDX_NEWS_CATEGORY" ON news (category);
+CREATE INDEX IF NOT EXISTS "IDX_NEWS_FEATURED" ON news (is_featured);
+
+-- 建立更新時間觸發器
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW."updatedAt" = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_news_updated_at BEFORE UPDATE ON news
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 建立上傳目錄的註解（需要手動建立）
+-- mkdir -p public/uploads/news

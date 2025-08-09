@@ -23,6 +23,15 @@ export class IdentityVerificationService {
     files: Express.Multer.File[],
     type: 'ID_CARD' | 'BANK_ACCOUNT',
   ) {
+    console.log(`🔍 開始處理驗證文件 - 用戶ID: ${userId}, 類型: ${type}, 文件數量: ${files.length}`);
+    
+    // 檢查是否已有相同類型的驗證記錄，如果有則先刪除
+    const existingRecord = await this.findByUserId(userId, type);
+    if (existingRecord) {
+      console.log(`⚠️ 發現現有記錄，將先刪除 - 記錄ID: ${existingRecord.id}`);
+      await this.identityRepo.remove(existingRecord);
+    }
+
     const uploadDir = path.join(__dirname, '../../public/uploads/identity');
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -34,6 +43,7 @@ export class IdentityVerificationService {
       const filepath = path.join(uploadDir, cleanName);
       await fs.promises.writeFile(filepath, file.buffer);
       filenames.push(cleanName);
+      console.log(`📁 文件已保存: ${cleanName}`);
     }
 
     let recordData: Partial<IdentityVerification> = {
@@ -53,7 +63,10 @@ export class IdentityVerificationService {
     }
 
     const record = this.identityRepo.create(recordData);
-    return this.identityRepo.save(record);
+    const savedRecord = await this.identityRepo.save(record);
+    console.log(`💾 驗證記錄已保存 - 記錄ID: ${savedRecord.id}`);
+    
+    return savedRecord;
   }
 
   async findByUserId(userId: number, type: 'ID_CARD' | 'BANK_ACCOUNT') {
@@ -188,7 +201,7 @@ export class IdentityVerificationService {
     const isGlobalAdmin = currentUser && ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
 
     if (!isGlobalAdmin) {
-      qb.where('user.companyId = :companyId', { companyId });
+      qb.where('user.company_id = :companyId', { companyId });
     } else {
       qb.where('1 = 1'); // 確保 where 開頭可用 andWhere 銜接
     }

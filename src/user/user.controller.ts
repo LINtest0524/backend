@@ -35,7 +35,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req) {
-    const userId = req.user?.userId;
+    const userId = req.user?.id || req.user?.userId; // 兼容新舊格式
     return this.userService.findById(userId);
   }
 
@@ -55,8 +55,11 @@ export class UserController {
     const user = req.user;
 
     // 代理商角色必須驗證公司
-    if (!user.companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      throw new UnauthorizedException('無法辨識所屬公司');
+    const companyId = user.company?.id || user.companyId;
+    console.log('用戶公司檢查:', { userId: user.id, role: user.role, company: user.company, companyId });
+    
+    if (!companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
+      throw new UnauthorizedException('找不到使用者的公司資訊');
     }
 
     return this.userService.exportUsers(user, query, res);
@@ -93,7 +96,8 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'AGENT_OWNER')
   async create(@Body() createUserDto: CreateUserDto, @Request() req): Promise<User> {
-    const fullUser = await this.userService.findById(req.user.userId);
+    const userId = req.user.id || req.user.userId;
+    const fullUser = await this.userService.findById(userId);
 
     const ip =
       (req.headers['x-forwarded-for'] as string) ||
@@ -123,8 +127,11 @@ export class UserController {
   async findAll(@Request() req, @Query() query: any) {
     const user = req.user;
 
-    if (!user.companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      throw new UnauthorizedException('無法辨識所屬公司');
+    const companyId = user.company?.id || user.companyId;
+    console.log('用戶公司檢查 (findAll):', { userId: user.id, role: user.role, company: user.company, companyId });
+    
+    if (!companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
+      throw new UnauthorizedException('找不到使用者的公司資訊');
     }
 
     const excludeUserRole = query.excludeUserRole === 'true'; // ✅ 讀 query
@@ -193,7 +200,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
-    const userId = req.user.userId;
+    const userId = req.user.id || req.user.userId;
     return this.userService.changePassword(userId, dto);
   }
 

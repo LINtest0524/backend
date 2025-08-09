@@ -34,14 +34,14 @@ export class FloatingAdController {
 
   @Get()
   findAll(@Req() req: any) {
-    const user = req.user;
-    return this.floatingAdService.findAll(user.companyId);
+    const companyId = req.user.company?.id;
+    return this.floatingAdService.findAll(companyId);
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    const user = req.user;
-    return this.floatingAdService.findOne(id, user.companyId);
+    const companyId = req.user.company?.id;
+    return this.floatingAdService.findOne(id, companyId);
   }
 
   @Roles(
@@ -69,7 +69,7 @@ export class FloatingAdController {
     const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
     const platform = `${device} / ${os} / ${browser}`;
 
-    dto.company = { id: user.companyId };
+    dto.company = { id: user.company?.id };
     return this.floatingAdService.create(dto, user, ip, platform);
   }
 

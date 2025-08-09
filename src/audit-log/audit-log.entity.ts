@@ -25,16 +25,19 @@ export class AuditLog {
   @Column({ nullable: true })
   target?: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'json', nullable: true })
   before?: any;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'json', nullable: true })
   after?: any;
 
   @CreateDateColumn()
   created_at: Date;
 
   @ManyToOne(() => User, { eager: true })
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @Column()
+  user_id: number;
 }

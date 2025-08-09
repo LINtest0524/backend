@@ -94,8 +94,12 @@ export class BannerService {
       throw new Error('更新資料不可為空');
     }
 
-    const before = await this.bannerRepo.findOne({ where: { id }, relations: ['company'] });
-    if (!before) throw new Error('找不到指定的 Banner');
+    const userCompanyId = user?.company?.id;
+    const before = await this.bannerRepo.findOne({ 
+      where: { id, companyId: userCompanyId }, 
+      relations: ['company'] 
+    });
+    if (!before) throw new Error('找不到指定的 Banner 或無權限操作');
 
     await this.bannerRepo.update(id, data);
     const after = await this.bannerRepo.findOne({ where: { id } });
@@ -164,10 +168,13 @@ export class BannerService {
   }
 
   async remove(id: number, user?: any, ip?: string, platform?: string) {
-    const banner = await this.bannerRepo.findOne({ where: { id } });
+    const userCompanyId = user?.company?.id;
+    const banner = await this.bannerRepo.findOne({ 
+      where: { id, companyId: userCompanyId } 
+    });
 
     if (!banner) {
-      throw new Error('Banner 不存在');
+      throw new Error('Banner 不存在或無權限操作');
     }
 
     const result = await this.bannerRepo.delete(id);
