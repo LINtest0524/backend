@@ -79,22 +79,13 @@ export class MarqueeService {
     const item = this.marqueeRepo.create({ ...data, company });
     const saved = await this.marqueeRepo.save(item);
 
-    console.log('🧪 測試參數：', { user, ip, platform });
-
     if (user && ip && platform) {
       try {
-
-        const userId = user.userId ?? user.id;
-
-      console.log('📢 [MarqueeService] 正在寫入紀錄', {
-        userId,
-        action: `新增跑馬燈 - ${saved.content}`,
-      });
 
 
 
         await this.auditLogService.record({
-          user: { id: user.userId },
+          user: { id: user.userId ?? user.id },
           action: `新增跑馬燈 - ${saved.content?.slice(0, 10) || '（無內容）'}`,
           ip,
           platform,
@@ -171,7 +162,7 @@ export class MarqueeService {
 
 
         await this.auditLogService.record({
-          user: { id: user.userId },
+          user: { id: user.userId ?? user.id },
           action: `刪除跑馬燈 - ${before.content?.slice(0, 10) || '（無內容）'}`,
           ip,
           platform,

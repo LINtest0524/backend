@@ -55,7 +55,7 @@ export class BannerService {
     if (user && ip && platform) {
       try {
         await this.auditLogService.record({
-          user: { id: user.userId },
+          user: { id: user.userId ?? user.id },
           action: `新增 Banner - ${saved.title || '（無標題）'}`,
           ip,
           platform,
@@ -109,7 +109,7 @@ export class BannerService {
 
       try {
         await this.auditLogService.record({
-          user: { id: user.userId },
+          user: { id: user.userId ?? user.id },
           action: `編輯 Banner - ${before.title}（${diffText || '未變動'}）`,
           ip,
           platform,
@@ -182,7 +182,7 @@ export class BannerService {
     if (user && ip && platform) {
       try {
         await this.auditLogService.record({
-          user: { id: user.userId },
+          user: { id: user.userId ?? user.id },
           action: `刪除 Banner - ${banner.title || '（無標題）'}`,
           ip,
           platform,
