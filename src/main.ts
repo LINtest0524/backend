@@ -9,6 +9,10 @@ import passport from 'passport';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // 配置請求大小限制
+  app.use(require('express').json({ limit: '10mb' }));
+  app.use(require('express').urlencoded({ limit: '10mb', extended: true }));
+
   // 配置 session 支持 (Facebook OAuth 需要)
   app.use(
     session({
