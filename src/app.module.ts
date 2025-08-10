@@ -9,9 +9,9 @@ import { PortalModule } from './portal/portal.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { BannerModule } from './banner/banner.module';
 import { CompanyModuleModule } from './company-module/company-module.module';
-import { ModuleModule } from './module/module.module'
-import { MarqueeModule } from './marquee/marquee.module'
-import { FloatingAdModule } from './floating-ad/floating-ad.module'
+import { ModuleModule } from './module/module.module';
+import { MarqueeModule } from './marquee/marquee.module';
+import { FloatingAdModule } from './floating-ad/floating-ad.module';
 import { IdentityVerificationModule } from './identity-verification/identity-verification.module';
 import { LoanProductModule } from './loan-product/loan-product.module';
 
@@ -19,6 +19,8 @@ import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
 import { CompanyModule } from './company/company.module';
 import { MenuModule } from './menu/menu.module';
 import { NewsModule } from './news/news.module';
+import { LogoModule } from './logo/logo.module';
+import { MarqueeTagModule } from './marquee-tag/marquee-tag.module';
 
 
 @Module({
@@ -53,6 +55,8 @@ import { NewsModule } from './news/news.module';
     LuckyPrizeModule,
     MenuModule,
     NewsModule,
+    LogoModule,
+    MarqueeTagModule,
 
   ],
   controllers: [],

@@ -1,29 +1,25 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm'
 import { Company } from '../company/company.entity'
-import { MarqueeTag } from '../marquee-tag/marquee-tag.entity'
 
-@Entity('marquee')
-export class Marquee {
+@Entity('marquee_tag')
+export class MarqueeTag {
   @PrimaryGeneratedColumn()
   id: number
 
   @Column()
-  title: string
+  name: string
 
-  @Column({ nullable: true })
-  content: string
+  @Column()
+  backgroundColor: string
 
-  @Column({ nullable: true })
-  link: string
+  @Column({ default: '#FFFFFF' })
+  textColor: string
 
   @Column({ default: true })
   isActive: boolean
 
   @ManyToOne(() => Company, (company) => company.id, { nullable: false })
   company: Company
-
-  @ManyToOne(() => MarqueeTag, (tag) => tag.id, { nullable: true })
-  tag: MarqueeTag
 
   @CreateDateColumn()
   createdAt: Date

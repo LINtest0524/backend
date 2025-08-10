@@ -33,7 +33,7 @@ export class MarqueeController {
     private readonly companyModuleRepo: Repository<CompanyModule>,
   ) {}
 
-  // ✅ 前台 API
+  // 前台 API
   @Get('portal/marquee')
   async getForPortal(@Query('company') companyCode: string) {
     if (!companyCode) {
@@ -61,7 +61,7 @@ export class MarqueeController {
     return this.marqueeService.findByCompany(company.id);
   }
 
-  // ✅ 後台 API
+  // 後台 API
   // @Get('admin/marquee/:companyId')
   // getAll(@Param('companyId') companyId: number) {
   //   return this.marqueeService.findAll(companyId);

@@ -6,6 +6,7 @@ import { MarqueeController } from './marquee.controller';
 import { Company } from '../company/company.entity';
 import { CompanyModule as CompanyModuleEntity } from '../company-module/company-module.entity';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { MarqueeTag } from '../marquee-tag/marquee-tag.entity';
 
 @Module({
   imports: [
@@ -13,11 +14,12 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
       Marquee,
       Company,
       CompanyModuleEntity,
+      MarqueeTag,
     ]),
-    forwardRef(() => AuditLogModule), // ✅ 正確寫法：放在 imports 外面
+    forwardRef(() => AuditLogModule), // 正確寫法：放在 imports 外面
   ],
   providers: [MarqueeService],
   controllers: [MarqueeController],
-  exports: [MarqueeService], // ✅ 新增這行：導出 MarqueeService
+  exports: [MarqueeService], // 新增這行：導出 MarqueeService
 })
 export class MarqueeModule {}

@@ -9,6 +9,7 @@ import { PortalModuleController } from './portal-module.controller'; // ✅ 正�
 import { PortalFloatingAdController } from './portal-floating-ad.controller';
 import { PortalMenuController } from './portal-menu.controller';
 import { PortalNewsController } from './portal-news.controller';
+import { PortalLogoController } from './portal-logo.controller';
 
 
 import { UserModule } from '../user/user.module';
@@ -18,6 +19,7 @@ import { MarqueeModule } from '../marquee/marquee.module';
 import { FloatingAdModule } from '../floating-ad/floating-ad.module';
 import { MenuModule } from '../menu/menu.module';
 import { NewsModule } from '../news/news.module';
+import { LogoModule } from '../logo/logo.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -34,6 +36,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     FloatingAdModule,
     MenuModule,
     NewsModule,
+    LogoModule,
     TypeOrmModule.forFeature([
       Banner,
       Company,
@@ -56,6 +59,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalFloatingAdController,
     PortalMenuController,
     PortalNewsController,
+    PortalLogoController,
   ],
 })
 export class PortalModule {}

@@ -57,19 +57,19 @@ export class NewsService {
       console.log('添加 createdTo 條件:', createdTo);
     }
     
-    // 排序
-    if (sortBy === 'publish_date') {
-      queryBuilder.orderBy('news.publish_date', sortOrder);
-    } else if (sortBy === 'view_count') {
-      queryBuilder.orderBy('news.view_count', sortOrder);
-    } else if (sortBy === 'sort') {
-      queryBuilder.orderBy('news.sort', sortOrder);
-    } else {
-      queryBuilder.orderBy('news.publish_date', 'DESC');
-    }
+    // 置頂文章優先排序
+    queryBuilder.orderBy('news.is_featured', 'DESC');
     
-    // 置頂文章優先
-    queryBuilder.addOrderBy('news.is_featured', 'DESC');
+    // 次要排序
+    if (sortBy === 'publish_date') {
+      queryBuilder.addOrderBy('news.publish_date', sortOrder);
+    } else if (sortBy === 'view_count') {
+      queryBuilder.addOrderBy('news.view_count', sortOrder);
+    } else if (sortBy === 'sort') {
+      queryBuilder.addOrderBy('news.sort', sortOrder);
+    } else {
+      queryBuilder.addOrderBy('news.publish_date', 'DESC');
+    }
     
     const total = await queryBuilder.getCount();
     const news = await queryBuilder

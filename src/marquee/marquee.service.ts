@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Marquee } from './marquee.entity';
 import { Company } from '../company/company.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
+import { MarqueeTag } from '../marquee-tag/marquee-tag.entity';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
 
@@ -13,7 +14,7 @@ const { toTaiwanDisplayTime } = require('../common/utils/time.util');
 
 
 
- // ✅ 使用台灣時間顯示工具
+ // 使用台灣時間顯示工具
 
 @Injectable()
 export class MarqueeService {
@@ -26,6 +27,9 @@ export class MarqueeService {
 
     @InjectRepository(CompanyModule)
     private companyModuleRepo: Repository<CompanyModule>,
+
+    @InjectRepository(MarqueeTag)
+    private marqueeTagRepo: Repository<MarqueeTag>,
 
     private readonly auditLogService: AuditLogService,
   ) {}
@@ -49,7 +53,8 @@ export class MarqueeService {
   // }
   async findAll(companyId?: number) {
     const query = this.marqueeRepo.createQueryBuilder('marquee')
-      .leftJoinAndSelect('marquee.company', 'company') // 如果有用到關聯
+      .leftJoinAndSelect('marquee.company', 'company')
+      .leftJoinAndSelect('marquee.tag', 'tag')
       .orderBy('marquee.createdAt', 'DESC');
 
     if (companyId) {
@@ -65,7 +70,10 @@ export class MarqueeService {
 
 
   async findOne(id: number) {
-    const item = await this.marqueeRepo.findOne({ where: { id } });
+    const item = await this.marqueeRepo.findOne({ 
+      where: { id },
+      relations: ['tag', 'company']
+    });
     return item ? this.formatTimeFields(item) : null;
   }
 
@@ -76,8 +84,19 @@ export class MarqueeService {
     ip?: string,
     platform?: string,
   ) {
-    const item = this.marqueeRepo.create({ ...data, company });
-    const saved = await this.marqueeRepo.save(item);
+    // 處理 tagId 轉換為 tag 關聯
+    const createData: any = { ...data };
+    if ('tagId' in createData) {
+      const tagId = createData.tagId;
+      delete createData.tagId;
+      
+      if (tagId) {
+        createData.tag = { id: tagId };
+      }
+    }
+
+    const item = this.marqueeRepo.create({ ...createData, company });
+    const saved = await this.marqueeRepo.save(item) as unknown as Marquee;
 
     if (user && ip && platform) {
       try {
@@ -93,7 +112,7 @@ export class MarqueeService {
           after: saved,
         });
       } catch (err) {
-        console.error('⚠️ 跑馬燈新增紀錄失敗:', err);
+        console.error('WARNING: 跑馬燈新增紀錄失敗:', err);
       }
     }
 
@@ -111,22 +130,41 @@ export class MarqueeService {
       throw new Error('更新資料不可為空');
     }
 
-    const before = await this.marqueeRepo.findOne({ where: { id } });
+    const before = await this.marqueeRepo.findOne({ 
+      where: { id },
+      relations: ['tag', 'company']
+    });
     if (!before) throw new Error('找不到指定跑馬燈');
 
-    await this.marqueeRepo.update(id, data);
-    const after = await this.marqueeRepo.findOne({ where: { id } });
+    // 處理 tagId 轉換為 tag 關聯
+    const updateData: any = { ...data };
+    if ('tagId' in updateData) {
+      const tagId = updateData.tagId;
+      delete updateData.tagId;
+      
+      if (tagId) {
+        updateData.tag = { id: tagId };
+      } else {
+        updateData.tag = null;
+      }
+    }
+
+    await this.marqueeRepo.update(id, updateData);
+    const after = await this.marqueeRepo.findOne({ 
+      where: { id },
+      relations: ['tag', 'company']
+    });
 
     if (user && ip && platform && before && after) {
       const diffText = this.generateMarqueeDiff(before, after);
 
-      // ✅ 判斷內容是否變動（決定是否顯示 ➡️）
+      // 判斷內容是否變動
       const beforeContent = (before.content || '').trim();
       const afterContent = (after.content || '').trim();
       const contentChanged = beforeContent !== afterContent;
 
       const titlePart = contentChanged
-        ? `${beforeContent || '(空)'} ➡️ ${afterContent || '(空)'}`
+        ? `${beforeContent || '(空)'} -> ${afterContent || '(空)'}`
         : `${beforeContent || '(空)'}`;
 
       try {
@@ -140,7 +178,7 @@ export class MarqueeService {
           after,
         });
       } catch (err) {
-        console.error('⚠️ 跑馬燈編輯紀錄失敗:', err);
+        console.error('WARNING: 跑馬燈編輯紀錄失敗:', err);
       }
     }
 
@@ -150,7 +188,10 @@ export class MarqueeService {
 
 
   async remove(id: number, user?: any, ip?: string, platform?: string) {
-    const before = await this.marqueeRepo.findOne({ where: { id } });
+    const before = await this.marqueeRepo.findOne({ 
+      where: { id },
+      relations: ['tag', 'company']
+    });
     if (!before) throw new Error('跑馬燈不存在');
 
     const result = await this.marqueeRepo.delete(id);
@@ -170,7 +211,7 @@ export class MarqueeService {
           before,
         });
       } catch (err) {
-        console.error('⚠️ 跑馬燈刪除紀錄失敗:', err);
+        console.error('WARNING: 跑馬燈刪除紀錄失敗:', err);
       }
     }
 
@@ -196,6 +237,7 @@ export class MarqueeService {
         company: { id: company.id },
         isActive: true,
       },
+      relations: ['tag'],
       order: { createdAt: 'DESC' },
     });
 
@@ -208,6 +250,7 @@ export class MarqueeService {
         company: { id: companyId },
         isActive: true,
       },
+      relations: ['tag'],
       order: { createdAt: 'DESC' },
     });
     return list.map(this.formatTimeFields);
@@ -219,21 +262,28 @@ export class MarqueeService {
     const trim = (v: any) => (typeof v === 'string' ? v.trim() : v);
 
     if (trim(before?.title) !== trim(after?.title)) {
-      diffs.push(`📝 標題：${before?.title || '(空)'} → ${after?.title || '(空)'}`);
+      diffs.push(`標題：${before?.title || '(空)'} -> ${after?.title || '(空)'}`);
     }
 
     if (trim(before?.content) !== trim(after?.content)) {
-      diffs.push(`📋 內容：${before?.content || '(空)'} → ${after?.content || '(空)'}`);
+      diffs.push(`內容：${before?.content || '(空)'} -> ${after?.content || '(空)'}`);
     }
 
     if (trim(before?.link) !== trim(after?.link)) {
-      diffs.push(`🔗 連結：${before?.link || '(無)'} → ${after?.link || '(無)'}`);
+      diffs.push(`連結：${before?.link || '(無)'} -> ${after?.link || '(無)'}`);
     }
 
     if (before?.isActive !== after?.isActive) {
       diffs.push(
-        `🔔 狀態：${before?.isActive ? '啟用' : '停用'} → ${after?.isActive ? '啟用' : '停用'}`
+        `狀態：${before?.isActive ? '啟用' : '停用'} -> ${after?.isActive ? '啟用' : '停用'}`
       );
+    }
+
+    // 檢查標籤變更
+    const beforeTagName = before?.tag?.name || '(無標籤)';
+    const afterTagName = after?.tag?.name || '(無標籤)';
+    if (beforeTagName !== afterTagName) {
+      diffs.push(`標籤：${beforeTagName} -> ${afterTagName}`);
     }
 
     return diffs.join('、');
