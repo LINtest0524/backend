@@ -34,7 +34,7 @@ export class NewsController {
   @Post()
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
   create(@Body() createNewsDto: CreateNewsDto, @Request() req) {
-    // 如果不是超級管理員，只能管理自己公司的新聞
+    // 如果不是SUPER_ADMIN，只能管理自己公司的新聞
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       createNewsDto.companyId = req.user.companyId;
     }
@@ -55,7 +55,7 @@ export class NewsController {
       requestedCompanyId: companyId
     });
     
-    // 權限檢查
+    // Permission檢查
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       if (req.user.companyId !== companyId) {
         console.log('權限檢查失敗: 用戶公司ID與請求公司ID不匹配');

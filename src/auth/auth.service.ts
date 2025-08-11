@@ -32,17 +32,17 @@ export class AuthService {
   pass: string,
   companyCode?: string,
 ): Promise<User | null> {
-  console.log('🧩 validateUser called:', username, companyCode);
+  console.log('validateUser called:', username, companyCode);
   
 
   
   const user = await this.userService.findOneByUsername(username, ['company']);
 
-  console.log('🔍 查詢帳號:', user);
+  console.log(' 查詢帳號:', user);
   
 
   if (!user) {
-    console.log('❌ 查無此帳號');
+    console.log('    查無此帳號');
     return null;
   }
 
@@ -55,16 +55,16 @@ export class AuthService {
   }
 
   if (!user.password) {
-    console.log('❌ 使用者密碼為空');
+    console.log('    使用者密碼為空');
     return null;
   }
   
   const isMatch = await bcrypt.compare(pass, user.password);
   
-  console.log('🔑 密碼比對結果:', isMatch);
+  console.log(' 密碼比對結果:', isMatch);
 
   if (!isMatch) {
-    console.log('❌ 密碼錯誤');
+    console.log('    密碼錯誤');
     return null;
   }
 
@@ -73,10 +73,10 @@ export class AuthService {
   }
 
   if (user.status !== 'ACTIVE') {
-    throw new UnauthorizedException('帳號已停用或封鎖，無法登入');
+    throw new UnauthorizedException('帳號已inactive或封鎖，無法登入');
   }
 
-  // ✅ 僅允許特定角色登入後台
+  //   僅允許特定角色登入後台
   const allowedRoles = [
     'SUPER_ADMIN',
     'GLOBAL_ADMIN',
@@ -98,7 +98,7 @@ export class AuthService {
     platform: string,
     companyCode?: string,
   ): Promise<{ user: any; token: string }> {
-    console.log('⚙️ login service hit', companyCode);
+    console.log(' login service hit', companyCode);
 
     const user = await this.validateUser(username, password, companyCode);
 
@@ -106,16 +106,16 @@ export class AuthService {
       throw new UnauthorizedException('帳號、密碼或公司錯誤');
     }
 
-    // ✅ 更新 user 資料
+    //   更新 user 資料
     await this.userService.updateLoginInfo(user.id, clientIp, platform);
 
-    // ✅ 寫入操作紀錄（登入後台）
+    //   寫入操作紀錄（登入後台）
     await this.auditLogService.record({
       user,
       action: '登入後台',
       ip: clientIp,
       platform,
-      target: 'login:admin', // ✅ 一定要補上這行，才能讓後端辨別是哪一類紀錄
+      target: 'login:admin', //   一定要補上這行，才能讓後端辨別是哪一類紀錄
     });
 
 
@@ -128,7 +128,7 @@ export class AuthService {
     };
 
     const secret = this.configService.get('JWT_SECRET');
-    console.log(`✅ 正在簽發 JWT，使用的 secret 是: ${secret}`);
+    console.log(`  正在簽發 JWT，使用的 secret 是: ${secret}`);
     const token = this.jwtService.sign(payload, { secret });
 
     let enabledModules: CompanyModule[] = [];
@@ -155,21 +155,21 @@ export class AuthService {
   }
 
   async validateFacebookUser(facebookUser: any, companyCode?: string): Promise<any> {
-    console.log('🔍 Facebook 用戶資料:', facebookUser);
-    console.log('🔍 登入的公司代碼:', companyCode);
+    console.log(' Facebook 用戶資料:', facebookUser);
+    console.log(' 登入的公司代碼:', companyCode);
     
     const { facebookId, firstName, lastName, picture } = facebookUser;
 
     // 根據公司代碼找到對應的公司 ID
-    let companyId = 1; // 預設公司 A
+    let companyId = 1; // Default公司 A
     if (companyCode) {
       const companyRepo = this.userRepository.manager.getRepository(Company);
       const company = await companyRepo.findOne({ where: { code: companyCode } });
       if (company) {
         companyId = company.id;
-        console.log(`🔍 找到公司: ${company.name} (ID: ${companyId})`);
+        console.log(` 找到公司: ${company.name} (ID: ${companyId})`);
       } else {
-        console.log(`⚠️ 找不到公司代碼 ${companyCode}，使用預設公司`);
+        console.log(`   not found公司代碼 ${companyCode}，使用預設公司`);
       }
     }
 
@@ -182,11 +182,11 @@ export class AuthService {
       relations: ['company'],
     });
 
-    console.log('🔍 找到該公司的現有用戶:', user ? 'Yes' : 'No');
+    console.log(' 找到該公司的現有用戶:', user ? 'Yes' : 'No');
 
     // 如果還是沒找到，為該公司創建新用戶
     if (!user) {
-      console.log(`🆕 為公司 ${companyCode} 創建新的 Facebook 用戶...`);
+      console.log(` 為公司 ${companyCode} 創建新的 Facebook 用戶...`);
       
       // 生成唯一的用戶名（包含公司代碼以避免衝突）
       const username = `fb_${facebookId}_${companyCode || 'default'}`;
@@ -198,14 +198,14 @@ export class AuthService {
         first_name: firstName,
         last_name: lastName,
         profile_picture: picture,
-        role: UserRole.USER, // 預設角色
+        role: UserRole.USER, // Default角色
         company: { id: companyId },
         status: 'ACTIVE',
       });
       
       try {
         await this.userRepository.save(user);
-        console.log(`✅ 新用戶創建成功: ${username}`);
+        console.log(`  新用戶created successfully: ${username}`);
         
         // 重新查詢以獲取完整的關聯資料
         user = await this.userRepository.findOne({
@@ -213,7 +213,7 @@ export class AuthService {
           relations: ['company'],
         });
       } catch (error) {
-        console.error('❌ 創建用戶失敗:', error);
+        console.error('    創建用戶失敗:', error);
         throw error;
       }
     }
@@ -224,16 +224,16 @@ export class AuthService {
   async facebookLogin(user: any, clientIp: string, platform: string, companyCode?: string) {
     const validatedUser = await this.validateFacebookUser(user, companyCode);
     
-    // ✅ 檢查用戶狀態和黑名單
+    //   檢查用戶status和黑名單
     if (validatedUser.is_blacklisted) {
       throw new UnauthorizedException('此帳號已被列入黑名單，無法登入');
     }
 
     if (validatedUser.status !== 'ACTIVE') {
-      throw new UnauthorizedException('帳號已停用或封鎖，無法登入');
+      throw new UnauthorizedException('帳號已inactive或封鎖，無法登入');
     }
     
-    // ✅ 更新用戶登入資訊（IP、時間、平台）
+    //   更新用戶登入資訊（IP、時間、平台）
     await this.userService.updateLoginInfo(validatedUser.id, clientIp, platform);
     
     // 寫入操作紀錄（Facebook 登入）

@@ -16,13 +16,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     const jwtSecret = configService.get<string>('JWT_SECRET') || 'fallback_secret';
 
-    console.log('✅ JWT_SECRET used for verify:', jwtSecret);
+    console.log('  JWT_SECRET used for verify:', jwtSecret);
 
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        // 1️⃣ 先從 header 拿
+        // 1. Extract from header first
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        // 2️⃣ 再從 query string 抓 token（給匯出下載用）
+        // 2. Extract from query string for export downloads
         (req: Request) => {
           const token = req?.query?.token;
           if (typeof token === 'string') return token;
@@ -35,17 +35,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // 從資料庫載入完整的用戶資料，包含公司關聯
+    // Load complete user data from database including company relations
     const user = await this.userRepository.findOne({
       where: { id: payload.userId },
       relations: ['company'],
     });
 
     if (!user) {
-      throw new Error('用戶不存在');
+      throw new Error('User not found');
     }
 
-    console.log('JWT 驗證 - 載入用戶:', {
+    console.log('JWT validation - loaded user:', {
       id: user.id,
       username: user.username,
       role: user.role,

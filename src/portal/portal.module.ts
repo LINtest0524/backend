@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { PortalAuthController } from './portal-auth.controller';
 import { PortalBannerController } from './portal-banner.controller';
-import { PortalModuleController } from './portal-module.controller'; // ✅ 正確
+import { PortalModuleController } from './portal-module.controller'; //   正確
 import { PortalFloatingAdController } from './portal-floating-ad.controller';
 import { PortalMenuController } from './portal-menu.controller';
 import { PortalNewsController } from './portal-news.controller';
@@ -23,7 +23,7 @@ import { LogoModule } from '../logo/logo.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
-import { CompanyModule as CompanyModuleEntity } from '../company-module/company-module.entity'; // ✅ 模組設定 entity
+import { CompanyModule as CompanyModuleEntity } from '../company-module/company-module.entity'; //   模組設定 entity
 import { FloatingAd } from '../floating-ad/floating-ad.entity';
 
 @Module({
@@ -55,7 +55,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
   controllers: [
     PortalAuthController,
     PortalBannerController,
-    PortalModuleController, // ✅ 別漏這行
+    PortalModuleController, //   別漏這行
     PortalFloatingAdController,
     PortalMenuController,
     PortalNewsController,

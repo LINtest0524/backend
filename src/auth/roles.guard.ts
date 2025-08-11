@@ -24,7 +24,7 @@ export class RolesGuard implements CanActivate {
 
 
     if (!user || !user.role) {
-      throw new ForbiddenException('權限不足或未驗證');
+      throw new ForbiddenException('insufficient permissions或未驗證');
     }
 
     const roleHierarchy: Record<UserRole, number> = {
@@ -44,7 +44,7 @@ export class RolesGuard implements CanActivate {
     });
 
     if (!hasAccess) {
-      throw new ForbiddenException('權限不足');
+      throw new ForbiddenException('insufficient permissions');
     }
 
     return true;

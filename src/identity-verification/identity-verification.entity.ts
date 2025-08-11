@@ -22,11 +22,11 @@ export class IdentityVerification {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  // ✅ 驗證類型：ID_CARD 或 BANK_ACCOUNT
+  //   驗證類型：ID_CARD 或 BANK_ACCOUNT
   @Column({ type: 'enum', enum: ['ID_CARD', 'BANK_ACCOUNT'], default: 'ID_CARD' })
   type: 'ID_CARD' | 'BANK_ACCOUNT';
 
-  // ✅ 身分證三張圖（只對 ID_CARD 有效）
+  //   身分證三張圖（只對 ID_CARD 有效）
   @Column({ type: 'varchar', nullable: true })
   frontImage: string | null;
 
@@ -36,11 +36,11 @@ export class IdentityVerification {
   @Column({ type: 'varchar', nullable: true })
   selfieImage: string | null;
 
-  // ✅ 銀行帳戶封面圖（只對 BANK_ACCOUNT 有效）
+  //   銀行帳戶封面圖（只對 BANK_ACCOUNT 有效）
   @Column({ type: 'varchar', nullable: true })
   accountImage: string | null;
 
-  // ✅ 驗證狀態
+  //   驗證status
   @Column({ type: 'varchar', default: 'PENDING' })
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 

@@ -13,7 +13,7 @@ import { Roles } from '../auth/roles.decorator';
 import { BlacklistService } from './blacklist.service';
 import { CreateBlacklistDto } from './dto/create-blacklist.dto';
 
-@UseGuards(JwtAuthGuard, RolesGuard) // ✅ 加這一行套用到整個 controller
+@UseGuards(JwtAuthGuard, RolesGuard) //   加這一行套用到整個 controller
 @Controller('blacklist')
 export class BlacklistController {
   constructor(private readonly blacklistService: BlacklistService) {}

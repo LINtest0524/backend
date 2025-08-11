@@ -7,8 +7,8 @@ import { Company } from '../company/company.entity'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CompanyModule, Company]), // ✅ 對應你 controller 中注入的兩個 entity
+    TypeOrmModule.forFeature([CompanyModule, Company]), //   對應你 controller 中注入的兩個 entity
   ],
-  controllers: [AdminModuleController], // ✅ 加上 Controller
+  controllers: [AdminModuleController], //   加上 Controller
 })
 export class ModuleModule {}

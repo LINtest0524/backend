@@ -20,14 +20,14 @@ export class LuckyPrizeService {
 
   findAll(eventId?: number) {
     if (eventId) {
-      // 查詢特定活動的獎品
+      // Query特定活動的獎品
       return this.repo.find({
         where: { eventId },
         relations: ['event'],
         order: { id: 'ASC' }
       });
     } else {
-      // 查詢所有獎品
+      // Query所有獎品
       return this.repo.find({
         relations: ['event'],
         order: { id: 'ASC' }
@@ -35,7 +35,7 @@ export class LuckyPrizeService {
     }
   }
 
-  // 取得當前啟用活動的獎品
+  // 取得當前active活動的獎品
   async findByActiveEvent(companyId?: number) {
     const activeEvent = await this.eventRepo.findOne({
       where: { isActive: true, ...(companyId && { companyId }) }
@@ -74,7 +74,7 @@ export class LuckyPrizeService {
   async remove(id: number) {
     const prize = await this.findOne(id);
     await this.repo.remove(prize);
-    return { message: `獎品 ${prize.name} 已刪除` };
+    return { message: `獎品 ${prize.name} deleted` };
   }
 
   async drawPrize(userId?: number, companyId?: number, userIp?: string, userAgent?: string) {
@@ -88,7 +88,7 @@ export class LuckyPrizeService {
       throw new BadRequestException('用戶ID不能為空');
     }
 
-    // 取得當前啟用活動的獎品
+    // 取得當前active活動的獎品
     const whereCondition: any = { isActive: true };
     if (companyId) {
       whereCondition.companyId = companyId;
@@ -100,7 +100,7 @@ export class LuckyPrizeService {
       where: whereCondition
     });
 
-    console.log('找到的啟用活動:', activeEvent);
+    console.log('找到的active活動:', activeEvent);
 
     if (!activeEvent) {
       throw new NotFoundException('目前沒有進行中的抽獎活動');
@@ -122,7 +122,7 @@ export class LuckyPrizeService {
       throw new NotFoundException('沒有可用的獎品');
     }
 
-    // 過濾掉庫存為0的獎品
+    // Filter掉庫存為0的獎品
     const availablePrizes = prizes.filter(prize => prize.quantity > 0);
     
     if (availablePrizes.length === 0) {
@@ -134,7 +134,7 @@ export class LuckyPrizeService {
     const random = Math.random() * totalProbability;
     
     let currentProbability = 0;
-    let winningPrize = availablePrizes[0]; // 預設第一個獎品
+    let winningPrize = availablePrizes[0]; // Default第一個獎品
     
     for (const prize of availablePrizes) {
       currentProbability += Number(prize.probability);
@@ -161,7 +161,7 @@ export class LuckyPrizeService {
       companyId: companyId || 1,
       userIp,
       userAgent,
-      prizeName: winningPrize.name, // 記錄獎品名稱
+      prizeName: winningPrize.name, // 記錄prize_name
       eventId: activeEvent.id, // 記錄活動ID
     });
     
@@ -243,10 +243,10 @@ export class LuckyPrizeService {
       queryBuilder.andWhere('record.createdAt <= :createdTo', { createdTo });
     }
 
-    // 排序
+    // Sort
     queryBuilder.orderBy('record.createdAt', 'DESC');
 
-    // 分頁
+    // Pagination
     const skip = (page - 1) * limit;
     queryBuilder.skip(skip).take(limit);
 
@@ -263,7 +263,7 @@ export class LuckyPrizeService {
     };
   }
 
-  // 匯出抽獎記錄
+  // export抽獎記錄
   async exportDrawRecords(params: {
     companyId?: number;
     eventId?: number;
@@ -307,18 +307,18 @@ export class LuckyPrizeService {
       queryBuilder.andWhere('record.createdAt <= :createdTo', { createdTo });
     }
 
-    // 排序
+    // Sort
     queryBuilder.orderBy('record.createdAt', 'DESC');
 
     // 取得所有資料（不分頁）
     const records = await queryBuilder.getMany();
 
-    // 準備匯出資料
+    // 準備export資料
     const exportData = records.map(record => ({
       '記錄ID': record.id,
       '用戶帳號': record.user?.username || '未知用戶',
       '活動名稱': record.event?.name || record.prize?.event?.name || '未知活動',
-      '獎品名稱': record.prizeName || record.prize?.name || '',
+      'prize_name': record.prizeName || record.prize?.name || '',
       '中獎機率': record.prize?.probability ? `${record.prize.probability}%` : '',
       '抽獎時間': new Date(record.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
       '用戶IP': record.userIp || '',
@@ -331,7 +331,7 @@ export class LuckyPrizeService {
     } else if (format === 'xlsx') {
       await this.exportToExcel(exportData, res);
     } else {
-      throw new BadRequestException('不支援的匯出格式');
+      throw new BadRequestException('不支援的export格式');
     }
   }
 
@@ -345,7 +345,7 @@ export class LuckyPrizeService {
 
   private exportToCsv(data: any[], res: any): void {
     if (data.length === 0) {
-      throw new BadRequestException('沒有資料可匯出');
+      throw new BadRequestException('沒有資料可export');
     }
 
     const headers = Object.keys(data[0]);
@@ -364,14 +364,14 @@ export class LuckyPrizeService {
 
   private async exportToExcel(data: any[], res: any): Promise<void> {
     if (data.length === 0) {
-      throw new BadRequestException('沒有資料可匯出');
+      throw new BadRequestException('沒有資料可export');
     }
 
     const firstRow = data[0];
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('抽獎記錄');
 
-    // 設定欄位
+    // Settings欄位
     sheet.columns = Object.keys(firstRow).map((key) => ({
       header: key,
       key,

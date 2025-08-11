@@ -47,7 +47,7 @@ export class CompanyModuleService {
           companyId: s.companyId,
           module_key: moduleKey,
           enabled: s.enabled,
-          pages: ['home'], // ✅ 確保跟你原本一致
+          pages: ['home'], //   確保跟你原本一致
           exclude_pages: ['login'],
         });
         await this.moduleRepo.save(newRecord);

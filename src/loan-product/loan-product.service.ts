@@ -36,7 +36,7 @@ export class LoanProductService {
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ""); // 例如 20250709
   const productCode = `PO${dateStr}${saved.id.toString().padStart(3, "0")}`;
 
-  // 更新產品編號
+  // Update產品編號
   saved.product_code = productCode;
   await this.loanProductRepo.save(saved);
 
@@ -106,7 +106,7 @@ export class LoanProductService {
         relations: ['company'],
     });
 
-    if (!record) throw new NotFoundException('找不到資料');
+    if (!record) throw new NotFoundException('not found資料');
 
     const isOwner = user.company_id === record.company?.id;
     const isAdmin = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role);
@@ -134,10 +134,10 @@ export class LoanProductService {
     return saved;
   }
 
-  // 刪除
+  // Delete
     async hardDeleteSecured(id: number, user: User, ip: string, platform: string) {
     const target = await this.loanProductRepo.findOne({ where: { id } });
-    if (!target) throw new NotFoundException("找不到產品");
+    if (!target) throw new NotFoundException("not found產品");
 
     await this.loanProductRepo.remove(target); // << 硬刪除！
 
@@ -163,7 +163,7 @@ export class LoanProductService {
 
     const cloned = this.loanProductRepo.create({
         ...cloneData,
-        product_name: `${original.product_name}_複製`,
+        product_name: `${original.product_name}_copy`,
         created_by: user,
         company: { id: user.company?.id },
     });

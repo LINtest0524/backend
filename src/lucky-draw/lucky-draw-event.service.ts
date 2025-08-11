@@ -32,7 +32,7 @@ export class LuckyDrawEventService {
     return event;
   }
 
-  // 創建活動
+  // Create活動
   async create(data: {
     name: string;
     startTime: Date;
@@ -45,7 +45,7 @@ export class LuckyDrawEventService {
       throw new BadRequestException('開始時間必須早於結束時間');
     }
 
-    // 如果設為啟用，先停用其他活動
+    // 如果設為active，先inactive其他活動
     if (data.isActive) {
       await this.eventRepo.update(
         { companyId: data.companyId, isActive: true },
@@ -57,7 +57,7 @@ export class LuckyDrawEventService {
     return this.eventRepo.save(event);
   }
 
-  // 更新活動
+  // Update活動
   async update(id: number, data: Partial<{
     name: string;
     startTime: Date;
@@ -73,7 +73,7 @@ export class LuckyDrawEventService {
       }
     }
 
-    // 如果設為啟用，先停用其他活動
+    // 如果設為active，先inactive其他活動
     if (data.isActive) {
       await this.eventRepo.update(
         { companyId: event.companyId, isActive: true },
@@ -85,7 +85,7 @@ export class LuckyDrawEventService {
     return this.findOne(id);
   }
 
-  // 刪除活動
+  // Delete活動
   async remove(id: number) {
     const event = await this.findOne(id);
     
@@ -95,10 +95,10 @@ export class LuckyDrawEventService {
     }
 
     await this.eventRepo.remove(event);
-    return { message: `活動 ${event.name} 已刪除` };
+    return { message: `活動 ${event.name} deleted` };
   }
 
-  // 取得當前啟用的活動
+  // 取得當前active的活動
   async getActiveEvent(companyId?: number) {
     const whereCondition: any = { isActive: true };
     if (companyId) {
@@ -111,19 +111,19 @@ export class LuckyDrawEventService {
     });
   }
 
-  // 切換活動啟用狀態
+  // 切換活動activestatus
   async toggleActive(id: number) {
     const event = await this.findOne(id);
     
     if (!event.isActive) {
-      // 啟用此活動，停用其他活動
+      // active此活動，inactive其他活動
       await this.eventRepo.update(
         { companyId: event.companyId, isActive: true },
         { isActive: false }
       );
       await this.eventRepo.update(id, { isActive: true });
     } else {
-      // 停用此活動
+      // inactive此活動
       await this.eventRepo.update(id, { isActive: false });
     }
 

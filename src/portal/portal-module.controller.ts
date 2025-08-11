@@ -103,7 +103,7 @@ export class PortalModuleController {
     });
 
     if (!company) {
-      throw new BadRequestException(`找不到公司：${companyCode}`);
+      throw new BadRequestException(`not found公司：${companyCode}`);
     }
 
     const isEnabled = await this.moduleRepo.findOne({

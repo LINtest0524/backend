@@ -45,7 +45,7 @@ export class MarqueeController {
     });
 
     if (!company) {
-      throw new BadRequestException(`找不到公司：${companyCode}`);
+      throw new BadRequestException(`not found公司：${companyCode}`);
     }
 
     const isEnabled = await this.companyModuleRepo.findOne({

@@ -9,11 +9,11 @@ import passport from 'passport';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 配置請求大小限制
+  // Configuration請求大小限制
   app.use(require('express').json({ limit: '10mb' }));
   app.use(require('express').urlencoded({ limit: '10mb', extended: true }));
 
-  // 配置 session 支持 (Facebook OAuth 需要)
+  // Configuration session 支持 (Facebook OAuth 需要)
   app.use(
     session({
       secret: process.env.SESSION_SECRET || 'your-session-secret',
@@ -32,18 +32,18 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // 配置 Passport 序列化（Facebook OAuth 需要）
+  // Configuration Passport 序列化（Facebook OAuth 需要）
   passport.serializeUser((user: any, done) => {
-    console.log('🔄 序列化用戶:', user);
+    console.log(' 序列化用戶:', user);
     done(null, user);
   });
 
   passport.deserializeUser((user: any, done) => {
-    console.log('🔄 反序列化用戶:', user);
+    console.log(' 反序列化用戶:', user);
     done(null, user);
   });
 
-  // ✅ 如果你有上傳圖片想提供靜態存取
+  //   如果你有上傳圖片想提供靜態存取
   app.useStaticAssets(join(__dirname, '..', 'public', 'uploads'), {
     prefix: '/uploads',
   });

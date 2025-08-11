@@ -59,7 +59,7 @@ export class UserController {
     console.log('用戶公司檢查:', { userId: user.id, role: user.role, company: user.company, companyId });
     
     if (!companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      throw new UnauthorizedException('找不到使用者的公司資訊');
+      throw new UnauthorizedException('not found使用者的公司資訊');
     }
 
     return this.userService.exportUsers(user, query, res);
@@ -131,11 +131,11 @@ export class UserController {
     console.log('用戶公司檢查 (findAll):', { userId: user.id, role: user.role, company: user.company, companyId });
     
     if (!companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      throw new UnauthorizedException('找不到使用者的公司資訊');
+      throw new UnauthorizedException('not found使用者的公司資訊');
     }
 
-    const excludeUserRole = query.excludeUserRole === 'true'; // ✅ 讀 query
-    return this.userService.findAll(user, query, { excludeUserRole }); // ✅ 傳給 service
+    const excludeUserRole = query.excludeUserRole === 'true'; //   讀 query
+    return this.userService.findAll(user, query, { excludeUserRole }); //   傳給 service
   }
 
 
@@ -157,7 +157,7 @@ export class UserController {
     const user = req.user;
     const ip = req.ip;
 
-    // ✅ 平台格式化：裝置 / 作業系統 / 瀏覽器
+    //   平台格式化：裝置 / 作業系統 / 瀏覽器
     const uaString = req.headers['user-agent'] || '';
     const parser = new UAParser.UAParser(uaString);
     const info = parser.getResult();

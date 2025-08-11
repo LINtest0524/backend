@@ -39,7 +39,7 @@ export class MarqueeTagController {
     });
 
     if (!company) {
-      throw new BadRequestException(`找不到公司：${companyCode}`);
+      throw new BadRequestException(`not found公司：${companyCode}`);
     }
 
     return this.marqueeTagService.findByCompany(company.id);
@@ -66,7 +66,7 @@ export class MarqueeTagController {
     });
     
     if (!company) {
-      throw new BadRequestException('找不到指定的公司');
+      throw new BadRequestException('not found指定的公司');
     }
 
     return this.marqueeTagService.create(body, company);

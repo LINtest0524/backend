@@ -25,7 +25,7 @@ export class LogoService {
     const queryBuilder = this.logoRepository.createQueryBuilder('logo')
       .leftJoinAndSelect('logo.company', 'company');
 
-    // 權限控制
+    // Permission控制
     if (userRole === UserRole.AGENT_OWNER && userCompanyId) {
       // 代理商老闆只能看到自己公司的 LOGO
       queryBuilder.where('logo.companyId = :companyId', { companyId: userCompanyId });
@@ -65,7 +65,7 @@ export class LogoService {
   ): Promise<Logo> {
     const logo = await this.findOne(id);
 
-    // 權限檢查
+    // Permission檢查
     if (userRole === UserRole.AGENT_OWNER && logo.companyId !== userCompanyId) {
       throw new ForbiddenException('You can only update your own company logo');
     }
@@ -77,7 +77,7 @@ export class LogoService {
   async remove(id: number, userRole: UserRole, userCompanyId?: number): Promise<void> {
     const logo = await this.findOne(id);
 
-    // 權限檢查
+    // Permission檢查
     if (userRole === UserRole.AGENT_OWNER && logo.companyId !== userCompanyId) {
       throw new ForbiddenException('You can only delete your own company logo');
     }

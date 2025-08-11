@@ -78,7 +78,7 @@ export class FloatingAdService {
     const after = await this.findOne(id, userCompanyId);
     
     if (!after) {
-      throw new Error('更新後找不到浮動廣告');
+      throw new Error('更新後not found浮動廣告');
     }
 
     // 生成變更說明
@@ -134,8 +134,8 @@ export class FloatingAdService {
       changes.push(`連結：${before.link_url} → ${after.link_url}`);
     }
     if (before.status !== after.status) {
-      const statusMap = { ACTIVE: '啟用', INACTIVE: '停用' };
-      changes.push(`狀態：${statusMap[before.status]} → ${statusMap[after.status]}`);
+      const statusMap = { ACTIVE: 'active', INACTIVE: 'inactive' };
+      changes.push(`status：${statusMap[before.status]} → ${statusMap[after.status]}`);
     }
     if (before.position !== after.position) {
       changes.push(`位置：${before.position} → ${after.position}`);

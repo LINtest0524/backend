@@ -6,7 +6,7 @@ import { AuditLogService } from './audit-log.service';
 import { AuditLogController } from './audit-log.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AuditLog, User])], // ✅ 加上 User
+  imports: [TypeOrmModule.forFeature([AuditLog, User])], //   加上 User
   providers: [AuditLogService],
   controllers: [AuditLogController],
   exports: [AuditLogService],

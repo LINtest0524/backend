@@ -10,11 +10,11 @@ import {
 import { Company } from '../company/company.entity';
 
 export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',     // ✅ 最高權限（你自己）
-  GLOBAL_ADMIN = 'GLOBAL_ADMIN',   // ✅ 全站管理者（次高權限）
-  AGENT_OWNER = 'AGENT_OWNER',     // ✅ 代理商老闆
-  AGENT_SUPPORT = 'AGENT_SUPPORT', // ✅ 代理商客服
-  USER = 'USER',                   // ✅ 一般會員
+  SUPER_ADMIN = 'SUPER_ADMIN',     //   最高權限（你自己）
+  GLOBAL_ADMIN = 'GLOBAL_ADMIN',   //   全站管理者（次高權限）
+  AGENT_OWNER = 'AGENT_OWNER',     //   代理商老闆
+  AGENT_SUPPORT = 'AGENT_SUPPORT', //   代理商客服
+  USER = 'USER',                   //   一般會員
 }
 
 @Entity()
@@ -70,10 +70,10 @@ export class User {
   @Column({ type: 'boolean', default: false })
   is_blacklisted: boolean;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER }) // ✅ 加入角色
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER }) //   加入角色
   role: UserRole;
 
-  @Column({ type: 'timestamp', nullable: true }) // ✅ 軟刪除用欄位
+  @Column({ type: 'timestamp', nullable: true }) //   軟刪除用欄位
   deleted_at: Date | null;
 
   @CreateDateColumn()

@@ -49,7 +49,7 @@ export class AuditLogService {
     const userId = 'id' in user ? user.id : (user as any).id;
 
     if (!userId) {
-      console.warn('⚠️ 無法寫入操作紀錄，user id 缺失');
+      console.warn('   無法寫入操作紀錄，user id 缺失');
       return;
     }
 

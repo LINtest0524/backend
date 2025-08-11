@@ -134,7 +134,7 @@ export class MarqueeService {
       where: { id },
       relations: ['tag', 'company']
     });
-    if (!before) throw new Error('找不到指定跑馬燈');
+    if (!before) throw new Error('not found指定跑馬燈');
 
     // 處理 tagId 轉換為 tag 關聯
     const updateData: any = { ...data };
@@ -275,7 +275,7 @@ export class MarqueeService {
 
     if (before?.isActive !== after?.isActive) {
       diffs.push(
-        `狀態：${before?.isActive ? '啟用' : '停用'} -> ${after?.isActive ? '啟用' : '停用'}`
+        `status：${before?.isActive ? 'active' : 'inactive'} -> ${after?.isActive ? 'active' : 'inactive'}`
       );
     }
 

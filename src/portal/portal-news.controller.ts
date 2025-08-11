@@ -39,7 +39,7 @@ export class PortalNewsController {
 
     const news = await this.newsService.findOne(id);
     
-    // 檢查新聞是否屬於指定公司且為公開狀態
+    // 檢查新聞是否屬於指定公司且為公開status
     const companyId = await this.getCompanyIdByCode(companyCode);
     if (news.companyId !== companyId || news.status !== 'ACTIVE') {
       throw new NotFoundException('News not found');

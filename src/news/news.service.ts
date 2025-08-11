@@ -104,10 +104,10 @@ export class NewsService {
   }
 
   async findPublicNews(companyId: number, query: NewsQueryDto) {
-    console.log('🔍 findPublicNews 被調用:', { companyId, query });
+    console.log(' findPublicNews 被調用:', { companyId, query });
     const publicQuery = { ...query, status: NewsStatus.ACTIVE };
     const result = await this.findAll(publicQuery, companyId);
-    console.log('📊 findPublicNews 結果:', { 
+    console.log(' findPublicNews 結果:', { 
       total: result.total, 
       page: result.page, 
       totalPages: result.totalPages,

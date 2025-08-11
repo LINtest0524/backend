@@ -23,12 +23,12 @@ export class IdentityVerificationService {
     files: Express.Multer.File[],
     type: 'ID_CARD' | 'BANK_ACCOUNT',
   ) {
-    console.log(`🔍 開始處理驗證文件 - 用戶ID: ${userId}, 類型: ${type}, 文件數量: ${files.length}`);
+    console.log(` 開始處理驗證文件 - 用戶ID: ${userId}, 類型: ${type}, 文件數量: ${files.length}`);
     
     // 檢查是否已有相同類型的驗證記錄，如果有則先刪除
     const existingRecord = await this.findByUserId(userId, type);
     if (existingRecord) {
-      console.log(`⚠️ 發現現有記錄，將先刪除 - 記錄ID: ${existingRecord.id}`);
+      console.log(`   發現現有記錄，將先刪除 - 記錄ID: ${existingRecord.id}`);
       await this.identityRepo.remove(existingRecord);
     }
 
@@ -43,7 +43,7 @@ export class IdentityVerificationService {
       const filepath = path.join(uploadDir, cleanName);
       await fs.promises.writeFile(filepath, file.buffer);
       filenames.push(cleanName);
-      console.log(`📁 文件已保存: ${cleanName}`);
+      console.log(` 文件已保存: ${cleanName}`);
     }
 
     let recordData: Partial<IdentityVerification> = {
@@ -64,7 +64,7 @@ export class IdentityVerificationService {
 
     const record = this.identityRepo.create(recordData);
     const savedRecord = await this.identityRepo.save(record);
-    console.log(`💾 驗證記錄已保存 - 記錄ID: ${savedRecord.id}`);
+    console.log(`  驗證記錄已保存 - 記錄ID: ${savedRecord.id}`);
     
     return savedRecord;
   }
@@ -145,7 +145,7 @@ export class IdentityVerificationService {
     note?: string,
   ) {
     const verification = await this.identityRepo.findOne({ where: { id } });
-    if (!verification) throw new NotFoundException('找不到驗證紀錄');
+    if (!verification) throw new NotFoundException('not found驗證紀錄');
 
     verification.status = status;
     verification.note = note || null;

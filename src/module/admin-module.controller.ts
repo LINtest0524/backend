@@ -54,7 +54,7 @@ export class AdminModuleController {
 
       if (record) {
         record.enabled = u.enabled;
-        record.pages ??= ['home']; // ✅ 防止 null 造成重複 insert
+        record.pages ??= ['home']; //   防止 null 造成重複 insert
         record.exclude_pages ??= ['login'];
         await this.moduleRepo.save(record);
       } else {

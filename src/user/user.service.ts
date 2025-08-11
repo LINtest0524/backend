@@ -197,7 +197,7 @@ async update(
     await this.userModuleRepository.save(userModules);
   }
 
-  // ✅ log1：紀錄黑名單變更（區分會員和管理員）
+  //   log1：紀錄黑名單變更（區分會員和管理員）
 if (
   this.auditLogService &&
   is_blacklisted !== undefined &&
@@ -224,7 +224,7 @@ if (
   });
 }
 
-  // ✅ log2：紀錄狀態變更（區分會員和管理員）
+  //   log2：紀錄status變更（區分會員和管理員）
   if (
     this.auditLogService &&
     ip &&
@@ -233,8 +233,8 @@ if (
     status !== before.status
   ) {
     const statusMap = {
-      'ACTIVE': '啟用',
-      'INACTIVE': '停用',
+      'ACTIVE': 'active',
+      'INACTIVE': 'inactive',
       'BANNED': '封鎖'
     };
     
@@ -243,7 +243,7 @@ if (
     
     // 判斷是會員還是管理員
     const isUser = user.role === 'USER';
-    const actionPrefix = isUser ? '⚡ 變更會員狀態' : '👤 變更管理員狀態';
+    const actionPrefix = isUser ? '⚡ 變更會員status' : '👤 變更管理員status';
     const targetPrefix = isUser ? 'status' : 'admin-user';
     
     await this.auditLogService.record({
@@ -257,7 +257,7 @@ if (
     });
   }
 
-  // ✅ log3：紀錄其他變更（Email等）
+  //   log3：紀錄其他變更（Email等）
   if (
     this.auditLogService &&
     ip &&
@@ -339,7 +339,7 @@ if (
       });
     }
 
-    return { message: '使用者已刪除' };
+    return { message: '使用者deleted' };
   }
 
 
@@ -361,7 +361,7 @@ if (
 
 
 
-// ✅ 查詢帳號 (給後台、portal 登入用)
+//   查詢帳號 (給後台、portal 登入用)
 async findOneByUsername(username: string, relations: string[] = []): Promise<User | null> {
   return await this.userRepository.findOne({
     where: { username },
@@ -379,7 +379,7 @@ async findOneByUsername(username: string, relations: string[] = []): Promise<Use
 
 
 
-// ✅ 查詢全部使用者（會員 / 管理員）
+//   查詢全部使用者（會員 / 管理員）
 async findAll(
   currentUser: JwtUser,
   query: any,
@@ -411,7 +411,7 @@ async findAll(
 
   const isGlobal = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
   if (!isGlobal) {
-    // 從完整用戶實體中取得公司 ID
+    // 從完整User Entity中取得公司 ID
     const companyId = currentUser.company?.id || currentUser.company_id;
     console.log('UserService.findAll 公司檢查:', { 
       userId: currentUser.id, 
@@ -421,7 +421,7 @@ async findAll(
     });
     
     if (!companyId) {
-      throw new UnauthorizedException('找不到使用者的公司資訊');
+      throw new UnauthorizedException('not found使用者的公司資訊');
     }
     qb.andWhere('user.company_id = :companyId', { companyId });
   }
@@ -537,7 +537,7 @@ async exportUsers(currentUser: JwtUser, query: ExportUserDto, res: Response): Pr
   const isGlobal = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
   if (!isGlobal) {
     const companyId = currentUser.company?.id || currentUser.company_id;
-    if (!companyId) throw new UnauthorizedException('找不到公司');
+    if (!companyId) throw new UnauthorizedException('not found公司');
     qb.andWhere('user.company_id = :companyId', { companyId });
   }
 
@@ -574,10 +574,10 @@ async exportUsers(currentUser: JwtUser, query: ExportUserDto, res: Response): Pr
     ID: u.id,
     帳號: u.username,
     Email: u.email ?? '',
-    狀態: u.status,
+    status: u.status,
     黑名單: u.is_blacklisted ? '是' : '否',
-    公司名稱: u.company?.name ?? '',
-    註冊時間: formatTime(u.created_at),        // ✅ 沒有加 `="..."`！
+    company_name: u.company?.name ?? '',
+    註冊時間: formatTime(u.created_at),        //   沒有加 `="..."`！
     最後登入時間: formatTime(u.last_login_at),
     最後登入IP: u.last_login_ip ?? '',
     登入平台: u.last_login_platform ?? '',
@@ -590,7 +590,7 @@ async exportUsers(currentUser: JwtUser, query: ExportUserDto, res: Response): Pr
 
 if (format === 'xlsx') {
   if (rows.length === 0) {
-    throw new BadRequestException("查無可匯出資料");
+    throw new BadRequestException("查無可export資料");
   }
 
   const firstRow = rows[0]; // 🚨 不再過濾，只要有一筆就拿它當欄位來源
@@ -630,7 +630,7 @@ if (format === 'xlsx') {
 
 } else {
     if (rows.length === 0) {
-      throw new BadRequestException("查無可匯出資料");
+      throw new BadRequestException("查無可export資料");
     }
     const csvHeader = Object.keys(rows[0]).join(',') + '\n';
     const csvBody = rows.map((row) =>
@@ -863,7 +863,7 @@ if (format === 'xlsx') {
   }
 
   if (user.status !== 'ACTIVE') {
-    throw new UnauthorizedException('帳號已停用');
+    throw new UnauthorizedException('帳號已inactive');
   }
 
 
@@ -881,7 +881,7 @@ if (format === 'xlsx') {
 
     const existing = await this.userRepository.findOne({ where: { username } });
     if (existing) {
-      throw new ConflictException('帳號已存在');
+      throw new ConflictException('帳號already exists');
     }
 
     const company = await this.companyRepository.findOne({ where: { code: companyCode } });
@@ -912,7 +912,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       relations: ['company'],
     });
     if (!user) {
-      throw new NotFoundException('找不到該使用者或不屬於你的公司');
+      throw new NotFoundException('not found該使用者或不屬於你的公司');
     }
     return user;
   }
@@ -956,7 +956,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
         action: `🔑 重設${userType}密碼 - ${user.username}`,
         ip,
         platform,
-        target: `admin-user:${user.id}`, // 密碼重設都記錄到管理員操作紀錄
+        target: `admin-user:${user.id}`, // Password重設都記錄到管理員操作紀錄
         before: { action: '密碼重設前' },
         after: { action: '密碼已重設' },
       });
@@ -992,7 +992,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       });
     }
 
-    return { message: '使用者已刪除' };
+    return { message: '使用者deleted' };
   }
 
 

@@ -58,7 +58,7 @@ export class BannerController {
     const user = req.user;
     const ip = req.ip;
 
-    // ✅ 平台格式化：裝置 / 作業系統 / 瀏覽器
+    //   平台格式化：裝置 / 作業系統 / 瀏覽器
     const uaString = req.headers['user-agent'] || '';
     const parser = new UAParser.UAParser(uaString);
     const info = parser.getResult();
@@ -95,7 +95,7 @@ export class BannerController {
     const user = req.user;
     const ip = req.ip;
 
-    // ✅ 平台格式化
+    //   平台格式化
     const uaString = req.headers['user-agent'] || '';
     const parser = new UAParser.UAParser(uaString);
     const info = parser.getResult();

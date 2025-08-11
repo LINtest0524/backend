@@ -10,13 +10,13 @@ export class Company {
   name: string;
 
   @Column({ nullable: true })
-  code: string; // ✅ 新增欄位：代碼
+  code: string; //   新增欄位：代碼
 
   @Column('simple-array', { default: 'OLD_PASSWORD' })
   passwordModes: string[];
 
   @Column('simple-array', { default: 'USERNAME_PASSWORD,FACEBOOK' })
-  loginMethods: string[]; // 登入方式：USERNAME_PASSWORD, FACEBOOK, GOOGLE 等
+  loginMethods: string[]; // Login方式：USERNAME_PASSWORD, FACEBOOK, GOOGLE 等
 
   @OneToMany(() => Banner, banner => banner.company)
   banners: Banner[];

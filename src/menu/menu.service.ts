@@ -15,7 +15,7 @@ export class MenuService {
 
   // 建立選單
   async create(createMenuDto: CreateMenuDto, user: User): Promise<Menu> {
-    // 權限檢查
+    // Permission檢查
     this.checkPermission(user, createMenuDto.company_id);
 
     // 檢查父選單是否存在且不超過3級
@@ -98,7 +98,7 @@ export class MenuService {
     return menu;
   }
 
-  // 更新選單
+  // Update選單
   async update(id: number, updateMenuDto: UpdateMenuDto, user: User): Promise<Menu> {
     const menu = await this.findOne(id, user);
 
@@ -130,7 +130,7 @@ export class MenuService {
     return await this.menuRepository.save(menu);
   }
 
-  // 刪除選單
+  // Delete選單
   async remove(id: number, user: User): Promise<void> {
     const menu = await this.findOne(id, user);
 
@@ -155,10 +155,10 @@ export class MenuService {
     }
   }
 
-  // 權限檢查
+  // Permission檢查
   private checkPermission(user: User, companyId: number): void {
     if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.GLOBAL_ADMIN) {
-      return; // 超級管理員和全域管理員可以管理所有公司
+      return; // SUPER_ADMIN和全域管理員可以管理所有公司
     }
 
     if (user.role === UserRole.AGENT_OWNER) {
@@ -169,7 +169,7 @@ export class MenuService {
       return;
     }
 
-    // 客服和一般用戶都沒有權限管理選單
+    // 客服和USER都沒有權限管理選單
     throw new ForbiddenException('沒有權限管理選單');
   }
 

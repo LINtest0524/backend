@@ -25,7 +25,7 @@ export class PortalFloatingAdController {
     });
 
     if (!company) {
-      throw new BadRequestException(`找不到公司：${companyCode}`);
+      throw new BadRequestException(`not found公司：${companyCode}`);
     }
 
     const floatingAds = await this.floatingAdRepo.find({

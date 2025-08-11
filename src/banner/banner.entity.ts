@@ -39,9 +39,9 @@ export class Banner {
   status: BannerStatus;
 
   @Column({ name: 'companyId' }) 
-  companyId: number; // ✅ 新增欄位
+  companyId: number; //   新增欄位
 
   @ManyToOne(() => Company, company => company.banners)
-  @JoinColumn({ name: 'companyId' }) // ✅ 明確關聯欄位
+  @JoinColumn({ name: 'companyId' }) //   明確關聯欄位
   company: Company;
 }

@@ -17,7 +17,7 @@ export class BannerService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  // ✅ 將 UTC 時間轉為 datetime-local 字串
+  //   將 UTC 時間轉為 datetime-local 字串
   private formatBannerDatetime(banner: Banner): any  {
     const toDatetimeLocal = (val?: Date | string | null) => {
       if (!val) return null;
@@ -63,7 +63,7 @@ export class BannerService {
           after: saved,
         });
       } catch (err) {
-        console.error('⚠️ 操作紀錄寫入失敗:', err);
+        console.error('   操作紀錄寫入失敗:', err);
       }
     }
 
@@ -99,7 +99,7 @@ export class BannerService {
       where: { id, companyId: userCompanyId }, 
       relations: ['company'] 
     });
-    if (!before) throw new Error('找不到指定的 Banner 或無權限操作');
+    if (!before) throw new Error('not found指定的 Banner 或無權限操作');
 
     await this.bannerRepo.update(id, data);
     const after = await this.bannerRepo.findOne({ where: { id } });
@@ -118,7 +118,7 @@ export class BannerService {
           after,
         });
       } catch (err) {
-        console.error('⚠️ Banner 編輯紀錄寫入失敗:', err);
+        console.error('   Banner 編輯紀錄寫入失敗:', err);
       }
     }
 
@@ -133,7 +133,7 @@ export class BannerService {
     }
 
     if (before?.status !== after?.status) {
-      diffs.push(`📘 狀態：${before?.status} → ${after?.status}`);
+      diffs.push(`📘 status：${before?.status} → ${after?.status}`);
     }
 
     if (before?.sort !== after?.sort) {
@@ -190,7 +190,7 @@ export class BannerService {
           before: banner,
         });
       } catch (err) {
-        console.error('⚠️ 刪除紀錄寫入失敗:', err);
+        console.error('   刪除紀錄寫入失敗:', err);
       }
     }
 

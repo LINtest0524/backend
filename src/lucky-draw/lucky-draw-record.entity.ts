@@ -32,7 +32,7 @@ export class LuckyDrawRecord {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  // 關聯
+  // Relation
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User;

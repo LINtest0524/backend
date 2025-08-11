@@ -29,10 +29,10 @@ export class PortalBannerController {
     });
 
     if (!company) {
-      throw new BadRequestException(`找不到公司：${companyCode}`);
+      throw new BadRequestException(`not found公司：${companyCode}`);
     }
 
-    // ✅ 模組是否啟用（重點！）
+    //   模組是否active（重點！）
     const isBannerEnabled = await this.companyModuleRepo.findOne({
       where: {
         companyId: company.id,
@@ -42,7 +42,7 @@ export class PortalBannerController {
     });
 
     if (!isBannerEnabled) {
-      return []; // ❌ 沒啟用 banner 模組 → 回傳空陣列
+      return []; //     沒active banner 模組 → 回傳空陣列
     }
 
     const now = new Date();
