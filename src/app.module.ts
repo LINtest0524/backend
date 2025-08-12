@@ -19,6 +19,8 @@ import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
 import { CompanyModule } from './company/company.module';
 import { MenuModule } from './menu/menu.module';
 import { NewsModule } from './news/news.module';
+import { ArticleModule } from './article/article.module';
+import { ArticleCategoryModule } from './article-category/article-category.module';
 import { LogoModule } from './logo/logo.module';
 import { MarqueeTagModule } from './marquee-tag/marquee-tag.module';
 
@@ -55,6 +57,8 @@ import { MarqueeTagModule } from './marquee-tag/marquee-tag.module';
     LuckyPrizeModule,
     MenuModule,
     NewsModule,
+    ArticleModule,
+    ArticleCategoryModule,
     LogoModule,
     MarqueeTagModule,
 
