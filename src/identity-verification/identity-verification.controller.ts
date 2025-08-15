@@ -114,7 +114,7 @@ export class IdentityVerificationController {
     @Query('limit') limit: string,
     @Query('username') username?: string,
     @Query('type') type?: 'ID_CARD' | 'BANK_ACCOUNT',
-    @Query('status') status?: 'PENDING' | 'APPROVED' | 'REJECTED',
+    @Query('status') status?: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED',
     @Query('createdFrom') createdFrom?: string,
     @Query('createdTo') createdTo?: string,
   ) {
@@ -144,7 +144,7 @@ export class IdentityVerificationController {
   async reviewVerification(
     @Param('id') id: number,
     @Req() req: Request,
-    @Body() body: { status: 'APPROVED' | 'REJECTED'; note?: string }
+    @Body() body: { status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED'; note?: string }
   ) {
     const reviewerId = (req as any).user?.id;
     if (!reviewerId) {

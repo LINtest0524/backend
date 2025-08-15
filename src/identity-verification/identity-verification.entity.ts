@@ -42,7 +42,7 @@ export class IdentityVerification {
 
   //   驗證status
   @Column({ type: 'varchar', default: 'PENDING' })
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED';
 
   @Column({ type: 'varchar', nullable: true })
   note: string | null;

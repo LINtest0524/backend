@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IdentityVerification } from './identity-verification.entity';
 import { Repository } from 'typeorm';
+import { NotificationService } from '../notification/notification.service';
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,6 +17,7 @@ export class IdentityVerificationService {
     private readonly identityRepo: Repository<IdentityVerification>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async saveVerificationFiles(
@@ -65,6 +67,22 @@ export class IdentityVerificationService {
     const record = this.identityRepo.create(recordData);
     const savedRecord = await this.identityRepo.save(record);
     console.log(`  驗證記錄已保存 - 記錄ID: ${savedRecord.id}`);
+    
+    // 獲取用戶信息並發送通知
+    const user = await this.userRepo.findOne({ 
+      where: { id: userId },
+      relations: ['company']
+    });
+    
+    if (user) {
+      const verificationWithUser = {
+        ...savedRecord,
+        user
+      };
+      
+      // 發送即時通知
+      await this.notificationService.sendVerificationNotification(verificationWithUser);
+    }
     
     return savedRecord;
   }

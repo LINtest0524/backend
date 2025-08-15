@@ -12,6 +12,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import * as UAParser from 'ua-parser-js';
@@ -97,6 +98,16 @@ export class AuthController {
     });
 
     return result;
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getCurrentUser(@Req() req: Request) {
+    console.log('當前用戶資訊:', req.user);
+    return {
+      user: req.user,
+      message: '當前用戶資訊'
+    };
   }
 
   @Get('test-strategies')

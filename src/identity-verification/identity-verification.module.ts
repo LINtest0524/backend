@@ -5,14 +5,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { IdentityVerification } from './identity-verification.entity';
 import { IdentityVerificationService } from './identity-verification.service';
 import { IdentityVerificationController } from './identity-verification.controller';
-import { User } from '../user/user.entity'; //   要加這行
+import { User } from '../user/user.entity';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       IdentityVerification,
-      User, //   補上這行
+      User,
     ]),
+    NotificationModule,
   ],
   controllers: [IdentityVerificationController],
   providers: [IdentityVerificationService],

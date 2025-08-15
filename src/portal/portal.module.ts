@@ -11,6 +11,7 @@ import { PortalMenuController } from './portal-menu.controller';
 import { PortalNewsController } from './portal-news.controller';
 import { PortalArticleController } from './portal-article.controller';
 import { PortalLogoController } from './portal-logo.controller';
+import { PortalPopupAnnouncementController } from './portal-popup-announcement.controller';
 
 
 import { UserModule } from '../user/user.module';
@@ -23,6 +24,7 @@ import { NewsModule } from '../news/news.module';
 import { ArticleModule } from '../article/article.module';
 import { ArticleCategoryModule } from '../article-category/article-category.module';
 import { LogoModule } from '../logo/logo.module';
+import { PopupAnnouncementModule } from '../popup-announcement/popup-announcement.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -42,6 +44,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     ArticleModule,
     ArticleCategoryModule,
     LogoModule,
+    PopupAnnouncementModule,
     TypeOrmModule.forFeature([
       Banner,
       Company,
@@ -66,6 +69,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalNewsController,
     PortalArticleController,
     PortalLogoController,
+    PortalPopupAnnouncementController,
   ],
 })
 export class PortalModule {}

@@ -23,6 +23,8 @@ import { ArticleModule } from './article/article.module';
 import { ArticleCategoryModule } from './article-category/article-category.module';
 import { LogoModule } from './logo/logo.module';
 import { MarqueeTagModule } from './marquee-tag/marquee-tag.module';
+import { PopupAnnouncementModule } from './popup-announcement/popup-announcement.module';
+import { NotificationModule } from './notification/notification.module';
 
 
 @Module({
@@ -61,6 +63,8 @@ import { MarqueeTagModule } from './marquee-tag/marquee-tag.module';
     ArticleCategoryModule,
     LogoModule,
     MarqueeTagModule,
+    PopupAnnouncementModule,
+    NotificationModule,
 
   ],
   controllers: [],
