@@ -31,6 +31,9 @@ export class IdentityVerificationService {
     const existingRecord = await this.findByUserId(userId, type);
     if (existingRecord) {
       console.log(`   發現現有記錄，將先刪除 - 記錄ID: ${existingRecord.id}`);
+      // 先刪除舊的圖檔
+      await this.deleteVerificationFiles(existingRecord);
+      // 再刪除資料庫記錄
       await this.identityRepo.remove(existingRecord);
     }
 
@@ -131,6 +134,32 @@ export class IdentityVerificationService {
     return await this.identityRepo.delete({ userId, type });
   }
 
+  // 刪除驗證記錄相關的圖檔
+  private async deleteVerificationFiles(verification: IdentityVerification) {
+    const uploadDir = path.join(__dirname, '../../public/uploads/identity');
+    const filesToDelete: string[] = [];
+
+    if (verification.type === 'ID_CARD') {
+      if (verification.frontImage) filesToDelete.push(verification.frontImage);
+      if (verification.backImage) filesToDelete.push(verification.backImage);
+      if (verification.selfieImage) filesToDelete.push(verification.selfieImage);
+    } else if (verification.type === 'BANK_ACCOUNT') {
+      if (verification.accountImage) filesToDelete.push(verification.accountImage);
+    }
+
+    for (const filename of filesToDelete) {
+      try {
+        const filepath = path.join(uploadDir, filename);
+        if (fs.existsSync(filepath)) {
+          await fs.promises.unlink(filepath);
+          console.log(`🗑️ 已刪除圖檔: ${filename}`);
+        }
+      } catch (error) {
+        console.error(`⚠️ 刪除圖檔失敗 ${filename}:`, error);
+      }
+    }
+  }
+
 
   async findAllForAdmin() {
     const records = await this.identityRepo.find({
@@ -159,11 +188,17 @@ export class IdentityVerificationService {
   async review(
     id: number,
     reviewedBy: number,
-    status: 'APPROVED' | 'REJECTED',
+    status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED',
     note?: string,
   ) {
     const verification = await this.identityRepo.findOne({ where: { id } });
     if (!verification) throw new NotFoundException('not found驗證紀錄');
+
+    // 如果狀態設為 REJECTED，先刪除相關圖檔
+    if (status === 'REJECTED') {
+      console.log(`📋 驗證申請被拒絕，將刪除相關圖檔 - 記錄ID: ${id}`);
+      await this.deleteVerificationFiles(verification);
+    }
 
     verification.status = status;
     verification.note = note || null;
