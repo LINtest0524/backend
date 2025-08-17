@@ -25,6 +25,8 @@ import { LogoModule } from './logo/logo.module';
 import { MarqueeTagModule } from './marquee-tag/marquee-tag.module';
 import { PopupAnnouncementModule } from './popup-announcement/popup-announcement.module';
 import { NotificationModule } from './notification/notification.module';
+import { ProductModule } from './product/product.module';
+import { ProductCategoryModule } from './product-category/product-category.module';
 
 
 @Module({
@@ -65,6 +67,8 @@ import { NotificationModule } from './notification/notification.module';
     MarqueeTagModule,
     PopupAnnouncementModule,
     NotificationModule,
+    ProductModule,
+    ProductCategoryModule,
 
   ],
   controllers: [],
