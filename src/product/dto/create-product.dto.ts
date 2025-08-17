@@ -44,14 +44,6 @@ export class CreateProductDto {
   @IsString()
   thumbnail?: string;
 
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  weight?: number;
-
-  @IsOptional()
-  @IsString()
-  dimensions?: string;
 
   @IsOptional()
   specifications?: Record<string, any>;

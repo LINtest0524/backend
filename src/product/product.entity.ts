@@ -53,11 +53,6 @@ export class Product {
   @Column({ type: 'varchar', nullable: true })
   thumbnail: string; // 縮圖
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, nullable: true })
-  weight: number; // 重量（公斤）
-
-  @Column({ type: 'varchar', nullable: true })
-  dimensions: string; // 尺寸 (長x寬x高)
 
   @Column({ type: 'json', nullable: true })
   specifications: Record<string, any>; // 規格參數
