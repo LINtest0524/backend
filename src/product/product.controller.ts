@@ -15,9 +15,12 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ProductService } from './product.service';
+import { ProductVariantService } from './product-variant.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
+import { CreateProductVariantDto } from './dto/create-product-variant.dto';
+import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -32,6 +35,7 @@ import { v4 as uuidv4 } from 'uuid';
 export class ProductController {
   constructor(
     private readonly productService: ProductService,
+    private readonly productVariantService: ProductVariantService,
     private readonly userService: UserService,
   ) {}
 
@@ -118,6 +122,58 @@ export class ProductController {
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async findByCompany(@Param('companyId') companyId: number, @Request() req) {
     return this.productService.findByCompany(companyId, req.user);
+  }
+
+  // === 產品變體相關 API ===
+  
+  @Get(':productId/variants')
+  @UseGuards(JwtAuthGuard)
+  async getProductVariants(@Param('productId') productId: number) {
+    return this.productVariantService.findByProductId(productId);
+  }
+
+  @Post(':productId/variants')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  async createVariant(
+    @Param('productId') productId: number,
+    @Body() dto: Omit<CreateProductVariantDto, 'product_id'>
+  ) {
+    const createDto: CreateProductVariantDto = { ...dto, product_id: productId };
+    return this.productVariantService.create(createDto);
+  }
+
+  @Get('variants/:variantId')
+  @UseGuards(JwtAuthGuard)
+  async getVariant(@Param('variantId') variantId: number) {
+    return this.productVariantService.findOne(variantId);
+  }
+
+  @Patch('variants/:variantId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  async updateVariant(
+    @Param('variantId') variantId: number,
+    @Body() dto: UpdateProductVariantDto
+  ) {
+    return this.productVariantService.update(variantId, dto);
+  }
+
+  @Delete('variants/:variantId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  async removeVariant(@Param('variantId') variantId: number) {
+    return this.productVariantService.remove(variantId);
+  }
+
+  @Patch('variants/:variantId/stock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  async updateVariantStock(
+    @Param('variantId') variantId: number,
+    @Body('quantity') quantity: number
+  ) {
+    return this.productVariantService.updateStock(variantId, quantity);
   }
 
   private extractClientInfo(req: any) {

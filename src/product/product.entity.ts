@@ -11,6 +11,7 @@ import {
 import { Company } from '../company/company.entity';
 import { User } from '../user/user.entity';
 import { ProductCategory } from '../product-category/product-category.entity';
+import { ProductVariant } from './product-variant.entity';
 
 export enum ProductStatus {
   ACTIVE = 'ACTIVE',
@@ -55,13 +56,20 @@ export class Product {
 
 
   @Column({ type: 'json', nullable: true })
-  specifications: Record<string, any>; // 規格參數
+  specifications: Array<{key: string, value: string}> | Record<string, any>; // 規格參數（支援陣列和物件格式）
 
   @Column({ type: 'text', nullable: true })
   specifications_description: string; // 規格說明
 
   @Column({ type: 'text', nullable: true })
   shipping_description: string; // 配送說明
+
+  @Column({ type: 'json', nullable: true })
+  shipping_rules: Array<{
+    method: string; // 配送方式名稱
+    base_fee: number; // 基本運費
+    free_shipping_threshold: number; // 免運門檻
+  }>; // 運費規則
 
   @Column({ type: 'json', nullable: true })
   tags: string[]; // 標籤
@@ -108,4 +116,8 @@ export class Product {
 
   @Column({ type: 'int', nullable: true })
   created_by_id: number;
+
+  // 產品變體關聯
+  @OneToMany(() => ProductVariant, variant => variant.product, { cascade: true })
+  variants: ProductVariant[];
 }

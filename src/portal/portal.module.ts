@@ -12,10 +12,13 @@ import { PortalNewsController } from './portal-news.controller';
 import { PortalArticleController } from './portal-article.controller';
 import { PortalLogoController } from './portal-logo.controller';
 import { PortalPopupAnnouncementController } from './portal-popup-announcement.controller';
-import { PortalProductController } from './portal-product.controller';
+import { PortalProductController } from './portal-product.controller'
+import { PortalOrderController } from './portal-order.controller';
+import { PortalShippingController } from './portal-shipping.controller';
 
 
 import { UserModule } from '../user/user.module';
+import { OrderModule } from '../order/order.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { BannerModule } from '../banner/banner.module';
 import { MarqueeModule } from '../marquee/marquee.module';
@@ -28,6 +31,7 @@ import { LogoModule } from '../logo/logo.module';
 import { PopupAnnouncementModule } from '../popup-announcement/popup-announcement.module';
 import { ProductModule } from '../product/product.module';
 import { ProductCategoryModule } from '../product-category/product-category.module';
+import { CompanyModule } from '../company/company.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -50,6 +54,8 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PopupAnnouncementModule,
     ProductModule,
     ProductCategoryModule,
+    CompanyModule,
+    OrderModule,
     TypeOrmModule.forFeature([
       Banner,
       Company,
@@ -76,6 +82,8 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalLogoController,
     PortalPopupAnnouncementController,
     PortalProductController,
+    PortalOrderController,
+    PortalShippingController,
   ],
 })
 export class PortalModule {}

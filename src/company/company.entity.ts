@@ -18,6 +18,16 @@ export class Company {
   @Column('simple-array', { default: 'USERNAME_PASSWORD,FACEBOOK' })
   loginMethods: string[]; // Login方式：USERNAME_PASSWORD, FACEBOOK, GOOGLE 等
 
+  @Column({ type: 'json', nullable: true })
+  shipping_rules: Array<{
+    id: string;
+    name: string;
+    fee: number;
+    freeThreshold: number;
+    description?: string;
+    enabled: boolean;
+  }>; // 運送規則設定
+
   @OneToMany(() => Banner, banner => banner.company)
   banners: Banner[];
 }

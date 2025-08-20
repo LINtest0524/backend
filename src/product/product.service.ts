@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between, In, IsNull } from 'typeorm';
 import { Product, ProductStatus } from './product.entity';
+import { ProductVariant, ProductVariantStatus } from './product-variant.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
@@ -13,26 +14,80 @@ export class ProductService {
   constructor(
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(ProductVariant)
+    private productVariantRepository: Repository<ProductVariant>,
     private auditLogService: AuditLogService,
   ) {}
 
   async create(dto: CreateProductDto, user: User, ip: string, platform: string): Promise<Product> {
+    const { variants, ...productData } = dto;
+    
     // 檢查 SKU 是否重複
     const existingSku = await this.productRepository.findOne({
-      where: { sku: dto.sku, deleted_at: IsNull() }
+      where: { sku: productData.sku, deleted_at: IsNull() }
     });
     
     if (existingSku) {
       throw new BadRequestException('商品編號已存在');
     }
 
+    // 檢查變體 SKU 是否重複
+    if (variants && variants.length > 0) {
+      const variantSkus = variants.map(v => v.sku);
+      const existingVariantSkus = await this.productVariantRepository.find({
+        where: { sku: In(variantSkus) }
+      });
+      
+      if (existingVariantSkus.length > 0) {
+        throw new BadRequestException(`變體 SKU 已存在: ${existingVariantSkus.map(v => v.sku).join(', ')}`);
+      }
+    }
+
     const product = this.productRepository.create({
-      ...dto,
+      ...productData,
       company_id: user.company_id,
       created_by_id: user.id,
     });
 
     const savedProduct = await this.productRepository.save(product);
+
+    // 創建變體
+    if (variants && variants.length > 0) {
+      const productVariants = variants.map((variant, index) => 
+        this.productVariantRepository.create({
+          ...variant,
+          product_id: savedProduct.id,
+          is_default: index === 0 || variant.is_default, // 第一個變體或明確指定的為預設
+        })
+      );
+
+      // 確保只有一個預設變體
+      const defaultCount = productVariants.filter(v => v.is_default).length;
+      if (defaultCount > 1) {
+        productVariants.forEach((v, i) => {
+          v.is_default = i === 0;
+        });
+      }
+
+      await this.productVariantRepository.save(productVariants);
+    } else {
+      // 如果沒有提供變體，創建一個預設變體
+      const defaultVariant = this.productVariantRepository.create({
+        product_id: savedProduct.id,
+        variant_name: '預設規格',
+        sku: `${savedProduct.sku}-DEFAULT`,
+        price: savedProduct.price,
+        original_price: savedProduct.original_price,
+        stock_quantity: savedProduct.stock_quantity,
+        min_stock: savedProduct.min_stock,
+        variant_options: {},
+        images: savedProduct.images,
+        is_default: true,
+        status: ProductVariantStatus.ACTIVE,
+      });
+
+      await this.productVariantRepository.save(defaultVariant);
+    }
 
     // 記錄審計日誌 - 暫時註解，等待實現
     // await this.auditLogService.log({
@@ -127,11 +182,20 @@ export class ProductService {
   async findOne(id: number): Promise<Product> {
     const product = await this.productRepository.findOne({
       where: { id, deleted_at: IsNull() },
-      relations: ['category', 'company', 'created_by'],
+      relations: ['category', 'company', 'created_by', 'variants'],
     });
 
     if (!product) {
       throw new NotFoundException('商品不存在');
+    }
+
+    // 排序變體：預設變體在前，然後按 sort_order
+    if (product.variants) {
+      product.variants.sort((a, b) => {
+        if (a.is_default && !b.is_default) return -1;
+        if (!a.is_default && b.is_default) return 1;
+        return a.sort_order - b.sort_order;
+      });
     }
 
     return product;

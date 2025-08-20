@@ -1,5 +1,7 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsBoolean, IsArray, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, IsBoolean, IsArray, Min, Max, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ProductStatus } from '../product.entity';
+import { CreateProductVariantDto } from './create-product-variant.dto';
 
 export class CreateProductDto {
   @IsString()
@@ -46,7 +48,7 @@ export class CreateProductDto {
 
 
   @IsOptional()
-  specifications?: Record<string, any>;
+  specifications?: Array<{key: string, value: string}> | Record<string, any>;
 
   @IsOptional()
   @IsString()
@@ -55,6 +57,14 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   shipping_description?: string;
+
+  @IsOptional()
+  @IsArray()
+  shipping_rules?: Array<{
+    method: string;
+    base_fee: number;
+    free_shipping_threshold: number;
+  }>;
 
   @IsOptional()
   @IsArray()
@@ -80,4 +90,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsNumber()
   category_id?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductVariantDto)
+  variants?: Omit<CreateProductVariantDto, 'product_id'>[];
 }
