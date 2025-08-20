@@ -28,6 +28,7 @@ import { NotificationModule } from './notification/notification.module';
 import { ProductModule } from './product/product.module'
 import { OrderModule } from './order/order.module';
 import { ProductCategoryModule } from './product-category/product-category.module';
+import { EcpayModule } from './ecpay/ecpay.module';
 
 
 @Module({
@@ -71,6 +72,7 @@ import { ProductCategoryModule } from './product-category/product-category.modul
     ProductModule,
     ProductCategoryModule,
     OrderModule,
+    EcpayModule,
 
   ],
   controllers: [],

@@ -121,6 +121,7 @@ export class ProductService {
     const queryBuilder = this.productRepository.createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
       .leftJoinAndSelect('product.company', 'company')
+      .leftJoinAndSelect('product.variants', 'variants')
       .where('product.deleted_at IS NULL');
 
     // 權限控制
@@ -292,10 +293,12 @@ export class ProductService {
     const queryBuilder = this.productRepository.createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
       .leftJoinAndSelect('product.company', 'company')
+      .leftJoinAndSelect('product.variants', 'variants', 'variants.status = :variantStatus')
       .where('product.deleted_at IS NULL')
       .andWhere('product.status = :status', { status: ProductStatus.ACTIVE })
       .andWhere('product.is_visible = true')
-      .andWhere('company.code = :companyCode', { companyCode });
+      .andWhere('company.code = :companyCode', { companyCode })
+      .setParameter('variantStatus', 'ACTIVE');
 
     // 應用篩選條件（與 findAll 類似，但不需要權限檢查）
     const {

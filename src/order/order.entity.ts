@@ -62,6 +62,22 @@ export class Order {
   @JoinColumn({ name: 'user_id' })
   user: User
 
+  // 綠界金流相關欄位
+  @Column({ nullable: true })
+  ecpay_merchant_trade_no: string // 綠界訂單編號
+
+  @Column({ nullable: true })
+  ecpay_trade_no: string // 綠界交易編號
+
+  @Column({ nullable: true })
+  ecpay_payment_type: string // 綠界付款方式
+
+  @Column({ nullable: true })
+  ecpay_payment_date: string // 綠界付款日期
+
+  @Column('text', { nullable: true })
+  ecpay_return_data: string // 綠界回傳資料 (JSON)
+
   @OneToMany(() => OrderItem, orderItem => orderItem.order, { cascade: true })
   items: OrderItem[]
 

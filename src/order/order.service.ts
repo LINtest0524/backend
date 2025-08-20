@@ -44,9 +44,10 @@ export class OrderService {
     // 建立訂單項目並檢查庫存
     const orderItems: OrderItem[] = []
     for (const item of createOrderDto.items) {
-      // 獲取商品資訊
+      // 獲取商品資訊（包含變體）
       const product = await this.productRepository.findOne({
-        where: { id: item.product_id }
+        where: { id: item.product_id },
+        relations: ['variants']
       })
 
       if (!product) {
@@ -54,13 +55,50 @@ export class OrderService {
       }
 
       // 檢查庫存是否足夠
-      if (product.stock_quantity < item.quantity) {
-        throw new BadRequestException(`商品 "${product.name}" 庫存不足，目前庫存：${product.stock_quantity}，需求數量：${item.quantity}`)
+      let stockToCheck = product.stock_quantity
+      let variantToUpdate: any = null
+
+      // 如果有變體，檢查變體庫存
+      if (product.variants && product.variants.length > 0) {
+        let matchingVariant: any = null
+        
+        // 優先使用 variant_id 來找變體
+        if (item.variant_id) {
+          matchingVariant = product.variants.find(variant => variant.id === item.variant_id) || null
+        }
+        
+        // 如果沒有 variant_id 或找不到，則使用規格匹配
+        if (!matchingVariant && item.selected_specs && Object.keys(item.selected_specs).length > 0) {
+          matchingVariant = product.variants.find(variant => {
+            return Object.entries(item.selected_specs!).every(([key, value]) => 
+              variant.variant_options[key] === value
+            )
+          }) || null
+        }
+
+        if (matchingVariant) {
+          stockToCheck = matchingVariant.stock_quantity
+          variantToUpdate = matchingVariant
+        }
+      }
+
+      if (stockToCheck < item.quantity) {
+        const productDisplayName = variantToUpdate && item.selected_specs
+          ? `${product.name} (${Object.entries(item.selected_specs).map(([k, v]) => `${k}:${v}`).join(', ')})`
+          : product.name
+        throw new BadRequestException(`商品 "${productDisplayName}" 庫存不足，目前庫存：${stockToCheck}，需求數量：${item.quantity}`)
       }
 
       // 扣減庫存
-      product.stock_quantity -= item.quantity
-      await this.productRepository.save(product)
+      if (variantToUpdate) {
+        // 扣減變體庫存
+        variantToUpdate.stock_quantity -= item.quantity
+        await this.productRepository.save(product) // 保存整個商品（包含變體）
+      } else {
+        // 扣減主商品庫存
+        product.stock_quantity -= item.quantity
+        await this.productRepository.save(product)
+      }
 
       const orderItem = this.orderItemRepository.create({
         order_id: savedOrder.id,
@@ -184,12 +222,28 @@ export class OrderService {
   private async restoreStock(order: Order): Promise<void> {
     for (const item of order.items) {
       const product = await this.productRepository.findOne({
-        where: { id: item.product_id }
+        where: { id: item.product_id },
+        relations: ['variants']
       })
       
       if (product) {
-        product.stock_quantity += item.quantity
-        await this.productRepository.save(product)
+        // 如果有變體選項，回復變體庫存
+        if (product.variants && product.variants.length > 0 && item.variant_options && Object.keys(item.variant_options).length > 0) {
+          const matchingVariant = product.variants.find(variant => {
+            return Object.entries(item.variant_options!).every(([key, value]) => 
+              variant.variant_options[key] === value
+            )
+          })
+
+          if (matchingVariant) {
+            matchingVariant.stock_quantity += item.quantity
+            await this.productRepository.save(product)
+          }
+        } else {
+          // 回復主商品庫存
+          product.stock_quantity += item.quantity
+          await this.productRepository.save(product)
+        }
       }
     }
   }
@@ -197,19 +251,47 @@ export class OrderService {
   private async deductStock(order: Order): Promise<void> {
     for (const item of order.items) {
       const product = await this.productRepository.findOne({
-        where: { id: item.product_id }
+        where: { id: item.product_id },
+        relations: ['variants']
       })
       
       if (!product) {
         throw new NotFoundException(`商品 ID ${item.product_id} 不存在`)
       }
       
-      if (product.stock_quantity < item.quantity) {
-        throw new BadRequestException(`商品 "${product.name}" 庫存不足，目前庫存：${product.stock_quantity}，需求數量：${item.quantity}`)
+      // 檢查庫存是否足夠
+      let stockToCheck = product.stock_quantity
+      let variantToUpdate: any = null
+
+      // 如果有變體選項，檢查變體庫存
+      if (product.variants && product.variants.length > 0 && item.variant_options && Object.keys(item.variant_options).length > 0) {
+        const matchingVariant = product.variants.find(variant => {
+          return Object.entries(item.variant_options!).every(([key, value]) => 
+            variant.variant_options[key] === value
+          )
+        })
+
+        if (matchingVariant) {
+          stockToCheck = matchingVariant.stock_quantity
+          variantToUpdate = matchingVariant
+        }
       }
       
-      product.stock_quantity -= item.quantity
-      await this.productRepository.save(product)
+      if (stockToCheck < item.quantity) {
+        const productDisplayName = variantToUpdate && item.variant_options
+          ? `${product.name} (${Object.entries(item.variant_options).map(([k, v]) => `${k}:${v}`).join(', ')})`
+          : product.name
+        throw new BadRequestException(`商品 "${productDisplayName}" 庫存不足，目前庫存：${stockToCheck}，需求數量：${item.quantity}`)
+      }
+      
+      // 扣減庫存
+      if (variantToUpdate) {
+        variantToUpdate.stock_quantity -= item.quantity
+        await this.productRepository.save(product)
+      } else {
+        product.stock_quantity -= item.quantity
+        await this.productRepository.save(product)
+      }
     }
   }
 
@@ -228,6 +310,35 @@ export class OrderService {
   async updateAdminNotes(id: number, adminNotes: string): Promise<Order> {
     const order = await this.findOne(id)
     order.admin_notes = adminNotes
+    return this.orderRepository.save(order)
+  }
+
+  // 更新綠界交易資訊
+  async updateEcpayInfo(id: number, ecpayData: {
+    merchantTradeNo?: string
+    tradeNo?: string
+    paymentType?: string
+    paymentDate?: string
+    returnData?: any
+  }): Promise<Order> {
+    const order = await this.findOne(id)
+    
+    if (ecpayData.merchantTradeNo) {
+      order.ecpay_merchant_trade_no = ecpayData.merchantTradeNo
+    }
+    if (ecpayData.tradeNo) {
+      order.ecpay_trade_no = ecpayData.tradeNo
+    }
+    if (ecpayData.paymentType) {
+      order.ecpay_payment_type = ecpayData.paymentType
+    }
+    if (ecpayData.paymentDate) {
+      order.ecpay_payment_date = ecpayData.paymentDate
+    }
+    if (ecpayData.returnData) {
+      order.ecpay_return_data = JSON.stringify(ecpayData.returnData)
+    }
+    
     return this.orderRepository.save(order)
   }
 

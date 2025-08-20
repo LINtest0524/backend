@@ -21,6 +21,10 @@ export class CreateOrderItemDto {
 
   @IsOptional()
   selected_specs?: Record<string, string>
+
+  @IsOptional()
+  @IsNumber()
+  variant_id?: number
 }
 
 export class CreateOrderDto {
