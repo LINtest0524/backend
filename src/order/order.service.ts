@@ -100,6 +100,14 @@ export class OrderService {
         await this.productRepository.save(product)
       }
 
+      // 決定要使用的縮圖
+      let thumbnailToUse = product.thumbnail
+      
+      // 如果有變體且變體有圖片，優先使用變體的第一張圖片
+      if (variantToUpdate && variantToUpdate.images && variantToUpdate.images.length > 0) {
+        thumbnailToUse = variantToUpdate.images[0]
+      }
+
       const orderItem = this.orderItemRepository.create({
         order_id: savedOrder.id,
         product_id: item.product_id,
@@ -107,7 +115,9 @@ export class OrderService {
         product_sku: item.product_sku || product.sku,
         quantity: item.quantity,
         price: item.price,
-        product_thumbnail: product.thumbnail,
+        product_thumbnail: thumbnailToUse,
+        product_variant_id: variantToUpdate ? variantToUpdate.id : null,
+        variant_name: variantToUpdate ? variantToUpdate.variant_name : null,
         variant_options: item.selected_specs && Object.keys(item.selected_specs).length > 0 ? item.selected_specs : null
       })
 
@@ -177,6 +187,18 @@ export class OrderService {
 
     const [orders, total] = await queryBuilder.getManyAndCount()
 
+    // 為每個訂單項目添加 specifications 欄位
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.variant_options && Object.keys(item.variant_options).length > 0) {
+          // 將變體選項轉換為規格字串
+          item['specifications'] = Object.entries(item.variant_options)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ')
+        }
+      })
+    })
+
     return { data: orders, total }
   }
 
@@ -190,15 +212,39 @@ export class OrderService {
       throw new NotFoundException(`訂單 ID ${id} 不存在`)
     }
 
+    // 為每個訂單項目添加 specifications 欄位
+    order.items.forEach(item => {
+      if (item.variant_options && Object.keys(item.variant_options).length > 0) {
+        // 將變體選項轉換為規格字串
+        item['specifications'] = Object.entries(item.variant_options)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ')
+      }
+    })
+
     return order
   }
 
   async findByUser(userId: number, company: string): Promise<Order[]> {
-    return this.orderRepository.find({
+    const orders = await this.orderRepository.find({
       where: { user_id: userId, company },
       relations: ['items'],
       order: { created_at: 'DESC' }
     })
+
+    // 為每個訂單項目添加 specifications 欄位
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.variant_options && Object.keys(item.variant_options).length > 0) {
+          // 將變體選項轉換為規格字串
+          item['specifications'] = Object.entries(item.variant_options)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ')
+        }
+      })
+    })
+
+    return orders
   }
 
   async updateStatus(id: number, status: string): Promise<Order> {

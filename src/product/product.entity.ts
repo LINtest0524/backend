@@ -12,6 +12,7 @@ import { Company } from '../company/company.entity';
 import { User } from '../user/user.entity';
 import { ProductCategory } from '../product-category/product-category.entity';
 import { ProductVariant } from './product-variant.entity';
+import { ShippingRuleTemplate } from '../shipping-rule-template/shipping-rule-template.entity';
 
 export enum ProductStatus {
   ACTIVE = 'ACTIVE',
@@ -120,4 +121,12 @@ export class Product {
   // 產品變體關聯
   @OneToMany(() => ProductVariant, variant => variant.product, { cascade: true })
   variants: ProductVariant[];
+
+  // 運費方案關聯
+  @ManyToOne(() => ShippingRuleTemplate, { nullable: true })
+  @JoinColumn({ name: 'shipping_rule_template_id' })
+  shipping_rule_template: ShippingRuleTemplate;
+
+  @Column({ type: 'int', nullable: true })
+  shipping_rule_template_id: number;
 }

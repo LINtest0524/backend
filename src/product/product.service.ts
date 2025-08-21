@@ -183,7 +183,7 @@ export class ProductService {
   async findOne(id: number): Promise<Product> {
     const product = await this.productRepository.findOne({
       where: { id, deleted_at: IsNull() },
-      relations: ['category', 'company', 'created_by', 'variants'],
+      relations: ['category', 'company', 'created_by', 'variants', 'shipping_rule_template', 'shipping_rule_template.items'],
     });
 
     if (!product) {
@@ -197,6 +197,15 @@ export class ProductService {
         if (!a.is_default && b.is_default) return 1;
         return a.sort_order - b.sort_order;
       });
+    }
+
+    // 如果產品有運費方案，將其轉換為舊格式的 shipping_rules 以保持向後兼容
+    if (product.shipping_rule_template && product.shipping_rule_template.items) {
+      product.shipping_rules = product.shipping_rule_template.items.map(item => ({
+        method: item.method,
+        base_fee: Number(item.base_fee),
+        free_shipping_threshold: Number(item.free_shipping_threshold),
+      }));
     }
 
     return product;
@@ -216,11 +225,12 @@ export class ProductService {
 
   async update(id: number, dto: UpdateProductDto, user: User, ip: string, platform: string): Promise<Product> {
     const product = await this.findOneSecured(id, user);
+    const { variants, clearVariants, ...productData } = dto;
 
     // 檢查 SKU 是否重複（排除自己）
-    if (dto.sku && dto.sku !== product.sku) {
+    if (productData.sku && productData.sku !== product.sku) {
       const existingSku = await this.productRepository.findOne({
-        where: { sku: dto.sku, deleted_at: IsNull() }
+        where: { sku: productData.sku, deleted_at: IsNull() }
       });
       
       if (existingSku && existingSku.id !== id) {
@@ -228,8 +238,59 @@ export class ProductService {
       }
     }
 
-    Object.assign(product, dto);
+    // 檢查變體 SKU 是否重複（排除現有的變體）
+    if (variants && variants.length > 0) {
+      const variantSkus = variants.map(v => v.sku);
+      const existingVariantSkus = await this.productVariantRepository.find({
+        where: { sku: In(variantSkus) }
+      });
+      
+      // 過濾掉屬於當前商品的變體
+      const currentProductVariants = await this.productVariantRepository.find({
+        where: { product_id: id }
+      });
+      const currentVariantSkus = currentProductVariants.map(v => v.sku);
+      
+      const conflictingSkus = existingVariantSkus.filter(v => 
+        !currentVariantSkus.includes(v.sku)
+      );
+      
+      if (conflictingSkus.length > 0) {
+        throw new BadRequestException(`變體 SKU 已存在: ${conflictingSkus.map(v => v.sku).join(', ')}`);
+      }
+    }
+
+    // 更新主商品資料
+    Object.assign(product, productData);
     const updatedProduct = await this.productRepository.save(product);
+
+    // 處理變體更新
+    if (clearVariants || (variants && variants.length === 0)) {
+      // 清除所有變體
+      await this.productVariantRepository.delete({ product_id: id });
+    } else if (variants && variants.length > 0) {
+      // 刪除現有變體
+      await this.productVariantRepository.delete({ product_id: id });
+      
+      // 創建新變體
+      const productVariants = variants.map((variant, index) => 
+        this.productVariantRepository.create({
+          ...variant,
+          product_id: id,
+          is_default: index === 0 || variant.is_default, // 第一個變體或明確指定的為預設
+        })
+      );
+
+      // 確保只有一個預設變體
+      const defaultCount = productVariants.filter(v => v.is_default).length;
+      if (defaultCount > 1) {
+        productVariants.forEach((v, i) => {
+          v.is_default = i === 0;
+        });
+      }
+
+      await this.productVariantRepository.save(productVariants);
+    }
 
     // 記錄審計日誌 - 暫時註解，等待實現
     // await this.auditLogService.log({
@@ -294,6 +355,8 @@ export class ProductService {
       .leftJoinAndSelect('product.category', 'category')
       .leftJoinAndSelect('product.company', 'company')
       .leftJoinAndSelect('product.variants', 'variants', 'variants.status = :variantStatus')
+      .leftJoinAndSelect('product.shipping_rule_template', 'shipping_rule_template')
+      .leftJoinAndSelect('shipping_rule_template.items', 'shipping_rule_items')
       .where('product.deleted_at IS NULL')
       .andWhere('product.status = :status', { status: ProductStatus.ACTIVE })
       .andWhere('product.is_visible = true')
