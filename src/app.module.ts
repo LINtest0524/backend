@@ -30,6 +30,7 @@ import { OrderModule } from './order/order.module';
 import { ProductCategoryModule } from './product-category/product-category.module';
 import { EcpayModule } from './ecpay/ecpay.module';
 import { ShippingRuleTemplateModule } from './shipping-rule-template/shipping-rule-template.module';
+import { MessageModule } from './message/message.module';
 
 
 @Module({
@@ -75,6 +76,7 @@ import { ShippingRuleTemplateModule } from './shipping-rule-template/shipping-ru
     OrderModule,
     EcpayModule,
     ShippingRuleTemplateModule,
+    MessageModule,
 
   ],
   controllers: [],
