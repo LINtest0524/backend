@@ -246,4 +246,22 @@ export class MessageService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  // 管理員刪除消息（不需要用戶ID驗證）
+  async adminDeleteMessage(messageId: number, companyId: number): Promise<void> {
+    const message = await this.messageRepository.findOne({
+      where: { 
+        id: messageId, 
+        companyId: companyId 
+      }
+    });
+
+    if (!message) {
+      throw new NotFoundException('消息不存在');
+    }
+
+    // 管理員可以直接刪除消息
+    message.isDeletedByReceiver = true;
+    await this.messageRepository.save(message);
+  }
 }

@@ -32,6 +32,7 @@ import { PopupAnnouncementModule } from '../popup-announcement/popup-announcemen
 import { ProductModule } from '../product/product.module';
 import { ProductCategoryModule } from '../product-category/product-category.module';
 import { CompanyModule } from '../company/company.module';
+import { MessageModule } from '../message/message.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -55,6 +56,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     ProductModule,
     ProductCategoryModule,
     CompanyModule,
+    MessageModule,
     OrderModule,
     TypeOrmModule.forFeature([
       Banner,
