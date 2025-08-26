@@ -269,7 +269,24 @@ export class MessageController {
     
     // 標記個人消息為已讀
     if (personalMessageIds.length > 0) {
-      await this.messageService.markMultipleAsRead(personalMessageIds, user.id, user.companyId);
+      // 需要同時處理新表和舊表的個人消息
+      for (const messageId of personalMessageIds) {
+        try {
+          // 先嘗試標記新表（personal_message）中的消息
+          await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id, user.companyId);
+          console.log('✅ 批量標記新表個人消息已讀:', messageId);
+        } catch (error) {
+          console.log('⚠️ 新表中未找到，嘗試舊表...', messageId);
+          
+          try {
+            // 如果新表中沒有，嘗試舊表（message）
+            await this.messageService.markAsRead(messageId, user.id, user.companyId);
+            console.log('✅ 批量標記舊表個人消息已讀:', messageId);
+          } catch (oldTableError) {
+            console.error('❌ 批量標記失敗:', messageId, oldTableError);
+          }
+        }
+      }
     }
     
     return { success: true };
@@ -310,12 +327,23 @@ export class MessageController {
     
     // 刪除個人消息
     if (personalMessageIds.length > 0) {
-      try {
-        await this.messageService.deleteMultipleMessages(personalMessageIds, user.id, user.companyId);
-        console.log('✅ 批量刪除舊消息表成功:', personalMessageIds);
-      } catch (error) {
-        console.log('⚠️ 批量刪除舊消息表失敗:', error);
-        // 這裡可以添加新表的批量刪除邏輯
+      // 需要同時處理新表和舊表的個人消息
+      for (const messageId of personalMessageIds) {
+        try {
+          // 先嘗試刪除新表（personal_message）中的消息
+          await this.hybridMessageService.deletePersonalMessage(messageId, user.id, user.companyId);
+          console.log('✅ 批量刪除新表個人消息成功:', messageId);
+        } catch (error) {
+          console.log('⚠️ 新表中未找到，嘗試舊表...', messageId);
+          
+          try {
+            // 如果新表中沒有，嘗試舊表（message）
+            await this.messageService.deleteMessage(messageId, user.id, user.companyId);
+            console.log('✅ 批量刪除舊表個人消息成功:', messageId);
+          } catch (oldTableError) {
+            console.error('❌ 批量刪除失敗:', messageId, oldTableError);
+          }
+        }
       }
     }
     
@@ -378,14 +406,40 @@ export class MessageController {
     
     // 檢查是否為系統廣播
     if (id.startsWith('broadcast_')) {
-      // 標記系統廣播為已讀
-      await this.hybridMessageService.markBroadcastsAsChecked(user.id, user.companyId);
+      // 提取廣播ID並標記單個廣播為已讀
+      const broadcastId = parseInt(id.replace('broadcast_', ''));
+      if (isNaN(broadcastId)) {
+        throw new BadRequestException('無效的廣播ID');
+      }
+      
+      await this.hybridMessageService.markSingleBroadcastAsRead(user.id, user.companyId, broadcastId);
+      console.log('✅ 系統廣播已標記為已讀:', id);
       return { success: true, message: '系統廣播已標記為已讀' };
     } else {
-      // 個人消息
+      // 個人消息 - 需要同時處理新表和舊表
       const messageId = parseInt(id);
-      await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id);
-      return { success: true, message: '個人消息已標記為已讀' };
+      if (isNaN(messageId)) {
+        throw new BadRequestException('無效的消息ID');
+      }
+      
+      try {
+        // 先嘗試標記新表（personal_message）中的消息
+        await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id, user.companyId);
+        console.log('✅ 新表個人消息已標記為已讀:', messageId);
+        return { success: true, message: '個人消息已標記為已讀' };
+      } catch (error) {
+        console.log('⚠️ 新表中未找到，嘗試舊表...', error);
+        
+        try {
+          // 如果新表中沒有，嘗試舊表（message）
+          await this.messageService.markAsRead(messageId, user.id, user.companyId);
+          console.log('✅ 舊表個人消息已標記為已讀:', messageId);
+          return { success: true, message: '個人消息已標記為已讀' };
+        } catch (oldTableError) {
+          console.error('❌ 兩個表都無法標記已讀:', oldTableError);
+          throw new BadRequestException('無法標記消息為已讀');
+        }
+      }
     }
   }
 
@@ -465,14 +519,20 @@ export class MessageController {
       }
       
       try {
-        // 先嘗試從舊的 message 表刪除
-        await this.messageService.deleteMessage(messageId, user.id, user.companyId);
-        console.log('✅ 舊消息表刪除成功:', messageId);
+        // 先嘗試從新的 personal_message 表刪除
+        await this.hybridMessageService.deletePersonalMessage(messageId, user.id, user.companyId);
+        console.log('✅ 新表個人消息刪除成功:', messageId);
       } catch (error) {
-        console.log('⚠️ 舊消息表中未找到，嘗試新表...');
-        // 如果舊表中沒有，可能在新的 personal_message 表中
-        // 這裡需要實現新表的刪除邏輯
-        console.log('📝 需要實現新表刪除邏輯');
+        console.log('⚠️ 新表中未找到，嘗試舊表...', error);
+        
+        try {
+          // 如果新表中沒有，嘗試舊的 message 表
+          await this.messageService.deleteMessage(messageId, user.id, user.companyId);
+          console.log('✅ 舊消息表刪除成功:', messageId);
+        } catch (oldTableError) {
+          console.error('❌ 兩個表都無法刪除:', oldTableError);
+          throw new BadRequestException('無法刪除消息');
+        }
       }
       
       const response = { success: true };
@@ -493,7 +553,7 @@ export class AdminMessageController {
 
   // 管理員獲取所有消息列表
   @Get()
-  async getAllMessages(@Req() req: Request, @Query() query: { page?: string; limit?: string; messageType?: string }) {
+  async getAllMessages(@Req() req: Request, @Query() query: { page?: string; limit?: string; messageType?: string; createdFrom?: string; createdTo?: string; search?: string }) {
     const user = req.user as any;
     
     // 檢查是否有管理員權限
@@ -505,10 +565,17 @@ export class AdminMessageController {
     const page = parseInt(query.page || '1') || 1;
     const limit = parseInt(query.limit || '20') || 20;
     const messageType = query.messageType;
+    const createdFrom = query.createdFrom;
+    const createdTo = query.createdTo;
+    const search = query.search;
 
     if (messageType === 'SYSTEM') {
       // 只返回系統廣播
-      const result = await this.hybridMessageService.getAllBroadcasts(user.companyId, page, limit);
+      const result = await this.hybridMessageService.getAllBroadcasts(user.companyId, page, limit, undefined, {
+        createdFrom,
+        createdTo,
+        search
+      });
       
       // 轉換格式以符合前端期望
       const messages = result.broadcasts.map(broadcast => ({
@@ -542,7 +609,11 @@ export class AdminMessageController {
       // 返回所有類型的消息（系統廣播 + 管理員消息）
       
       // 獲取系統廣播
-      const broadcastResult = await this.hybridMessageService.getAllBroadcasts(user.companyId, 1, 1000);
+      const broadcastResult = await this.hybridMessageService.getAllBroadcasts(user.companyId, 1, 1000, undefined, {
+        createdFrom,
+        createdTo,
+        search
+      });
       const systemMessages = broadcastResult.broadcasts.map(broadcast => ({
         id: broadcast.id,
         title: broadcast.title,
@@ -567,7 +638,10 @@ export class AdminMessageController {
       const adminMessagesResult = await this.messageService.getAllMessages(user.companyId, {
         page: 1,
         limit: 1000,
-        messageType: 'ADMIN'
+        messageType: 'ADMIN',
+        createdFrom,
+        createdTo,
+        search
       });
 
       // 合併所有消息
@@ -593,7 +667,10 @@ export class AdminMessageController {
       const processedQuery = {
         page,
         limit,
-        messageType
+        messageType,
+        createdFrom,
+        createdTo,
+        search
       };
       return await this.messageService.getAllMessages(user.companyId, processedQuery);
     }

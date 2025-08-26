@@ -138,6 +138,15 @@ export class HybridMessageService {
       deletedBroadcastIds = [];
     }
     
+    // 解析已讀的廣播ID列表
+    let readBroadcastIds: number[] = [];
+    try {
+      readBroadcastIds = loginLog?.readBroadcastIds ? JSON.parse(loginLog.readBroadcastIds) : [];
+    } catch (error) {
+      console.error('解析已讀廣播ID失敗:', error);
+      readBroadcastIds = [];
+    }
+    
     let queryBuilder = this.broadcastRepository
       .createQueryBuilder('broadcast')
       .where('broadcast.companyId = :companyId', { companyId })
@@ -168,6 +177,11 @@ export class HybridMessageService {
       queryBuilder = queryBuilder.andWhere('broadcast.id NOT IN (:...deletedIds)', { deletedIds: deletedBroadcastIds });
     }
     
+    // 排除已讀的廣播
+    if (readBroadcastIds.length > 0) {
+      queryBuilder = queryBuilder.andWhere('broadcast.id NOT IN (:...readIds)', { readIds: readBroadcastIds });
+    }
+    
     const unreadBroadcasts = await queryBuilder
       .orderBy('broadcast.createdAt', 'DESC')
       .getMany();
@@ -178,7 +192,11 @@ export class HybridMessageService {
   /**
    * 獲取所有廣播（會員查看，排除已刪除的）
    */
-  async getAllBroadcasts(companyId: number, page = 1, limit = 20, userId?: number): Promise<{
+  async getAllBroadcasts(companyId: number, page = 1, limit = 20, userId?: number, options?: {
+    createdFrom?: string;
+    createdTo?: string;
+    search?: string;
+  }): Promise<{
     broadcasts: SystemBroadcast[];
     total: number;
     page: number;
@@ -234,6 +252,23 @@ export class HybridMessageService {
       queryBuilder = queryBuilder.andWhere('broadcast.id NOT IN (:...deletedIds)', { deletedIds: deletedBroadcastIds });
     }
 
+    // 時間篩選
+    if (options?.createdFrom) {
+      queryBuilder = queryBuilder.andWhere('DATE(broadcast.createdAt) >= :createdFrom', { createdFrom: options.createdFrom });
+    }
+
+    if (options?.createdTo) {
+      queryBuilder = queryBuilder.andWhere('DATE(broadcast.createdAt) <= :createdTo', { createdTo: options.createdTo });
+    }
+
+    // 搜尋功能
+    if (options?.search && options.search.trim()) {
+      queryBuilder = queryBuilder.andWhere(
+        '(broadcast.title LIKE :search OR broadcast.content LIKE :search OR sender.username LIKE :search)',
+        { search: `%${options.search.trim()}%` }
+      );
+    }
+
     const [broadcasts, total] = await queryBuilder
       .orderBy('broadcast.createdAt', 'DESC')
       .skip((page - 1) * limit)
@@ -272,6 +307,67 @@ export class HybridMessageService {
       });
       await this.userLoginLogRepository.save(newLog);
     }
+  }
+
+  /**
+   * 標記單個廣播為已讀（新增方法）
+   */
+  async markSingleBroadcastAsRead(userId: number, companyId: number, broadcastId: number): Promise<void> {
+    // 檢查是否已存在記錄
+    let existingLog = await this.userLoginLogRepository.findOne({
+      where: { userId, companyId }
+    });
+
+    // 解析已讀廣播ID列表
+    let readBroadcastIds: number[] = [];
+    
+    if (existingLog) {
+      // 解析現有的已讀廣播ID列表
+      try {
+        // 使用一個新的欄位來追蹤已讀廣播ID，而不是依賴時間
+        // 首先檢查是否有 readBroadcastIds 欄位，如果沒有就創建
+        let readBroadcastIdsStr = existingLog.readBroadcastIds || '[]';
+        readBroadcastIds = JSON.parse(readBroadcastIdsStr);
+        
+        // 如果該廣播ID還沒有在已讀列表中，則添加
+        if (!readBroadcastIds.includes(broadcastId)) {
+          readBroadcastIds.push(broadcastId);
+          
+          await this.userLoginLogRepository.update(
+            { userId, companyId },
+            { 
+              readBroadcastIds: JSON.stringify(readBroadcastIds),
+              lastLoginAt: new Date()
+            }
+          );
+        }
+      } catch (error) {
+        console.error('標記單個廣播已讀失敗:', error);
+        // 如果解析失敗，創建新的已讀列表
+        readBroadcastIds = [broadcastId];
+        await this.userLoginLogRepository.update(
+          { userId, companyId },
+          { 
+            readBroadcastIds: JSON.stringify(readBroadcastIds),
+            lastLoginAt: new Date()
+          }
+        );
+      }
+    } else {
+      // 創建新記錄
+      readBroadcastIds = [broadcastId];
+      const newLog = this.userLoginLogRepository.create({
+        userId,
+        companyId,
+        lastBroadcastCheckAt: new Date(0), // 設定為很早的時間
+        lastLoginAt: new Date(),
+        deletedBroadcastIds: '[]',
+        readBroadcastIds: JSON.stringify(readBroadcastIds)
+      });
+      await this.userLoginLogRepository.save(newLog);
+    }
+    
+    console.log(`✅ 用戶 ${userId} 已標記廣播 ${broadcastId} 為已讀，已讀列表:`, readBroadcastIds);
   }
 
   /**
@@ -383,11 +479,53 @@ export class HybridMessageService {
   /**
    * 標記個人訊息為已讀
    */
-  async markPersonalMessageAsRead(messageId: number, userId: number): Promise<void> {
-    await this.personalMessageRepository.update(
-      { id: messageId, receiverId: userId },
+  async markPersonalMessageAsRead(messageId: number, userId: number, companyId?: number): Promise<void> {
+    const updateConditions: any = { id: messageId, receiverId: userId };
+    if (companyId) {
+      updateConditions.companyId = companyId;
+    }
+    
+    const result = await this.personalMessageRepository.update(
+      updateConditions,
       { isRead: true, readAt: new Date() }
     );
+    
+    console.log(`📝 標記個人消息已讀結果:`, {
+      messageId,
+      userId,
+      companyId,
+      affected: result.affected
+    });
+    
+    if (result.affected === 0) {
+      throw new Error(`個人消息 ${messageId} 不存在或無權限標記為已讀`);
+    }
+  }
+
+  /**
+   * 刪除個人訊息（軟刪除）
+   */
+  async deletePersonalMessage(messageId: number, userId: number, companyId?: number): Promise<void> {
+    const updateConditions: any = { id: messageId, receiverId: userId };
+    if (companyId) {
+      updateConditions.companyId = companyId;
+    }
+    
+    const result = await this.personalMessageRepository.update(
+      updateConditions,
+      { isDeletedByReceiver: true }
+    );
+    
+    console.log(`🗑️ 刪除個人消息結果:`, {
+      messageId,
+      userId,
+      companyId,
+      affected: result.affected
+    });
+    
+    if (result.affected === 0) {
+      throw new Error(`個人消息 ${messageId} 不存在或無權限刪除`);
+    }
   }
 
   // ==================== 綜合功能 ====================

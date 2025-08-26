@@ -31,6 +31,8 @@ import { ProductCategoryModule } from './product-category/product-category.modul
 import { EcpayModule } from './ecpay/ecpay.module';
 import { ShippingRuleTemplateModule } from './shipping-rule-template/shipping-rule-template.module';
 import { MessageModule } from './message/message.module';
+import { PromotionModule } from './promotion/promotion.module';
+import { PromotionCategoryModule } from './promotion-category/promotion-category.module';
 
 
 @Module({
@@ -77,6 +79,8 @@ import { MessageModule } from './message/message.module';
     EcpayModule,
     ShippingRuleTemplateModule,
     MessageModule,
+    PromotionModule,
+    PromotionCategoryModule,
 
   ],
   controllers: [],

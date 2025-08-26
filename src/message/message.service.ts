@@ -16,6 +16,9 @@ export interface MessageListQuery {
   page?: number;
   limit?: number;
   isRead?: boolean;
+  createdFrom?: string;
+  createdTo?: string;
+  search?: string;
 }
 
 @Injectable()
@@ -215,7 +218,7 @@ export class MessageService {
 
   // 管理員獲取所有消息（分頁）
   async getAllMessages(companyId: number, query: MessageListQuery & { messageType?: string; isRead?: boolean }) {
-    const { page = 1, limit = 20, messageType, isRead } = query;
+    const { page = 1, limit = 20, messageType, isRead, createdFrom, createdTo, search } = query;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.messageRepository
@@ -231,6 +234,23 @@ export class MessageService {
 
     if (isRead !== undefined) {
       queryBuilder.andWhere('message.isRead = :isRead', { isRead });
+    }
+
+    // 時間篩選
+    if (createdFrom) {
+      queryBuilder.andWhere('DATE(message.createdAt) >= :createdFrom', { createdFrom });
+    }
+
+    if (createdTo) {
+      queryBuilder.andWhere('DATE(message.createdAt) <= :createdTo', { createdTo });
+    }
+
+    // 搜尋功能
+    if (search && search.trim()) {
+      queryBuilder.andWhere(
+        '(message.title LIKE :search OR message.content LIKE :search OR sender.username LIKE :search OR receiver.username LIKE :search OR receiver.email LIKE :search)',
+        { search: `%${search.trim()}%` }
+      );
     }
 
     const [messages, total] = await queryBuilder

@@ -23,6 +23,9 @@ export class UserLoginLog {
   @Column({ name: 'deleted_broadcast_ids', type: 'text', default: '[]' })
   deletedBroadcastIds: string;
 
+  @Column({ name: 'read_broadcast_ids', type: 'text', default: '[]' })
+  readBroadcastIds: string;
+
   // 關聯
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })

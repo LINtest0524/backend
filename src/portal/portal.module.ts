@@ -15,6 +15,7 @@ import { PortalPopupAnnouncementController } from './portal-popup-announcement.c
 import { PortalProductController } from './portal-product.controller'
 import { PortalOrderController } from './portal-order.controller';
 import { PortalShippingController } from './portal-shipping.controller';
+import { PortalPromotionController } from './portal-promotion.controller';
 
 
 import { UserModule } from '../user/user.module';
@@ -33,6 +34,8 @@ import { ProductModule } from '../product/product.module';
 import { ProductCategoryModule } from '../product-category/product-category.module';
 import { CompanyModule } from '../company/company.module';
 import { MessageModule } from '../message/message.module';
+import { PromotionModule } from '../promotion/promotion.module';
+import { PromotionCategoryModule } from '../promotion-category/promotion-category.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -57,6 +60,8 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     ProductCategoryModule,
     CompanyModule,
     MessageModule,
+    PromotionModule,
+    PromotionCategoryModule,
     OrderModule,
     TypeOrmModule.forFeature([
       Banner,
@@ -86,6 +91,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalProductController,
     PortalOrderController,
     PortalShippingController,
+    PortalPromotionController,
   ],
 })
 export class PortalModule {}
