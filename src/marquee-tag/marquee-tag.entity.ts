@@ -15,6 +15,9 @@ export class MarqueeTag {
   @Column({ default: '#FFFFFF' })
   textColor: string
 
+  @Column({ default: 'oval' })
+  shape: string
+
   @Column({ default: true })
   isActive: boolean
 

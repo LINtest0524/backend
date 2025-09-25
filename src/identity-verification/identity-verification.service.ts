@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IdentityVerification } from './identity-verification.entity';
 import { Repository } from 'typeorm';
 import { NotificationService } from '../notification/notification.service';
+import { AutoTagRuleService } from '../auto-tag-rule/auto-tag-rule.service';
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +19,7 @@ export class IdentityVerificationService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly notificationService: NotificationService,
+    private readonly autoTagRuleService: AutoTagRuleService,
   ) {}
 
   async saveVerificationFiles(
@@ -191,7 +193,10 @@ export class IdentityVerificationService {
     status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED',
     note?: string,
   ) {
-    const verification = await this.identityRepo.findOne({ where: { id } });
+    const verification = await this.identityRepo.findOne({ 
+      where: { id },
+      relations: ['user']
+    });
     if (!verification) throw new NotFoundException('not found驗證紀錄');
 
     // 如果狀態設為 REJECTED，先刪除相關圖檔
@@ -203,7 +208,64 @@ export class IdentityVerificationService {
     verification.status = status;
     verification.note = note || null;
 
-    return this.identityRepo.save(verification);
+    // 關鍵修復：當狀態變為 APPROVED 時，更新 user 表的對應欄位
+    if (status === 'APPROVED' && verification.user) {
+      const user = verification.user;
+      
+      if (verification.type === 'ID_CARD') {
+        user.id_verified = true;
+        user.id_verified_at = new Date();
+        console.log(`✅ 身分證驗證通過 - 用戶: ${user.username}`);
+      } else if (verification.type === 'BANK_ACCOUNT') {
+        user.bank_verified = true;
+        user.bank_verified_at = new Date();
+        console.log(`✅ 銀行驗證通過 - 用戶: ${user.username}`);
+      }
+      
+      // 保存用戶資料
+      await this.userRepo.save(user);
+      
+      // 觸發自動標籤檢查
+      try {
+        const changedFields = verification.type === 'ID_CARD' ? ['id_verified'] : ['bank_verified'];
+        await this.autoTagRuleService.applyAutoTags(user, changedFields);
+        console.log(`🏷️ 已為用戶 ${user.username} 應用自動標籤`);
+      } catch (error) {
+        console.error('觸發自動標籤檢查失敗:', error);
+      }
+    }
+
+    // 當狀態變為 REJECTED 時，移除對應的驗證狀態
+    if (status === 'REJECTED' && verification.user) {
+      const user = verification.user;
+      
+      if (verification.type === 'ID_CARD') {
+        user.id_verified = false;
+        user.id_verified_at = null;
+        console.log(`❌ 身分證驗證被拒絕 - 用戶: ${user.username}`);
+      } else if (verification.type === 'BANK_ACCOUNT') {
+        user.bank_verified = false;
+        user.bank_verified_at = null;
+        console.log(`❌ 銀行驗證被拒絕 - 用戶: ${user.username}`);
+      }
+      
+      // 保存用戶資料
+      await this.userRepo.save(user);
+      
+      // 觸發自動標籤移除
+      try {
+        const changedFields = verification.type === 'ID_CARD' ? ['id_verified'] : ['bank_verified'];
+        await this.autoTagRuleService.applyAutoTags(user, changedFields);
+        console.log(`🏷️ 已為用戶 ${user.username} 移除對應的自動標籤`);
+      } catch (error) {
+        console.error('移除自動標籤失敗:', error);
+      }
+    }
+
+    const savedVerification = await this.identityRepo.save(verification);
+    console.log(`📋 驗證狀態已更新 - ID: ${id}, 狀態: ${status}`);
+    
+    return savedVerification;
   }
 
   async findAllForCompany(companyId: number) {

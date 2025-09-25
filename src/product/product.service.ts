@@ -106,11 +106,16 @@ export class ProductService {
   async findAll(user: User, query: ProductQueryDto) {
     const {
       search,
+      name,
+      sku,
       category_id,
       status,
       is_featured,
+      is_visible,
       min_price,
       max_price,
+      createdFrom,
+      createdTo,
       sort_by = 'created_at',
       sort_order = 'DESC',
       page = 1,
@@ -137,6 +142,14 @@ export class ProductService {
       );
     }
 
+    if (name) {
+      queryBuilder.andWhere('product.name LIKE :name', { name: `%${name}%` });
+    }
+
+    if (sku) {
+      queryBuilder.andWhere('product.sku LIKE :sku', { sku: `%${sku}%` });
+    }
+
     if (category_id) {
       queryBuilder.andWhere('product.category_id = :categoryId', { categoryId: category_id });
     }
@@ -149,12 +162,24 @@ export class ProductService {
       queryBuilder.andWhere('product.is_featured = :isFeatured', { isFeatured: is_featured });
     }
 
+    if (is_visible !== undefined) {
+      queryBuilder.andWhere('product.is_visible = :isVisible', { isVisible: is_visible });
+    }
+
     if (min_price !== undefined) {
       queryBuilder.andWhere('product.price >= :minPrice', { minPrice: min_price });
     }
 
     if (max_price !== undefined) {
       queryBuilder.andWhere('product.price <= :maxPrice', { maxPrice: max_price });
+    }
+
+    if (createdFrom) {
+      queryBuilder.andWhere('product.created_at >= :createdFrom', { createdFrom });
+    }
+
+    if (createdTo) {
+      queryBuilder.andWhere('product.created_at <= :createdTo', { createdTo });
     }
 
     if (tags) {

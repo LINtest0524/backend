@@ -244,6 +244,72 @@ export class UserController {
     return this.userService.updateSecured(id, { is_blacklisted: false }, req.user);
   }
 
+  // 標籤管理 API
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/tags')
+  async getUserTags(@Param('id') id: number, @Request() req) {
+    return this.userService.getUserTags(id, req.user);
+  }
 
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/tags/:tagId')
+  async addUserTag(@Param('id') id: number, @Param('tagId') tagId: number, @Request() req) {
+    return this.userService.addUserTag(id, tagId, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/tags/:tagId')
+  async removeUserTag(@Param('id') id: number, @Param('tagId') tagId: number, @Request() req) {
+    return this.userService.removeUserTag(id, tagId, req.user);
+  }
+
+  // 身分證驗證 API
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Patch(':id/id-verification')
+  async updateIdVerification(@Param('id') id: number, @Body('verified') verified: boolean, @Request() req) {
+    return this.userService.updateIdVerification(id, verified, req.user);
+  }
+
+  // 銀行驗證 API
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Patch(':id/bank-verification')
+  async updateBankVerification(@Param('id') id: number, @Body('verified') verified: boolean, @Request() req) {
+    return this.userService.updateBankVerification(id, verified, req.user);
+  }
+
+  // VIP等級 API
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Patch(':id/vip-level')
+  async updateVipLevel(@Param('id') id: number, @Body('level') level: number, @Request() req) {
+    return this.userService.updateVipLevel(id, level, req.user);
+  }
+
+  // 批量應用自動化標籤
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER')
+  @Post('apply-auto-tags')
+  async applyAutoTagsToAllUsers(@Request() req) {
+    const companyId = req.user.role === 'SUPER_ADMIN' ? undefined : req.user.company_id;
+    return this.userService.applyAutoTagsToAllUsers(companyId);
+  }
+
+  // 為特定使用者應用自動化標籤
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Post(':id/apply-auto-tags')
+  async applyAutoTagsToUser(@Param('id') id: number, @Request() req) {
+    return this.userService.applyAutoTagsToUser(id, req.user);
+  }
+
+  // 檢查自動標籤狀態
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Get(':id/auto-tag-status')
+  async checkAutoTagStatus(@Param('id') id: number, @Request() req) {
+    return this.userService.checkAutoTagStatus(id, req.user);
+  }
 
 }

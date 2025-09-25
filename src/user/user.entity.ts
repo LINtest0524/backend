@@ -5,9 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Company } from '../company/company.entity';
+import { UserTag } from './user-tag.entity';
 
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',     //   最高權限（你自己）
@@ -89,8 +91,27 @@ export class User {
   @Column({ nullable: true })
   company_id: number;
 
+  // 驗證相關欄位
+  @Column({ type: 'boolean', default: false })
+  id_verified: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  id_verified_at: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  bank_verified: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  bank_verified_at: Date | null;
+
+  @Column({ type: 'integer', default: 0 })
+  vip_level: number;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
   created_by?: User;
+
+  @OneToMany(() => UserTag, (userTag) => userTag.user)
+  userTags: UserTag[];
 }
 

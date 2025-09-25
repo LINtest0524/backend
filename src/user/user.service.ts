@@ -9,6 +9,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
 import { User } from './user.entity';
+import { UserTag } from './user-tag.entity';
+import { MarqueeTag } from '../marquee-tag/marquee-tag.entity';
+import { AutoTagRuleService } from '../auto-tag-rule/auto-tag-rule.service';
 import { Module } from '../module/module.entity';
 import { UserModule } from '../user-module/user-module.entity';
 import { CreateUserDto } from './create-user.dto';
@@ -29,6 +32,10 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(UserTag)
+    private readonly userTagRepository: Repository<UserTag>,
+    @InjectRepository(MarqueeTag)
+    private readonly marqueeTagRepository: Repository<MarqueeTag>,
     @InjectRepository(Module)
     private readonly moduleRepository: Repository<Module>,
     @InjectRepository(UserModule)
@@ -36,6 +43,7 @@ export class UserService {
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
     private readonly auditLogService: AuditLogService,
+    private readonly autoTagRuleService: AutoTagRuleService,
   ) {}
 
 
@@ -471,6 +479,20 @@ async findAll(
 
     const modules = userModules.map((um) => um.module.code);
 
+    // 查詢使用者標籤
+    const userTags = await this.userTagRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['tag'],
+    });
+
+    const tags = userTags.map(userTag => ({
+      id: userTag.tag.id,
+      name: userTag.tag.name,
+      backgroundColor: userTag.tag.backgroundColor,
+      textColor: userTag.tag.textColor,
+      shape: userTag.tag.shape,
+    }));
+
     results.push({
       id: user.id,
       username: user.username,
@@ -485,6 +507,7 @@ async findAll(
       updated_at: user.updated_at,
       is_blacklisted: user.is_blacklisted,
       modules,
+      tags,
       company: user.company
         ? { id: user.company.id, name: user.company.name }
         : null,
@@ -995,12 +1018,359 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     return { message: '使用者deleted' };
   }
 
+  // 標籤管理方法
+  async getUserTags(userId: number, currentUser: JwtUser) {
+    // 檢查目標使用者是否存在
+    const targetUser = await this.userRepository.findOne({ 
+      where: { id: userId },
+      relations: ['company']
+    });
+    if (!targetUser) {
+      throw new NotFoundException('使用者不存在');
+    }
 
+    // 檢查權限
+    const hasPermission = 
+      currentUser.role === 'SUPER_ADMIN' || 
+      currentUser.id === userId ||
+      (currentUser.role === 'AGENT_OWNER' && currentUser.company_id === targetUser.company?.id) ||
+      (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === targetUser.company?.id);
 
+    if (!hasPermission) {
+      throw new ForbiddenException('無權限查看此使用者的標籤');
+    }
 
+    const userTags = await this.userTagRepository.find({
+      where: { user: { id: userId } },
+      relations: ['tag'],
+    });
 
+    return userTags.map(userTag => ({
+      id: userTag.id,
+      tagId: userTag.tag.id,
+      name: userTag.tag.name,
+      backgroundColor: userTag.tag.backgroundColor,
+      textColor: userTag.tag.textColor,
+      shape: userTag.tag.shape,
+      createdAt: userTag.createdAt,
+    }));
+  }
 
+  async addUserTag(userId: number, tagId: number, currentUser: JwtUser) {
+    // 檢查使用者是否存在
+    const user = await this.userRepository.findOne({ 
+      where: { id: userId },
+      relations: ['company']
+    });
+    if (!user) {
+      throw new NotFoundException('使用者不存在');
+    }
 
+    // 檢查權限
+    const hasPermission = 
+      currentUser.role === 'SUPER_ADMIN' || 
+      currentUser.id === userId ||
+      (currentUser.role === 'AGENT_OWNER' && currentUser.company_id === user.company?.id) ||
+      (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === user.company?.id);
 
+    if (!hasPermission) {
+      throw new ForbiddenException('無權限為此使用者添加標籤');
+    }
+
+    // 檢查標籤是否存在
+    const tag = await this.marqueeTagRepository.findOne({ where: { id: tagId } });
+    if (!tag) {
+      throw new NotFoundException('標籤不存在');
+    }
+
+    // 檢查是否已經存在此標籤關聯
+    const existingUserTag = await this.userTagRepository.findOne({
+      where: { user: { id: userId }, tag: { id: tagId } },
+    });
+
+    if (existingUserTag) {
+      throw new ConflictException('使用者已經擁有此標籤');
+    }
+
+    // 創建新的使用者標籤關聯
+    const userTag = this.userTagRepository.create({
+      user: user,
+      tag: tag,
+    });
+
+    const savedUserTag = await this.userTagRepository.save(userTag);
+
+    // 記錄審計日誌
+    await this.auditLogService.record({
+      user: currentUser,
+      action: 'USER_TAG_ADD',
+      ip: '127.0.0.1',
+      platform: 'Backend',
+      target: `使用者 ${user.email} 添加標籤 ${tag.name}`,
+    });
+
+    return {
+      id: savedUserTag.id,
+      tagId: tag.id,
+      tagName: tag.name,
+      createdAt: savedUserTag.createdAt,
+    };
+  }
+
+  async removeUserTag(userId: number, tagId: number, currentUser: JwtUser) {
+    // 查找使用者標籤關聯
+    const userTag = await this.userTagRepository.findOne({
+      where: { user: { id: userId }, tag: { id: tagId } },
+      relations: ['user', 'tag', 'user.company'],
+    });
+
+    if (!userTag) {
+      throw new NotFoundException('使用者標籤關聯不存在');
+    }
+
+    // 檢查權限
+    const hasPermission = 
+      currentUser.role === 'SUPER_ADMIN' || 
+      currentUser.id === userId ||
+      (currentUser.role === 'AGENT_OWNER' && currentUser.company_id === userTag.user.company?.id) ||
+      (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === userTag.user.company?.id);
+
+    if (!hasPermission) {
+      throw new ForbiddenException('無權限移除此使用者的標籤');
+    }
+
+    // 刪除使用者標籤關聯
+    await this.userTagRepository.remove(userTag);
+
+    // 記錄審計日誌
+    await this.auditLogService.record({
+      user: currentUser,
+      action: 'USER_TAG_REMOVE',
+      ip: '127.0.0.1',
+      platform: 'Backend',
+      target: `使用者 ${userTag.user.email} 移除標籤 ${userTag.tag.name}`,
+    });
+
+    return { message: '標籤已移除' };
+  }
+
+  // 身分證驗證更新
+  async updateIdVerification(userId: number, verified: boolean, currentUser: JwtUser): Promise<{ message: string }> {
+    const user = await this.findOneSecured(userId, currentUser);
+    
+    const before = { id_verified: user.id_verified };
+    user.id_verified = verified;
+    user.id_verified_at = verified ? new Date() : null;
+    
+    await this.userRepository.save(user);
+
+    // 觸發自動化標籤檢查
+    await this.autoTagRuleService.applyAutoTags(user, ['id_verified']);
+
+    // 記錄審計日誌
+    await this.auditLogService.record({
+      user: currentUser,
+      action: `身分證驗證${verified ? '通過' : '取消'}`,
+      ip: '127.0.0.1',
+      platform: 'Backend',
+      target: `使用者 ${user.username} 身分證驗證狀態變更`,
+      before,
+      after: { id_verified: user.id_verified }
+    });
+
+    return { message: `身分證驗證狀態已${verified ? '通過' : '取消'}` };
+  }
+
+  // 銀行驗證更新
+  async updateBankVerification(userId: number, verified: boolean, currentUser: JwtUser): Promise<{ message: string }> {
+    const user = await this.findOneSecured(userId, currentUser);
+    
+    const before = { bank_verified: user.bank_verified };
+    user.bank_verified = verified;
+    user.bank_verified_at = verified ? new Date() : null;
+    
+    await this.userRepository.save(user);
+
+    // 觸發自動化標籤檢查
+    await this.autoTagRuleService.applyAutoTags(user, ['bank_verified']);
+
+    // 記錄審計日誌
+    await this.auditLogService.record({
+      user: currentUser,
+      action: `銀行驗證${verified ? '通過' : '取消'}`,
+      ip: '127.0.0.1',
+      platform: 'Backend',
+      target: `使用者 ${user.username} 銀行驗證狀態變更`,
+      before,
+      after: { bank_verified: user.bank_verified }
+    });
+
+    return { message: `銀行驗證狀態已${verified ? '通過' : '取消'}` };
+  }
+
+  // VIP等級更新
+  async updateVipLevel(userId: number, level: number, currentUser: JwtUser): Promise<{ message: string }> {
+    const user = await this.findOneSecured(userId, currentUser);
+    
+    const before = { vip_level: user.vip_level };
+    user.vip_level = level;
+    
+    await this.userRepository.save(user);
+
+    // 觸發自動化標籤檢查
+    await this.autoTagRuleService.applyAutoTags(user, ['vip_level']);
+
+    // 記錄審計日誌
+    await this.auditLogService.record({
+      user: currentUser,
+      action: `VIP等級變更`,
+      ip: '127.0.0.1',
+      platform: 'Backend',
+      target: `使用者 ${user.username} VIP等級: ${before.vip_level} → ${level}`,
+      before,
+      after: { vip_level: user.vip_level }
+    });
+
+    return { message: `VIP等級已更新為 ${level}` };
+  }
+
+  // 批量應用自動化標籤 (用於初始化或規則變更後)
+  async applyAutoTagsToAllUsers(companyId?: number): Promise<{ message: string; processedCount: number }> {
+    const whereClause = companyId ? { company_id: companyId } : {};
+    const users = await this.userRepository.find({ 
+      where: whereClause,
+      relations: ['company'] 
+    });
+
+    let processedCount = 0;
+    for (const user of users) {
+      await this.autoTagRuleService.applyAutoTags(user);
+      processedCount++;
+    }
+
+    return { 
+      message: `已為 ${processedCount} 位使用者應用自動化標籤規則`,
+      processedCount 
+    };
+  }
+
+  // 為特定使用者應用自動化標籤
+  async applyAutoTagsToUser(userId: number, currentUser: JwtUser): Promise<{ message: string; appliedTags: any[] }> {
+    const user = await this.findOneSecured(userId, currentUser);
+    
+    // 獲取應用前的標籤
+    const beforeTags = await this.userTagRepository.find({
+      where: { user: { id: userId } },
+      relations: ['tag'],
+    });
+
+    // 應用自動化標籤
+    await this.autoTagRuleService.applyAutoTags(user);
+
+    // 獲取應用後的標籤
+    const afterTags = await this.userTagRepository.find({
+      where: { user: { id: userId } },
+      relations: ['tag'],
+    });
+
+    const appliedTags = afterTags.filter(afterTag => 
+      !beforeTags.some(beforeTag => beforeTag.tag.id === afterTag.tag.id)
+    ).map(tag => ({
+      id: tag.tag.id,
+      name: tag.tag.name,
+      backgroundColor: tag.tag.backgroundColor,
+      textColor: tag.tag.textColor,
+      shape: tag.tag.shape,
+    }));
+
+    return {
+      message: `已為使用者 ${user.username} 應用自動化標籤，新增 ${appliedTags.length} 個標籤`,
+      appliedTags
+    };
+  }
+
+  // 檢查自動標籤狀態
+  async checkAutoTagStatus(userId: number, currentUser: JwtUser): Promise<any> {
+    const user = await this.findOneSecured(userId, currentUser);
+    
+    // 獲取該公司的自動化規則
+    const rules = await this.autoTagRuleService.findAll(user.company_id);
+    
+    // 獲取使用者目前的標籤
+    const userTags = await this.userTagRepository.find({
+      where: { user: { id: userId } },
+      relations: ['tag'],
+    });
+
+    const userTagIds = userTags.map(ut => ut.tag.id);
+
+    // 檢查每個規則的狀態
+    const ruleStatuses = rules.map(rule => {
+      const fieldValue = user[rule.trigger_field];
+      const shouldHaveTag = this.evaluateAutoTagCondition(fieldValue, rule.trigger_value, rule.condition_type);
+      const hasTag = userTagIds.includes(rule.tag_id);
+
+      return {
+        ruleId: rule.id,
+        tagId: rule.tag_id,
+        tagName: rule.tag?.name || '未知標籤',
+        triggerField: rule.trigger_field,
+        triggerValue: rule.trigger_value,
+        conditionType: rule.condition_type,
+        currentFieldValue: fieldValue,
+        shouldHaveTag,
+        hasTag,
+        isCorrect: shouldHaveTag === hasTag,
+        description: rule.description
+      };
+    });
+
+    return {
+      userId: user.id,
+      username: user.username,
+      userVerificationStatus: {
+        id_verified: user.id_verified,
+        bank_verified: user.bank_verified,
+        vip_level: user.vip_level
+      },
+      currentTags: userTags.map(ut => ({
+        id: ut.tag.id,
+        name: ut.tag.name,
+        backgroundColor: ut.tag.backgroundColor,
+        textColor: ut.tag.textColor,
+        shape: ut.tag.shape,
+      })),
+      ruleStatuses,
+      summary: {
+        totalRules: ruleStatuses.length,
+        correctRules: ruleStatuses.filter(r => r.isCorrect).length,
+        incorrectRules: ruleStatuses.filter(r => !r.isCorrect).length
+      }
+    };
+  }
+
+  // 評估自動標籤條件的輔助方法
+  private evaluateAutoTagCondition(fieldValue: any, triggerValue: string, conditionType: string): boolean {
+    switch (conditionType) {
+      case 'EQUALS':
+        if (triggerValue === 'true') return fieldValue === true;
+        if (triggerValue === 'false') return fieldValue === false;
+        return String(fieldValue) === triggerValue;
+      case 'GREATER_THAN':
+        const numValue = Number(fieldValue);
+        const numTrigger = Number(triggerValue);
+        return !isNaN(numValue) && !isNaN(numTrigger) && numValue > numTrigger;
+      case 'LESS_THAN':
+        const numValue2 = Number(fieldValue);
+        const numTrigger2 = Number(triggerValue);
+        return !isNaN(numValue2) && !isNaN(numTrigger2) && numValue2 < numTrigger2;
+      case 'NOT_NULL':
+        return fieldValue !== null && fieldValue !== undefined && fieldValue !== '';
+      case 'IS_NULL':
+        return fieldValue === null || fieldValue === undefined || fieldValue === '';
+      default:
+        return false;
+    }
+  }
 
 }
