@@ -5,6 +5,7 @@ import { SystemBroadcast } from './system-broadcast.entity';
 import { PersonalMessage } from './personal-message.entity';
 import { UserLoginLog } from './user-login-log.entity';
 import { AuditLog } from '../audit-log/audit-log.entity';
+import { User, UserRole } from '../user/user.entity';
 
 export interface CreateBroadcastDto {
   title: string;
@@ -43,6 +44,9 @@ export class HybridMessageService {
     
     @InjectRepository(AuditLog)
     private auditLogRepository: Repository<AuditLog>,
+    
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   // ==================== 系統廣播相關 ====================
@@ -117,6 +121,70 @@ export class HybridMessageService {
   }
 
   /**
+   * 創建標籤群組廣播
+   */
+  async createTagGroupBroadcast(
+    senderId: number,
+    companyId: number,
+    createBroadcastDto: {
+      title: string;
+      content: string;
+      broadcastType: 'TAG_GROUP';
+      targetAudience: 'TAG_USERS';
+      targetTagIds: number[];
+      targetTagNames: string;
+    }
+  ): Promise<SystemBroadcast> {
+    // 驗證標籤ID是否有效
+    if (!createBroadcastDto.targetTagIds || createBroadcastDto.targetTagIds.length === 0) {
+      throw new Error('請選擇至少一個標籤');
+    }
+
+    // 檢查是否有用戶擁有這些標籤
+    const usersWithTags = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userTags', 'userTag')
+      .where('user.company_id = :companyId', { companyId })
+      .andWhere('user.role = :role', { role: UserRole.USER })
+      .andWhere('userTag.tag_id IN (:...tagIds)', { tagIds: createBroadcastDto.targetTagIds })
+      .getCount();
+
+    if (usersWithTags === 0) {
+      throw new Error('找不到具有指定標籤的用戶');
+    }
+
+    // 創建廣播記錄
+    const broadcast = this.broadcastRepository.create({
+      senderId,
+      companyId,
+      title: createBroadcastDto.title,
+      content: createBroadcastDto.content,
+      broadcastType: 'TAG_GROUP',
+      targetAudience: 'TAG_USERS',
+      targetTagIds: JSON.stringify(createBroadcastDto.targetTagIds),
+      targetTagNames: createBroadcastDto.targetTagNames,
+      sendToNewMembers: false, // 標籤群組不補發給新會員
+    });
+
+    return await this.broadcastRepository.save(broadcast);
+  }
+
+  /**
+   * 檢查用戶是否擁有指定標籤
+   */
+  private async userHasTags(userId: number, companyId: number, tagIds: number[]): Promise<boolean> {
+    const userTagCount = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userTags', 'userTag')
+      .where('user.id = :userId', { userId })
+      .andWhere('user.company_id = :companyId', { companyId })
+      .andWhere('userTag.tag_id IN (:...tagIds)', { tagIds })
+      .getCount();
+    
+    return userTagCount > 0;
+  }
+
+  /**
    * 獲取會員的未讀廣播
    */
   async getUnreadBroadcasts(userId: number, companyId: number): Promise<SystemBroadcast[]> {
@@ -182,11 +250,31 @@ export class HybridMessageService {
       queryBuilder = queryBuilder.andWhere('broadcast.id NOT IN (:...readIds)', { readIds: readBroadcastIds });
     }
     
-    const unreadBroadcasts = await queryBuilder
+    const candidateBroadcasts = await queryBuilder
       .orderBy('broadcast.createdAt', 'DESC')
       .getMany();
     
-    return unreadBroadcasts;
+    // 過濾標籤群組廣播 - 只顯示用戶擁有對應標籤的廣播
+    const filteredBroadcasts: SystemBroadcast[] = [];
+    for (const broadcast of candidateBroadcasts) {
+      if (broadcast.broadcastType === 'TAG_GROUP' && broadcast.targetTagIds) {
+        try {
+          const targetTagIds = JSON.parse(broadcast.targetTagIds);
+          const hasTargetTags = await this.userHasTags(userId, companyId, targetTagIds);
+          if (hasTargetTags) {
+            filteredBroadcasts.push(broadcast);
+          }
+        } catch (error) {
+          console.error('解析標籤群組廣播目標標籤ID失敗:', error);
+          // 如果解析失敗，跳過這個廣播
+        }
+      } else {
+        // 非標籤群組廣播，直接添加
+        filteredBroadcasts.push(broadcast);
+      }
+    }
+    
+    return filteredBroadcasts;
   }
 
   /**
@@ -269,13 +357,43 @@ export class HybridMessageService {
       );
     }
 
-    const [broadcasts, total] = await queryBuilder
+    const [candidateBroadcasts, total] = await queryBuilder
       .orderBy('broadcast.createdAt', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit)
       .getManyAndCount();
 
-    return { broadcasts, total, page, limit };
+    // 如果有userId，需要過濾標籤群組廣播
+    let filteredBroadcasts = candidateBroadcasts;
+    if (userId) {
+      filteredBroadcasts = [] as SystemBroadcast[];
+      for (const broadcast of candidateBroadcasts) {
+        if (broadcast.broadcastType === 'TAG_GROUP' && broadcast.targetTagIds) {
+          try {
+            const targetTagIds = JSON.parse(broadcast.targetTagIds);
+            const hasTargetTags = await this.userHasTags(userId, companyId, targetTagIds);
+            if (hasTargetTags) {
+              filteredBroadcasts.push(broadcast);
+            }
+          } catch (error) {
+            console.error('解析標籤群組廣播目標標籤ID失敗:', error);
+          }
+        } else {
+          // 非標籤群組廣播，直接添加
+          filteredBroadcasts.push(broadcast);
+        }
+      }
+    }
+
+    // 應用分頁
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedBroadcasts = filteredBroadcasts.slice(startIndex, endIndex);
+
+    return { 
+      broadcasts: paginatedBroadcasts, 
+      total: filteredBroadcasts.length, 
+      page, 
+      limit 
+    };
   }
 
   /**

@@ -208,6 +208,39 @@ export class MessageService {
     await this.messageRepository.save(messages);
   }
 
+  // 系統發送消息給特定標籤的用戶
+  async sendSystemMessageToUsersByTags(companyId: number, tagIds: number[], title: string, content: string): Promise<void> {
+    if (!tagIds || tagIds.length === 0) {
+      throw new BadRequestException('請選擇至少一個標籤');
+    }
+
+    // 獲取有指定標籤的用戶
+    const usersWithTags = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userTags', 'userTag')
+      .where('user.company_id = :companyId', { companyId })
+      .andWhere('user.role = :role', { role: UserRole.USER })
+      .andWhere('userTag.tag_id IN (:...tagIds)', { tagIds })
+      .getMany();
+
+    if (usersWithTags.length === 0) {
+      throw new BadRequestException('找不到具有指定標籤的用戶');
+    }
+
+    // 為每個用戶創建系統消息
+    const messages = usersWithTags.map(user => this.messageRepository.create({
+      senderId: null, // 系統消息沒有發送者
+      receiverId: user.id,
+      companyId: companyId,
+      title: title,
+      content: content,
+      messageType: 'SYSTEM',
+    }));
+
+    // 批量保存消息
+    await this.messageRepository.save(messages);
+  }
+
   // 管理員發送消息給特定用戶
   async sendAdminMessage(adminId: number, companyId: number, createMessageDto: CreateMessageDto): Promise<Message> {
     return await this.sendMessage(adminId, companyId, {

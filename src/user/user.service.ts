@@ -506,6 +506,12 @@ async findAll(
       created_at: user.created_at,
       updated_at: user.updated_at,
       is_blacklisted: user.is_blacklisted,
+      // 添加驗證相關欄位
+      id_verified: user.id_verified,
+      id_verified_at: user.id_verified_at,
+      bank_verified: user.bank_verified,
+      bank_verified_at: user.bank_verified_at,
+      vip_level: user.vip_level,
       modules,
       tags,
       company: user.company

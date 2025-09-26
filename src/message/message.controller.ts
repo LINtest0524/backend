@@ -16,6 +16,7 @@ import {
 import { Request } from 'express';
 import { MessageService, CreateMessageDto, MessageListQuery } from './message.service';
 import { HybridMessageService, CreateBroadcastDto, CreatePersonalMessageDto } from './hybrid-message.service';
+import { MarqueeTagService } from '../marquee-tag/marquee-tag.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('api/portal/messages')
@@ -548,7 +549,8 @@ export class MessageController {
 export class AdminMessageController {
   constructor(
     private readonly messageService: MessageService,
-    private readonly hybridMessageService: HybridMessageService
+    private readonly hybridMessageService: HybridMessageService,
+    private readonly marqueeTagService: MarqueeTagService
   ) {}
 
   // 管理員獲取所有消息列表
@@ -629,23 +631,22 @@ export class AdminMessageController {
         sender: broadcast.sender,
         receiver: {
           id: 0,
-          username: '所有會員',
-          email: '系統廣播'
+          username: broadcast.broadcastType === 'TAG_GROUP' ? `標籤群組 (${broadcast.targetTagNames || '未知標籤'})` : '所有會員',
+          email: broadcast.broadcastType === 'TAG_GROUP' ? '標籤群組廣播' : '系統廣播'
         }
       }));
 
-      // 獲取管理員消息
-      const adminMessagesResult = await this.messageService.getAllMessages(user.companyId, {
+      // 獲取所有非廣播消息（包括標籤群組發送的 SYSTEM 消息）
+      const allNonBroadcastMessages = await this.messageService.getAllMessages(user.companyId, {
         page: 1,
         limit: 1000,
-        messageType: 'ADMIN',
         createdFrom,
         createdTo,
         search
       });
 
       // 合併所有消息
-      const allMessages = [...systemMessages, ...adminMessagesResult.messages];
+      const allMessages = [...systemMessages, ...allNonBroadcastMessages.messages];
       
       // 按創建時間排序
       allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -720,6 +721,101 @@ export class AdminMessageController {
     } catch (error) {
       console.error('系統廣播發送失敗:', error);
       throw new BadRequestException('系統廣播發送失敗');
+    }
+  }
+
+  // 獲取標籤列表
+  @Get('tags')
+  async getTags(@Req() req: Request) {
+    const user = req.user as any;
+    
+    // 檢查是否有管理員權限
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    if (!allowedRoles.includes(user.role)) {
+      throw new BadRequestException('沒有權限查看標籤');
+    }
+
+    try {
+      // 先獲取活躍標籤
+      const activeTags = await this.marqueeTagService.findByCompany(user.companyId);
+      
+      // 如果沒有活躍標籤，獲取所有標籤進行調試
+      const allTags = await this.marqueeTagService.findAll(user.companyId);
+      
+      console.log('🏷️ 標籤查詢結果:', {
+        companyId: user.companyId,
+        activeTagCount: activeTags.length,
+        totalTagCount: allTags.length,
+        activeTags: activeTags.map(t => ({ id: t.id, name: t.name, isActive: t.isActive })),
+        allTags: allTags.map(t => ({ id: t.id, name: t.name, isActive: t.isActive }))
+      });
+      
+      // 返回活躍標籤，如果沒有則返回所有標籤
+      const tagsToReturn = activeTags.length > 0 ? activeTags : allTags;
+      
+      return {
+        success: true,
+        tags: tagsToReturn.map(tag => ({
+          id: tag.id,
+          name: tag.name,
+          backgroundColor: tag.backgroundColor,
+          textColor: tag.textColor,
+          shape: tag.shape,
+          isActive: tag.isActive
+        })),
+        debug: {
+          activeCount: activeTags.length,
+          totalCount: allTags.length
+        }
+      };
+    } catch (error) {
+      console.error('獲取標籤失敗:', error);
+      throw new BadRequestException('獲取標籤失敗');
+    }
+  }
+
+  // 發送標籤群組消息
+  @Post('send-by-tags')
+  async sendMessageByTags(@Body() body: { title: string; content: string; tagIds: number[] }, @Req() req: Request) {
+    const user = req.user as any;
+    
+    // 客服人員、代理商老闆、超級管理員可以發送標籤群組消息
+    if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
+      throw new BadRequestException('沒有權限發送標籤群組消息');
+    }
+
+    if (!body.title || !body.content) {
+      throw new BadRequestException('標題和內容不能為空');
+    }
+
+    if (!body.tagIds || !Array.isArray(body.tagIds) || body.tagIds.length === 0) {
+      throw new BadRequestException('請選擇至少一個標籤');
+    }
+
+    try {
+      // 獲取選中的標籤名稱用於標記
+      const selectedTags = await this.marqueeTagService.findByCompany(user.companyId);
+      const targetTags = selectedTags.filter(tag => body.tagIds.includes(tag.id));
+      const tagNames = targetTags.map(tag => tag.name).join(', ');
+
+      // 創建系統廣播，但標記為標籤群組類型
+      const createBroadcastDto = {
+        title: body.title,
+        content: body.content,
+        broadcastType: 'TAG_GROUP' as any,
+        targetAudience: 'TAG_USERS' as any,
+        targetTagIds: body.tagIds,
+        targetTagNames: tagNames
+      };
+
+      await this.hybridMessageService.createTagGroupBroadcast(user.id, user.companyId, createBroadcastDto);
+      return { 
+        success: true, 
+        message: '標籤群組消息發送成功' 
+      };
+    } catch (error) {
+      console.error('標籤群組消息發送失敗:', error);
+      throw new BadRequestException(error.message || '標籤群組消息發送失敗');
     }
   }
 

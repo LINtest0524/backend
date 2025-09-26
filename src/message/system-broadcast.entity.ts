@@ -25,7 +25,7 @@ export class SystemBroadcast {
     type: 'varchar',
     length: 50
   })
-  broadcastType: 'GENERAL' | 'IMPORTANT' | 'MAINTENANCE' | 'NEW_MEMBER';
+  broadcastType: 'GENERAL' | 'IMPORTANT' | 'MAINTENANCE' | 'NEW_MEMBER' | 'TAG_GROUP';
 
   @Column({ 
     name: 'target_audience', 
@@ -33,7 +33,13 @@ export class SystemBroadcast {
     type: 'varchar',
     length: 50
   })
-  targetAudience: 'ALL' | 'VIP' | 'NEW_USERS';
+  targetAudience: 'ALL' | 'VIP' | 'NEW_USERS' | 'TAG_USERS';
+
+  @Column({ name: 'target_tag_ids', type: 'text', nullable: true })
+  targetTagIds: string | null;
+
+  @Column({ name: 'target_tag_names', type: 'text', nullable: true })
+  targetTagNames: string | null;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

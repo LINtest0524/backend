@@ -150,10 +150,16 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
     @Request() req,
   ) {
+    // 將字串 ID 轉換為數字，並處理無效值
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId) || id === 'undefined' || id === 'null') {
+      throw new UnauthorizedException('無效的使用者 ID');
+    }
+
     const user = req.user;
     const ip = req.ip;
 
@@ -169,7 +175,7 @@ export class UserController {
     const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
     const platform = `${device} / ${os} / ${browser}`;
 
-    return this.userService.updateSecured(id, updateUserDto, user, ip, platform);
+    return this.userService.updateSecured(numericId, updateUserDto, user, ip, platform);
   }
 
 
