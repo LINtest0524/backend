@@ -512,6 +512,7 @@ async findAll(
       bank_verified: user.bank_verified,
       bank_verified_at: user.bank_verified_at,
       vip_level: user.vip_level,
+      balance: user.balance || 0,
       modules,
       tags,
       company: user.company
@@ -1293,6 +1294,92 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       message: `已為使用者 ${user.username} 應用自動化標籤，新增 ${appliedTags.length} 個標籤`,
       appliedTags
     };
+  }
+
+  // 更新使用者餘額 - 加強安全性
+  async updateBalance(
+    userId: number, 
+    amount: number, 
+    remark: string,
+    currentUser: JwtUser,
+    ip?: string,
+    platform?: string
+  ): Promise<{ message: string; newBalance: number; oldBalance: number }> {
+    // 🔒 嚴格權限檢查
+    const allowedRoles = ['SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      throw new ForbiddenException('無權限執行此操作');
+    }
+
+    // 🔒 嚴格輸入驗證
+    if (!amount || amount === 0 || !Number.isInteger(amount)) {
+      throw new BadRequestException('金額必須為非零整數');
+    }
+
+    if (Math.abs(amount) > 1000000) {
+      throw new BadRequestException('單次操作金額不能超過 1,000,000');
+    }
+
+    // 🔒 防止 SQL 注入和 XSS
+    if (remark && (remark.includes('<') || remark.includes('>') || remark.includes('script'))) {
+      throw new BadRequestException('備註內容包含非法字符');
+    }
+
+    const user = await this.findOneSecured(userId, currentUser);
+    
+    // 🔒 使用 transaction 確保資料一致性
+    return await this.userRepository.manager.transaction(async manager => {
+      // 重新查詢最新資料，避免併發問題
+      const latestUser = await manager.findOne(User, { where: { id: userId } });
+      if (!latestUser) {
+        throw new BadRequestException('用戶不存在');
+      }
+
+      const oldBalance = latestUser.balance || 0;
+      const newBalance = oldBalance + amount;
+
+      // 🔒 嚴格檢查餘額範圍
+      if (newBalance < 0) {
+        throw new BadRequestException(`餘額不足，目前餘額：${oldBalance}，扣款金額：${Math.abs(amount)}`);
+      }
+
+      if (newBalance > 10000000) {
+        throw new BadRequestException('餘額不能超過 10,000,000');
+      }
+
+      latestUser.balance = newBalance;
+      await manager.save(latestUser);
+
+      // 🔒 強制記錄所有金額操作到審計日誌
+      if (this.auditLogService && ip && platform) {
+        const operationType = amount > 0 ? '存款' : '扣款';
+        const operationAmount = Math.abs(amount);
+        
+        await this.auditLogService.record({
+          user: { id: currentUser.id },
+          action: `💰 ${operationType}操作 - ${latestUser.username}（金額：${operationAmount}，餘額：${oldBalance} → ${newBalance}）`,
+          ip,
+          platform,
+          target: `balance:${latestUser.id}`,
+          before: { 
+            balance: oldBalance,
+            remark: remark || '無備註',
+            operator: currentUser.username
+          },
+          after: { 
+            balance: newBalance,
+            remark: remark || '無備註',
+            operator: currentUser.username
+          },
+        });
+      }
+
+      return {
+        message: `${amount > 0 ? '存款' : '扣款'}成功`,
+        newBalance,
+        oldBalance
+      };
+    });
   }
 
   // 檢查自動標籤狀態

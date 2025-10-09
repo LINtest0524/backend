@@ -318,4 +318,30 @@ export class UserController {
     return this.userService.checkAutoTagStatus(id, req.user);
   }
 
+  // 餘額管理 API
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Patch(':id/balance')
+  async updateBalance(
+    @Param('id') id: number,
+    @Body() body: { amount: number; remark: string },
+    @Request() req,
+  ): Promise<{ message: string; newBalance: number; oldBalance: number }> {
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    const uaString = req.headers['user-agent'] || '';
+    const parser = new (require('ua-parser-js'))();
+    parser.setUA(uaString);
+    const info = parser.getResult();
+    
+    const deviceType = info.device.type ?? 'desktop';
+    const device =
+      deviceType === 'mobile' ? '手機' :
+      deviceType === 'tablet' ? '平板' : '電腦';
+    const os = `${info.os.name ?? ''} ${info.os.version ?? ''}`.trim();
+    const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
+    const platform = `${device} / ${os} / ${browser}`;
+    
+    return this.userService.updateBalance(id, body.amount, body.remark, req.user, ip, platform);
+  }
+
 }

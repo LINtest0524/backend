@@ -129,6 +129,7 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
       id: fullUser.id,
       username: fullUser.username,
       email: fullUser.email,
+      balance: fullUser.balance || 0,
       company: {
         id: fullUser.company.id,
         code: fullUser.company.code,
@@ -213,6 +214,7 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
         id: user.id,
         username: user.username,
         email: user.email,
+        balance: user.balance || 0,
         company: {
           id: user.company.id,
           code: user.company.code,
@@ -307,11 +309,64 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
           id: user.id,
           username: user.username,
           email: user.email,
+          balance: user.balance || 0,
           company: {
             id: user.company.id,
             code: user.company.code,
           },
           enabledModules: enabledModules.map((m) => m.module_key),
+        },
+      };
+    } catch (error) {
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token 無效或已過期');
+      }
+      throw error;
+    }
+  }
+
+  @Get('profile')
+  async getProfile(@Headers('authorization') authHeader: string, @Req() req: any) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Token 格式錯誤');
+    }
+
+    const token = authHeader.substring(7);
+    const companyCode = req.query.company;
+
+    if (!companyCode) {
+      throw new UnauthorizedException('缺少公司代碼');
+    }
+
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.userService.findById(payload.userId);
+
+      if (!user) {
+        throw new UnauthorizedException('用戶不存在');
+      }
+
+      if (user.company?.code !== companyCode) {
+        throw new UnauthorizedException('公司代碼不匹配');
+      }
+
+      if (user.is_blacklisted) {
+        throw new UnauthorizedException('此帳號已被列入黑名單');
+      }
+
+      if (user.status !== 'ACTIVE') {
+        throw new UnauthorizedException('帳號已停用');
+      }
+
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        balance: user.balance || 0,
+        vip_level: user.vip_level,
+        company: {
+          id: user.company.id,
+          code: user.company.code,
         },
       };
     } catch (error) {

@@ -33,6 +33,7 @@ import { ShippingRuleTemplateModule } from './shipping-rule-template/shipping-ru
 import { MessageModule } from './message/message.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { PromotionCategoryModule } from './promotion-category/promotion-category.module';
+import { CouponModule } from './coupon/coupon.module';
 
 
 @Module({
@@ -81,6 +82,7 @@ import { PromotionCategoryModule } from './promotion-category/promotion-category
     MessageModule,
     PromotionModule,
     PromotionCategoryModule,
+    CouponModule,
 
   ],
   controllers: [],

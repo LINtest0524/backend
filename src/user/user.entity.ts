@@ -107,6 +107,9 @@ export class User {
   @Column({ type: 'integer', default: 0 })
   vip_level: number;
 
+  @Column({ type: 'integer', default: 0 })
+  balance: number;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
   created_by?: User;
