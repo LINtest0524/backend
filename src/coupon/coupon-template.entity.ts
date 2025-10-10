@@ -13,10 +13,10 @@ export class CouponTemplate {
   name: string;
 
   @Column({ length: 20 })
-  type: 'PUBLIC' | 'BATCH';
+  type: 'PUBLIC' | 'BATCH' | 'CASH';
 
   @Column({ length: 20, name: 'discount_type' })
-  discountType: 'PERCENTAGE' | 'FIXED';
+  discountType: 'PERCENTAGE' | 'FIXED' | 'CASH';
 
   @Column({ type: 'decimal', precision: 10, scale: 2, name: 'discount_value' })
   discountValue: number;

@@ -108,7 +108,24 @@ export class CouponService {
     });
 
     if (couponCount > 0) {
-      throw new BadRequestException('此模板已有發放的優惠碼，無法刪除');
+      // 檢查是否有已使用的優惠碼
+      const usedCoupons = await this.couponRepository.find({
+        where: { templateId: id, isUsed: true }
+      });
+      
+      // 檢查是否有使用記錄（適用於公共優惠碼）
+      const usageLogCount = await this.couponUsageLogRepository
+        .createQueryBuilder('log')
+        .innerJoin('log.coupon', 'coupon')
+        .where('coupon.templateId = :templateId', { templateId: id })
+        .getCount();
+      
+      if (usedCoupons.length > 0 || usageLogCount > 0) {
+        throw new BadRequestException(`此優惠碼已被使用過，無法刪除！`);
+      }
+      
+      // 如果只有未使用的優惠碼，先刪除這些優惠碼
+      await this.couponRepository.delete({ templateId: id });
     }
 
     // 刪除模板
@@ -129,7 +146,6 @@ export class CouponService {
 
   // 發放批量優惠碼（輕量化批次處理版本）
   async distributeBatchCoupons(companyId: number, adminUserId: number, dto: any): Promise<{ distributedCount: number, message: string }> {
-    console.log('🎯 開始批次發放優惠券:', { companyId, adminUserId, dto });
     
     const { templateId, targetType, tagIds, userIds } = dto;
 
@@ -148,11 +164,9 @@ export class CouponService {
       throw new BadRequestException('模板未啟用，無法發放');
     }
 
-    console.log('✅ 找到模板:', { id: template.id, name: template.name, type: template.type });
 
     // 獲取目標用戶數量（不載入全部用戶到記憶體）
     let totalUserCount = 0;
-    console.log('🔍 統計目標用戶數量:', { targetType, tagIds, userIds });
 
     if (targetType === 'ALL_USERS') {
       totalUserCount = await this.userRepository.count({
@@ -177,23 +191,32 @@ export class CouponService {
       });
     }
 
-    console.log('👥 目標用戶總數:', totalUserCount);
 
     if (totalUserCount === 0) {
       throw new BadRequestException('沒有找到符合條件的用戶');
     }
 
-    // 批次處理配置
-    const BATCH_SIZE = 500; // 每批處理 500 個用戶
-    const totalBatches = Math.ceil(totalUserCount / BATCH_SIZE);
+    // 批次處理配置（針對大量用戶優化）
+    let actualBatchSize: number;
+    
+    if (totalUserCount > 20000) {
+      // 超大量用戶（2萬+）：更保守的批次大小
+      actualBatchSize = 200;
+    } else if (totalUserCount > 5000) {
+      // 大量用戶（5千-2萬）：標準批次大小
+      actualBatchSize = 300;
+    } else {
+      // 中小量用戶（5千以下）：較大批次提高效率
+      actualBatchSize = 500;
+    }
+    
+    const totalBatches = Math.ceil(totalUserCount / actualBatchSize);
     let totalDistributed = 0;
 
-    console.log(`📦 開始批次處理: ${totalBatches} 批，每批 ${BATCH_SIZE} 個用戶`);
 
     // 分批處理用戶
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-      const offset = batchIndex * BATCH_SIZE;
-      console.log(`🔄 處理第 ${batchIndex + 1}/${totalBatches} 批 (偏移: ${offset})`);
+      const offset = batchIndex * actualBatchSize;
 
       // 分批獲取用戶
       let batchUsers: any[] = [];
@@ -205,7 +228,7 @@ export class CouponService {
             role: Not(In(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) 
           },
           skip: offset,
-          take: BATCH_SIZE
+          take: actualBatchSize
         });
       } else if (targetType === 'TAG_GROUP' && tagIds?.length > 0) {
         batchUsers = await this.userRepository
@@ -217,17 +240,16 @@ export class CouponService {
             excludeRoles: ['SUPER_ADMIN', 'GLOBAL_ADMIN'] 
           })
           .skip(offset)
-          .take(BATCH_SIZE)
+          .take(actualBatchSize)
           .getMany();
       } else if (targetType === 'SPECIFIC_USERS' && userIds?.length > 0) {
-        const batchUserIds = userIds.slice(offset, offset + BATCH_SIZE);
+        const batchUserIds = userIds.slice(offset, offset + actualBatchSize);
         batchUsers = await this.userRepository.find({
           where: { id: In(batchUserIds), company_id: companyId }
         });
       }
 
       if (batchUsers.length === 0) {
-        console.log(`⏭️ 第 ${batchIndex + 1} 批沒有用戶，跳過`);
         continue;
       }
 
@@ -241,7 +263,6 @@ export class CouponService {
       const usersToDistribute = batchUsers.filter(user => !usersWithCoupons.has(user.id));
 
       if (usersToDistribute.length === 0) {
-        console.log(`⏭️ 第 ${batchIndex + 1} 批用戶都已有優惠券，跳過`);
         continue;
       }
 
@@ -249,11 +270,10 @@ export class CouponService {
       const batchResult = await this.generateAndSaveCouponBatch(templateId, usersToDistribute);
       totalDistributed += batchResult.count;
 
-      console.log(`✅ 第 ${batchIndex + 1} 批完成: 發放 ${batchResult.count} 張優惠券`);
-
-      // 短暫休息避免資料庫過載
+      // 動態休息時間，根據批次大小調整
       if (batchIndex < totalBatches - 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const restTime = Math.min(200, Math.max(50, actualBatchSize / 2)); // 50-200ms 動態休息
+        await new Promise(resolve => setTimeout(resolve, restTime));
       }
     }
 
@@ -264,7 +284,6 @@ export class CouponService {
       });
     }
 
-    console.log(`🎉 批次發放完成: 總共發放 ${totalDistributed} 張優惠券`);
 
     return {
       distributedCount: totalDistributed,
@@ -329,7 +348,6 @@ export class CouponService {
   // 發送優惠券通知
   private async sendCouponNotification(companyId: number, adminUserId: number, template: any, tagIds: number[]) {
     try {
-      console.log('🔔 準備發送優惠券通知:', { companyId, adminUserId, templateName: template.name, tagIds });
       
       // 創建系統廣播訊息（使用正確的字段）
       const broadcastData = {
@@ -347,7 +365,6 @@ export class CouponService {
       };
 
       await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
-      console.log('✅ 優惠券通知發送成功');
     } catch (error) {
       console.error('❌ 發送優惠券通知失敗:', error);
       console.error('❌ 錯誤詳情:', error.message);
@@ -358,7 +375,6 @@ export class CouponService {
   // 發送公共優惠碼通知
   private async sendPublicCouponNotification(companyId: number, adminUserId: number, template: any, couponCode: string) {
     try {
-      console.log('🔔 準備發送公共優惠碼通知:', { companyId, adminUserId, templateName: template.name, couponCode });
       
       // 創建系統廣播訊息給所有用戶（使用正確的字段）
       const broadcastData = {
@@ -376,7 +392,6 @@ export class CouponService {
       };
 
       await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
-      console.log('✅ 公共優惠碼通知發送成功');
     } catch (error) {
       console.error('❌ 發送公共優惠碼通知失敗:', error);
       console.error('❌ 錯誤詳情:', error.message);
@@ -422,7 +437,6 @@ export class CouponService {
 
   // 獲取用戶的優惠碼
   async getUserCoupons(userId: number, companyId: number): Promise<any[]> {
-    console.log('🔍 查詢用戶優惠券:', { userId, companyId });
     
     // 查詢用戶專屬的優惠碼 + 公共優惠碼
     const userCoupons = await this.couponRepository
@@ -457,18 +471,6 @@ export class CouponService {
       })
     );
 
-    console.log('📋 找到的優惠券數量:', couponsWithUserStatus.length);
-    console.log('📋 優惠券詳情:', couponsWithUserStatus.map(c => ({
-      id: c.id,
-      code: c.code,
-      assignedUserId: c.assignedUserId,
-      templateId: c.templateId,
-      templateName: c.template?.name,
-      templateType: c.template?.type,
-      isUsed: c.isUsed,
-      userHasUsed: c.userHasUsed,
-      createdAt: c.createdAt
-    })));
     
     return couponsWithUserStatus;
   }
@@ -480,17 +482,14 @@ export class CouponService {
     discountAmount?: number;
     finalAmount?: number;
   }> {
-    console.log('🎫 前台驗證優惠碼:', { userId, companyId, code: dto.code, amount: dto.amount })
     // 1. 檢查優惠碼是否存在
     const coupon = await this.couponRepository.findOne({
       where: { code: dto.code },
       relations: ['template'],
     });
 
-    console.log('🎫 優惠碼查詢結果:', coupon ? { id: coupon.id, code: coupon.code, templateId: coupon.templateId } : '未找到')
 
     if (!coupon) {
-      console.log('❌ 優惠碼不存在')
       return { valid: false, message: '優惠碼不存在' };
     }
 
@@ -530,11 +529,8 @@ export class CouponService {
       }
 
       // 檢查該用戶是否已使用過此公共優惠碼
-      console.log('⏰ 檢查用戶是否已使用過公共優惠碼...')
       const userUsed = await this.hasUserUsedCoupon(userId, coupon.id);
-      console.log('🔍 公共優惠碼使用檢查結果:', { userId, couponId: coupon.id, userUsed })
       if (userUsed) {
-        console.log('❌ 用戶已使用過此公共優惠碼')
         return { valid: false, message: '您已使用過此優惠碼' };
       }
     }
@@ -542,12 +538,6 @@ export class CouponService {
     // 7. 計算折扣金額
     const discountAmount = this.calculateDiscount(template, dto.amount);
     
-    console.log('✅ 優惠碼驗證成功:', { 
-      code: dto.code, 
-      userId, 
-      discountAmount, 
-      finalAmount: dto.amount - discountAmount 
-    })
 
     return {
       valid: true,
@@ -563,7 +553,6 @@ export class CouponService {
     discountAmount?: number;
     finalAmount?: number;
   }> {
-    console.log('🎫 前台使用優惠碼:', { userId, companyId, code: dto.code, amount: dto.amount })
     // 先驗證優惠碼
     const validation = await this.validateCoupon(userId, companyId, {
       code: dto.code,
@@ -571,11 +560,8 @@ export class CouponService {
     });
 
     if (!validation.valid) {
-      console.log('❌ 優惠碼驗證失敗:', validation.message)
       return { success: false, message: validation.message };
     }
-    
-    console.log('✅ 優惠碼驗證通過，開始使用流程...')
 
     // 獲取優惠碼
     const coupon = await this.couponRepository.findOne({
@@ -588,7 +574,6 @@ export class CouponService {
     }
 
     // 記錄使用日誌
-    console.log('📝 創建優惠碼使用記錄...')
     const usageLog = this.couponUsageLogRepository.create({
       couponId: coupon.id,
       userId,
@@ -599,7 +584,6 @@ export class CouponService {
     });
 
     await this.couponUsageLogRepository.save(usageLog);
-    console.log('✅ 優惠碼使用記錄已保存:', { couponId: coupon.id, userId, discountAmount: validation.discountAmount })
 
     // 只有非公共優惠碼才標記為已使用
     if (coupon.assignedUserId !== null) {
@@ -691,4 +675,262 @@ export class CouponService {
       usageRate: Math.round(usageRate * 100) / 100,
     };
   }
+
+  // 兌換現金優惠券（直接加到錢包）
+  async redeemCashCoupon(userId: number, companyId: number, code: string) {
+    try {
+      // 1. 查找現金優惠券
+      const coupon = await this.couponRepository
+        .createQueryBuilder('coupon')
+        .leftJoinAndSelect('coupon.template', 'template')
+        .where('coupon.code = :code', { code })
+        .andWhere('template.companyId = :companyId', { companyId })
+        .getOne();
+
+      if (!coupon) {
+        return { success: false, message: '優惠碼不存在或無效' };
+      }
+
+      if (!coupon.template || coupon.template.type !== 'CASH') {
+        return { success: false, message: '此優惠碼不是現金優惠券' };
+      }
+
+      // 2. 檢查優惠券狀態
+      if (coupon.isUsed) {
+        return { success: false, message: '此優惠碼已被使用' };
+      }
+
+      // 3. 檢查有效期
+      const now = new Date();
+      if (now < new Date(coupon.template.validFrom) || now > new Date(coupon.template.validTo)) {
+        return { success: false, message: '優惠碼已過期或尚未生效' };
+      }
+
+      // 4. 檢查使用次數限制（對於公共現金優惠券）
+      if (!coupon.assignedUserId) {
+        // 公共現金優惠券：檢查用戶是否已經使用過
+        const existingUsage = await this.couponUsageLogRepository.findOne({
+          where: { 
+            couponId: coupon.id, 
+            userId
+          }
+        });
+
+        if (existingUsage) {
+          return { success: false, message: '您已使用過此優惠碼' };
+        }
+
+        // 檢查使用次數限制
+        if (coupon.template.usageLimit) {
+          const usageCount = await this.couponUsageLogRepository.count({
+            where: { couponId: coupon.id }
+          });
+
+          if (usageCount >= coupon.template.usageLimit) {
+            return { success: false, message: '此優惠碼使用次數已達上限' };
+          }
+        }
+      } else if (coupon.assignedUserId !== userId) {
+        return { success: false, message: '此優惠碼不屬於您' };
+      }
+
+      // 5. 開始事務處理
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // 6. 更新用戶錢包餘額
+        const cashAmount = Number(coupon.template.discountValue);
+        await queryRunner.manager.query(
+          'UPDATE "user" SET balance = COALESCE(balance, 0) + $1 WHERE id = $2 AND company_id = $3',
+          [cashAmount, userId, companyId]
+        );
+
+        // 7. 創建使用記錄
+        const usageLog = queryRunner.manager.create(CouponUsageLog, {
+          couponId: coupon.id,
+          userId,
+          discountAmount: cashAmount,
+          originalAmount: 0, // 現金優惠券不需要原始金額
+          finalAmount: 0,    // 現金優惠券不需要最終金額
+          usedAt: new Date()
+        });
+        await queryRunner.manager.save(CouponUsageLog, usageLog);
+
+        // 8. 如果是個人專屬優惠券，標記為已使用
+        if (coupon.assignedUserId) {
+          coupon.isUsed = true;
+          await queryRunner.manager.save(Coupon, coupon);
+        }
+
+        // 9. 記錄餘額變動日誌
+        await queryRunner.manager.query(`
+          INSERT INTO audit_log (user_id, action, target, before, after, ip, platform, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        `, [
+          userId, 
+          '現金優惠券兌換',
+          `cash_coupon:${coupon.id}`,
+          null,
+          JSON.stringify({
+            couponCode: code,
+            cashAmount,
+            templateName: coupon.template.name,
+            balanceChange: `+${cashAmount}`
+          }),
+          '127.0.0.1',
+          'web'
+        ]);
+
+        await queryRunner.commitTransaction();
+
+        return { 
+          success: true, 
+          message: `成功兌換現金優惠券！獲得 ${cashAmount} 元現金`,
+          cashAmount,
+          couponName: coupon.template.name
+        };
+
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
+
+    } catch (error) {
+      console.error('兌換現金優惠券失敗:', error);
+      return { success: false, message: '兌換失敗，請稍後再試' };
+    }
+  }
+
+  // 創建現金優惠券
+  async createCashCoupon(templateId: number, code: string, companyId: number) {
+    try {
+      // 1. 驗證模板
+      const template = await this.couponTemplateRepository.findOne({
+        where: { id: templateId, companyId, type: 'CASH' }
+      });
+
+      if (!template) {
+        throw new NotFoundException('現金優惠券模板不存在');
+      }
+
+      // 2. 檢查優惠碼是否已存在
+      const existingCoupon = await this.couponRepository.findOne({
+        where: { code: code.toUpperCase() }
+      });
+
+      if (existingCoupon) {
+        throw new BadRequestException('此優惠碼已存在');
+      }
+
+      // 3. 創建現金優惠券
+      const coupon = this.couponRepository.create({
+        templateId,
+        code: code.toUpperCase(),
+        isUsed: false,
+        assignedUserId: null, // 現金優惠券為公共型
+        createdAt: new Date()
+      });
+
+      await this.couponRepository.save(coupon);
+
+      return { success: true, message: '現金優惠券創建成功', coupon };
+
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      console.error('創建現金優惠券失敗:', error);
+      throw new BadRequestException('創建失敗');
+    }
+  }
+
+  // 獲取現金優惠券列表
+  async getCashCoupons(templateId: number, companyId: number) {
+    try {
+      // 1. 驗證模板
+      const template = await this.couponTemplateRepository.findOne({
+        where: { id: templateId, companyId, type: 'CASH' }
+      });
+
+      if (!template) {
+        throw new NotFoundException('現金優惠券模板不存在');
+      }
+
+      // 2. 獲取現金優惠券列表
+      const coupons = await this.couponRepository.find({
+        where: { templateId },
+        order: { createdAt: 'DESC' }
+      });
+
+      // 3. 統計使用次數
+      const result = await Promise.all(
+        coupons.map(async (coupon) => {
+          const usageCount = await this.couponUsageLogRepository.count({
+            where: { couponId: coupon.id }
+          });
+
+          return {
+            id: coupon.id,
+            code: coupon.code,
+            isUsed: coupon.isUsed,
+            usageCount,
+            createdAt: coupon.createdAt
+          };
+        })
+      );
+
+      return result;
+
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('獲取現金優惠券失敗:', error);
+      throw new BadRequestException('獲取失敗');
+    }
+  }
+
+  // 刪除現金優惠券
+  async deleteCashCoupon(couponId: number, companyId: number) {
+    try {
+      // 1. 查找優惠券及其模板
+      const coupon = await this.couponRepository
+        .createQueryBuilder('coupon')
+        .leftJoinAndSelect('coupon.template', 'template')
+        .where('coupon.id = :couponId', { couponId })
+        .andWhere('template.companyId = :companyId', { companyId })
+        .andWhere('template.type = :type', { type: 'CASH' })
+        .getOne();
+
+      if (!coupon) {
+        throw new NotFoundException('現金優惠券不存在');
+      }
+
+      // 2. 檢查是否有使用記錄
+      const usageCount = await this.couponUsageLogRepository.count({
+        where: { couponId }
+      });
+
+      if (usageCount > 0) {
+        throw new BadRequestException('此優惠券已有使用記錄，無法刪除');
+      }
+
+      // 3. 刪除優惠券
+      await this.couponRepository.remove(coupon);
+
+      return { success: true, message: '現金優惠券刪除成功' };
+
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      console.error('刪除現金優惠券失敗:', error);
+      throw new BadRequestException('刪除失敗');
+    }
+  }
+
 }

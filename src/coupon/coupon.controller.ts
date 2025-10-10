@@ -28,6 +28,7 @@ import { DistributeCouponDto } from './dto/distribute-coupon.dto';
 export class AdminCouponController {
   constructor(private readonly couponService: CouponService) {}
 
+
   // 創建優惠碼模板
   @Post('templates')
   async createTemplate(@Body() createDto: CreateCouponTemplateDto, @Req() req: Request) {
@@ -119,6 +120,49 @@ export class AdminCouponController {
 
     return await this.couponService.getCouponStats(templateId, user.companyId);
   }
+
+  // 創建現金優惠券
+  @Post('create-cash-coupon')
+  async createCashCoupon(@Body() body: { templateId: number; code: string }, @Req() req: Request) {
+    const user = req.user as any
+    
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    if (!allowedRoles.includes(user.role)) {
+      throw new BadRequestException('沒有權限創建現金優惠券');
+    }
+    
+    if (!body.templateId || !body.code) {
+      throw new BadRequestException('模板ID和優惠碼均為必填')
+    }
+
+    return this.couponService.createCashCoupon(body.templateId, body.code, user.companyId)
+  }
+
+  // 獲取現金優惠券列表
+  @Get('cash-coupons/:templateId')
+  async getCashCoupons(@Param('templateId', ParseIntPipe) templateId: number, @Req() req: Request) {
+    const user = req.user as any
+    
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    if (!allowedRoles.includes(user.role)) {
+      throw new BadRequestException('沒有權限查看現金優惠券');
+    }
+    
+    return this.couponService.getCashCoupons(templateId, user.companyId)
+  }
+
+  // 刪除現金優惠券
+  @Delete('cash-coupons/:couponId')
+  async deleteCashCoupon(@Param('couponId', ParseIntPipe) couponId: number, @Req() req: Request) {
+    const user = req.user as any
+    
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    if (!allowedRoles.includes(user.role)) {
+      throw new BadRequestException('沒有權限刪除現金優惠券');
+    }
+    
+    return this.couponService.deleteCashCoupon(couponId, user.companyId)
+  }
 }
 
 // 用戶端優惠碼控制器
@@ -131,9 +175,10 @@ export class PortalCouponController {
   @Get('my-coupons')
   async getMyCoupons(@Req() req: Request) {
     const user = req.user as any;
-    console.log('🎫 前台查詢優惠券的用戶:', { id: user.id, username: user.username, role: user.role });
     return await this.couponService.getUserCoupons(user.id, user.companyId);
   }
+
+  // 驗證批量派發結果（移到 AdminCouponController）
 
   // 驗證優惠碼
   @Post('validate')
@@ -149,5 +194,17 @@ export class PortalCouponController {
   async useCoupon(@Body() dto: UseCouponDto, @Req() req: Request) {
     const user = req.user as any;
     return await this.couponService.useCoupon(user.id, user.companyId, dto);
+  }
+
+  // 兌換現金優惠券
+  @Post('redeem-cash')
+  async redeemCashCoupon(@Body() body: { code: string }, @Req() req: Request) {
+    const user = req.user as any;
+    
+    if (!body.code) {
+      throw new BadRequestException('請輸入優惠碼');
+    }
+
+    return await this.couponService.redeemCashCoupon(user.id, user.companyId, body.code);
   }
 }
