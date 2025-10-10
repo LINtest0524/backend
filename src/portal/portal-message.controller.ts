@@ -63,19 +63,7 @@ export class PortalMessageController {
       
       // 同時記錄每個廣播的詳細信息用於調試
 
-      // 特別記錄標籤群組廣播
-      const tagGroupBroadcasts = allBroadcastsResult.broadcasts.filter(b => b.broadcastType === 'TAG_GROUP');
-      if (tagGroupBroadcasts.length > 0) {
-        console.log('🏷️ 發現標籤群組廣播:', {
-          count: tagGroupBroadcasts.length,
-          details: tagGroupBroadcasts.map(b => ({
-            id: b.id,
-            title: b.title,
-            targetTagIds: b.targetTagIds,
-            targetTagNames: b.targetTagNames
-          }))
-        });
-      }
+      // 特別記錄標籤群組廣播（已移除日誌）
 
       // 創建未讀廣播ID集合
       const unreadBroadcastIds = new Set(unreadBroadcasts.map(b => b.id));
@@ -193,6 +181,7 @@ export class PortalMessageController {
 
 
       return {
+        count: totalUnread,
         total: totalUnread,
         broadcasts: unreadBroadcasts.length,
         personal: unreadPersonal
@@ -297,11 +286,6 @@ export class PortalMessageController {
       throw new BadRequestException('messageIds 必須是非空數組');
     }
 
-    console.log('🗑️ 批量刪除請求:', { 
-      userId: user.id, 
-      companyId: user.companyId, 
-      messageIds 
-    });
 
     try {
       let deletedBroadcasts = 0;
@@ -315,20 +299,17 @@ export class PortalMessageController {
             if (!isNaN(broadcastId)) {
               await this.hybridMessageService.deleteBroadcastForUser(user.id, user.companyId, broadcastId);
               deletedBroadcasts++;
-              console.log('✅ 廣播已刪除:', messageId);
             }
           } else if (typeof messageId === 'string' && messageId.startsWith('personal_')) {
             const personalId = parseInt(messageId.replace('personal_', ''));
             if (!isNaN(personalId)) {
               await this.hybridMessageService.deletePersonalMessage(personalId, user.id, user.companyId);
               deletedPersonal++;
-              console.log('✅ 個人消息已刪除:', messageId);
             }
           } else if (typeof messageId === 'number') {
             // 兼容舊格式的數字ID（假設為個人消息）
             await this.hybridMessageService.deletePersonalMessage(messageId, user.id, user.companyId);
             deletedPersonal++;
-            console.log('✅ 個人消息已刪除（數字ID）:', messageId);
           } else {
             console.warn('⚠️ 跳過無效消息ID:', messageId);
           }
@@ -348,7 +329,6 @@ export class PortalMessageController {
         message = `已刪除 ${deletedPersonal} 條個人消息`;
       }
 
-      console.log('✅ 批量刪除完成:', { deletedBroadcasts, deletedPersonal });
 
       return { 
         success: true, 
@@ -378,11 +358,6 @@ export class PortalMessageController {
       throw new BadRequestException('messageIds 必須是非空數組');
     }
 
-    console.log('📖 批量標記已讀請求:', { 
-      userId: user.id, 
-      companyId: user.companyId, 
-      messageIds 
-    });
 
     try {
       let markedBroadcasts = 0;
@@ -396,20 +371,17 @@ export class PortalMessageController {
             if (!isNaN(broadcastId)) {
               await this.hybridMessageService.markSingleBroadcastAsRead(user.id, user.companyId, broadcastId);
               markedBroadcasts++;
-              console.log('✅ 廣播已標記已讀:', messageId);
             }
           } else if (typeof messageId === 'string' && messageId.startsWith('personal_')) {
             const personalId = parseInt(messageId.replace('personal_', ''));
             if (!isNaN(personalId)) {
               await this.hybridMessageService.markPersonalMessageAsRead(personalId, user.id, user.companyId);
               markedPersonal++;
-              console.log('✅ 個人消息已標記已讀:', messageId);
             }
           } else if (typeof messageId === 'number') {
             // 兼容舊格式的數字ID（假設為個人消息）
             await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id, user.companyId);
             markedPersonal++;
-            console.log('✅ 個人消息已標記已讀（數字ID）:', messageId);
           } else {
             console.warn('⚠️ 跳過無效消息ID:', messageId);
           }
@@ -419,7 +391,6 @@ export class PortalMessageController {
         }
       }
 
-      console.log('✅ 批量標記已讀完成:', { markedBroadcasts, markedPersonal });
 
       return { 
         success: true, 

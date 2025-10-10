@@ -217,13 +217,11 @@ export class MessageController {
           // 先嘗試標記新表（personal_message）中的消息
           await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id, user.companyId);
         } catch (error) {
-          console.log('⚠️ 新表中未找到，嘗試舊表...', messageId);
           
           try {
             // 如果新表中沒有，嘗試舊表（message）
             await this.messageService.markAsRead(messageId, user.id, user.companyId);
           } catch (oldTableError) {
-            console.error('❌ 批量標記失敗:', messageId, oldTableError);
           }
         }
       }
@@ -252,7 +250,6 @@ export class MessageController {
         if (!isNaN(broadcastId)) {
           broadcastIds.push(broadcastId);
         }
-        console.log(`系統廣播 ${id} 將被刪除`);
       } else if (typeof id === 'number') {
         personalMessageIds.push(id);
       }
@@ -272,16 +269,12 @@ export class MessageController {
         try {
           // 先嘗試刪除新表（personal_message）中的消息
           await this.hybridMessageService.deletePersonalMessage(messageId, user.id, user.companyId);
-          console.log('✅ 批量刪除新表個人消息成功:', messageId);
         } catch (error) {
-          console.log('⚠️ 新表中未找到，嘗試舊表...', messageId);
           
           try {
             // 如果新表中沒有，嘗試舊表（message）
             await this.messageService.deleteMessage(messageId, user.id, user.companyId);
-            console.log('✅ 批量刪除舊表個人消息成功:', messageId);
           } catch (oldTableError) {
-            console.error('❌ 批量刪除失敗:', messageId, oldTableError);
           }
         }
       }
@@ -353,7 +346,6 @@ export class MessageController {
       }
       
       await this.hybridMessageService.markSingleBroadcastAsRead(user.id, user.companyId, broadcastId);
-      console.log('✅ 系統廣播已標記為已讀:', id);
       return { success: true, message: '系統廣播已標記為已讀' };
     } else {
       // 個人消息 - 需要同時處理新表和舊表
@@ -365,18 +357,14 @@ export class MessageController {
       try {
         // 先嘗試標記新表（personal_message）中的消息
         await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id, user.companyId);
-        console.log('✅ 新表個人消息已標記為已讀:', messageId);
         return { success: true, message: '個人消息已標記為已讀' };
       } catch (error) {
-        console.log('⚠️ 新表中未找到，嘗試舊表...', error);
         
         try {
           // 如果新表中沒有，嘗試舊表（message）
           await this.messageService.markAsRead(messageId, user.id, user.companyId);
-          console.log('✅ 舊表個人消息已標記為已讀:', messageId);
           return { success: true, message: '個人消息已標記為已讀' };
         } catch (oldTableError) {
-          console.error('❌ 兩個表都無法標記已讀:', oldTableError);
           throw new BadRequestException('無法標記消息為已讀');
         }
       }
@@ -424,59 +412,42 @@ export class MessageController {
   async deleteMessage(@Param('id') id: string, @Req() req: Request) {
     const user = req.user as any;
     
-    console.log('🔍 後端收到刪除請求:', { 
-      messageId: id, 
-      userId: user.id, 
-      companyId: user.companyId,
-      isBroadcast: id.startsWith('broadcast_')
-    });
     
     // 檢查是否為系統廣播
     if (id.startsWith('broadcast_')) {
-      console.log('📢 處理系統廣播刪除請求:', id);
       
       // 提取廣播ID
       const broadcastId = parseInt(id.replace('broadcast_', ''));
       if (isNaN(broadcastId)) {
-        console.log('❌ 無效的廣播ID:', id);
         throw new BadRequestException('無效的廣播ID');
       }
       
       // 對於會員來說，刪除系統廣播就是將其加入已刪除列表
       await this.hybridMessageService.deleteBroadcastForUser(user.id, user.companyId, broadcastId);
-      console.log(`🗑️ 系統廣播 ${id} 已從會員視圖中刪除`);
       
       const response = { success: true, message: '系統廣播已刪除' };
-      console.log('📤 系統廣播響應:', response);
       return response;
     } else {
-      console.log('💬 處理個人消息刪除請求:', id);
       // 個人消息可以刪除
       const messageId = parseInt(id);
       if (isNaN(messageId)) {
-        console.log('❌ 無效的消息ID:', id);
         throw new BadRequestException('無效的消息ID');
       }
       
       try {
         // 先嘗試從新的 personal_message 表刪除
         await this.hybridMessageService.deletePersonalMessage(messageId, user.id, user.companyId);
-        console.log('✅ 新表個人消息刪除成功:', messageId);
       } catch (error) {
-        console.log('⚠️ 新表中未找到，嘗試舊表...', error);
         
         try {
           // 如果新表中沒有，嘗試舊的 message 表
           await this.messageService.deleteMessage(messageId, user.id, user.companyId);
-          console.log('✅ 舊消息表刪除成功:', messageId);
         } catch (oldTableError) {
-          console.error('❌ 兩個表都無法刪除:', oldTableError);
           throw new BadRequestException('無法刪除消息');
         }
       }
       
       const response = { success: true };
-      console.log('📤 個人消息響應:', response);
       return response;
     }
   }
@@ -656,7 +627,7 @@ export class AdminMessageController {
 
       return { success: true, message: '私信發送成功', data: message };
     } catch (error) {
-      console.error('❌ 發送私信失敗:', error);
+      
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
       }
@@ -668,16 +639,13 @@ export class AdminMessageController {
   async sendSystemMessage(@Body() body: { title: string; content: string; broadcastType?: string; targetAudience?: string }, @Req() req: Request) {
     const user = req.user as any;
     
-    console.log('🎯 收到系統廣播發送請求:', { userId: user.id, companyId: user.companyId, body });
     
     // 客服人員、代理商老闆、超級管理員可以發送系統廣播
     if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
-      console.log('❌ 權限檢查失敗:', { userRole: user.role, allowedRoles: ['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'] });
       throw new BadRequestException('沒有權限發送系統廣播');
     }
 
     if (!body.title || !body.content) {
-      console.log('❌ 參數驗證失敗:', { title: body.title, content: body.content });
       throw new BadRequestException('標題和內容不能為空');
     }
 
@@ -689,11 +657,9 @@ export class AdminMessageController {
         targetAudience: (body.targetAudience as any) || 'ALL'
       };
 
-      console.log('📤 準備呼叫 createBroadcast:', createBroadcastDto);
       
       await this.hybridMessageService.createBroadcast(user.id, user.companyId, createBroadcastDto);
       
-      console.log('✅ 系統廣播發送成功');
       return { 
         success: true, 
         message: '系統廣播發送成功' 
@@ -722,13 +688,6 @@ export class AdminMessageController {
       // 如果沒有活躍標籤，獲取所有標籤進行調試
       const allTags = await this.marqueeTagService.findAll(user.companyId);
       
-      console.log('🏷️ 標籤查詢結果:', {
-        companyId: user.companyId,
-        activeTagCount: activeTags.length,
-        totalTagCount: allTags.length,
-        activeTags: activeTags.map(t => ({ id: t.id, name: t.name, isActive: t.isActive })),
-        allTags: allTags.map(t => ({ id: t.id, name: t.name, isActive: t.isActive }))
-      });
       
       // 返回活躍標籤，如果沒有則返回所有標籤
       const tagsToReturn = activeTags.length > 0 ? activeTags : allTags;
@@ -759,21 +718,17 @@ export class AdminMessageController {
   async sendMessageByTags(@Body() body: { title: string; content: string; tagIds: number[] }, @Req() req: Request) {
     const user = req.user as any;
     
-    console.log('🏷️ 收到標籤群組廣播發送請求:', { userId: user.id, companyId: user.companyId, body });
     
     // 客服人員、代理商老闆、超級管理員可以發送標籤群組消息
     if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
-      console.log('❌ 標籤群組權限檢查失敗:', { userRole: user.role, allowedRoles: ['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'] });
       throw new BadRequestException('沒有權限發送標籤群組消息');
     }
 
     if (!body.title || !body.content) {
-      console.log('❌ 標籤群組參數驗證失敗:', { title: body.title, content: body.content });
       throw new BadRequestException('標題和內容不能為空');
     }
 
     if (!body.tagIds || !Array.isArray(body.tagIds) || body.tagIds.length === 0) {
-      console.log('❌ 標籤群組標籤驗證失敗:', { tagIds: body.tagIds });
       throw new BadRequestException('請選擇至少一個標籤');
     }
 
@@ -783,7 +738,6 @@ export class AdminMessageController {
       const targetTags = selectedTags.filter(tag => body.tagIds.includes(tag.id));
       const tagNames = targetTags.map(tag => tag.name).join(', ');
 
-      console.log('🏷️ 標籤查詢結果:', { selectedTags: selectedTags.length, targetTags: targetTags.length, tagNames });
 
       // 創建系統廣播，但標記為標籤群組類型
       const createBroadcastDto = {
@@ -795,17 +749,14 @@ export class AdminMessageController {
         targetTagNames: tagNames
       };
 
-      console.log('📤 準備呼叫 createTagGroupBroadcast:', createBroadcastDto);
 
       await this.hybridMessageService.createTagGroupBroadcast(user.id, user.companyId, createBroadcastDto);
       
-      console.log('✅ 標籤群組廣播發送成功');
       return { 
         success: true, 
         message: '標籤群組消息發送成功' 
       };
     } catch (error) {
-      console.error('❌ 標籤群組消息發送失敗:', error);
       throw new BadRequestException(error.message || '標籤群組消息發送失敗');
     }
   }
@@ -826,27 +777,18 @@ export class AdminMessageController {
       throw new BadRequestException('無效的消息ID');
     }
 
-    console.log('🔍 管理員刪除消息請求:', { 
-      messageId, 
-      userId: user.id, 
-      companyId: user.companyId 
-    });
 
     try {
       // 先嘗試刪除系統廣播
       await this.hybridMessageService.deactivateBroadcast(messageId, user.companyId);
-      console.log('✅ 系統廣播已停用:', messageId);
       return { success: true, message: '系統廣播已刪除' };
     } catch (error) {
-      console.log('⚠️ 不是系統廣播，嘗試刪除個人消息...');
       
       try {
         // 嘗試刪除個人消息（管理員版本）
         await this.messageService.adminDeleteMessage(messageId, user.companyId);
-        console.log('✅ 個人消息已刪除:', messageId);
         return { success: true, message: '消息已刪除' };
       } catch (error) {
-        console.error('❌ 刪除失敗:', error);
         throw new BadRequestException('刪除消息失敗');
       }
     }
@@ -872,12 +814,6 @@ export class AdminMessageController {
       throw new BadRequestException('標題和內容不能為空');
     }
 
-    console.log('🔍 管理員編輯廣播請求:', { 
-      broadcastId, 
-      userId: user.id, 
-      companyId: user.companyId,
-      title: body.title 
-    });
 
     try {
       // 更新系統廣播
@@ -886,10 +822,8 @@ export class AdminMessageController {
         content: body.content
       });
       
-      console.log('✅ 系統廣播已更新:', broadcastId);
       return { success: true, message: '系統廣播已更新' };
     } catch (error) {
-      console.error('❌ 更新失敗:', error);
       throw new BadRequestException('更新廣播失敗');
     }
   }
