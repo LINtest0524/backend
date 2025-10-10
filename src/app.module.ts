@@ -34,6 +34,7 @@ import { MessageModule } from './message/message.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { PromotionCategoryModule } from './promotion-category/promotion-category.module';
 import { CouponModule } from './coupon/coupon.module';
+import { WalletTransactionModule } from './wallet-transaction/wallet-transaction.module';
 
 
 @Module({
@@ -83,6 +84,7 @@ import { CouponModule } from './coupon/coupon.module';
     PromotionModule,
     PromotionCategoryModule,
     CouponModule,
+    WalletTransactionModule,
 
   ],
   controllers: [],

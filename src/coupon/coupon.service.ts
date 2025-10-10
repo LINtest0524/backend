@@ -9,6 +9,7 @@ import { CreateCouponTemplateDto } from './dto/create-coupon-template.dto';
 import { PublicCouponDto } from './dto/public-coupon.dto';
 import { BatchCouponDto } from './dto/batch-coupon.dto';
 import { ValidateCouponDto, UseCouponDto } from './dto/validate-coupon.dto';
+import { WalletTransactionService } from '../wallet-transaction/wallet-transaction.service';
 
 @Injectable()
 export class CouponService {
@@ -26,6 +27,7 @@ export class CouponService {
     private userRepository: Repository<User>,
     
     private dataSource: DataSource,
+    private walletTransactionService: WalletTransactionService,
   ) {}
 
 
@@ -740,14 +742,28 @@ export class CouponService {
       await queryRunner.startTransaction();
 
       try {
-        // 6. 更新用戶錢包餘額
+        // 6. 創建錢包交易記錄（在更新餘額前記錄）
         const cashAmount = Number(coupon.template.discountValue);
+        await this.walletTransactionService.createTransaction(
+          userId,
+          companyId,
+          'coupon_redeem',
+          cashAmount,
+          `現金優惠券兌換：${coupon.template.name} (${code})`,
+          coupon.id.toString(),
+          'coupon',
+          '127.0.0.1',
+          undefined,
+          queryRunner
+        );
+
+        // 7. 更新用戶錢包餘額
         await queryRunner.manager.query(
           'UPDATE "user" SET balance = COALESCE(balance, 0) + $1 WHERE id = $2 AND company_id = $3',
           [cashAmount, userId, companyId]
         );
 
-        // 7. 創建使用記錄
+        // 8. 創建使用記錄
         const usageLog = queryRunner.manager.create(CouponUsageLog, {
           couponId: coupon.id,
           userId,
@@ -758,13 +774,13 @@ export class CouponService {
         });
         await queryRunner.manager.save(CouponUsageLog, usageLog);
 
-        // 8. 如果是個人專屬優惠券，標記為已使用
+        // 9. 如果是個人專屬優惠券，標記為已使用
         if (coupon.assignedUserId) {
           coupon.isUsed = true;
           await queryRunner.manager.save(Coupon, coupon);
         }
 
-        // 9. 記錄餘額變動日誌
+        // 10. 記錄餘額變動日誌
         await queryRunner.manager.query(`
           INSERT INTO audit_log (user_id, action, target, before, after, ip, platform, created_at)
           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())

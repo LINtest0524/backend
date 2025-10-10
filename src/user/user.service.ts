@@ -22,6 +22,8 @@ import { UserRole } from './user.entity';
 import { Company } from '../company/company.entity';
 import { JwtUserPayload, JwtUser } from '../types/jwt-payload';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { WalletTransactionService } from '../wallet-transaction/wallet-transaction.service';
+import { WalletTransaction } from '../wallet-transaction/wallet-transaction.entity';
 
 import { ExportUserDto } from './dto/export-user.dto';
 import { Response } from 'express';
@@ -44,6 +46,7 @@ export class UserService {
     private readonly companyRepository: Repository<Company>,
     private readonly auditLogService: AuditLogService,
     private readonly autoTagRuleService: AutoTagRuleService,
+    private readonly walletTransactionService: WalletTransactionService,
   ) {}
 
 
@@ -1349,6 +1352,30 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
 
       latestUser.balance = newBalance;
       await manager.save(latestUser);
+
+      // 📝 記錄錢包交易 - 直接創建記錄，不重新計算餘額
+      if (this.walletTransactionService) {
+        const operationType = amount > 0 ? 'admin_deposit' : 'admin_deduction';
+        const operationTypeText = amount > 0 ? '管理員存款' : '管理員扣款';
+        const description = `${operationTypeText}${remark ? `: ${remark}` : ''}（操作員：${currentUser.username}）`;
+
+        // 直接創建交易記錄，使用已計算好的餘額
+        const transaction = manager.create(WalletTransaction, {
+          userId: latestUser.id,
+          companyId: latestUser.company_id,
+          transactionType: operationType,
+          amount: amount,
+          balanceBefore: oldBalance,
+          balanceAfter: newBalance,
+          description: description,
+          referenceId: undefined,
+          referenceType: 'admin_operation',
+          ipAddress: ip,
+          createdBy: currentUser.id,
+        });
+
+        await manager.save(WalletTransaction, transaction);
+      }
 
       // 🔒 強制記錄所有金額操作到審計日誌
       if (this.auditLogService && ip && platform) {
