@@ -15,14 +15,6 @@ import { CompanyModule as CompanyModuleEntity } from '../company-module/company-
 
 import { AuditLogModule } from '../audit-log/audit-log.module';
 
-console.log('AuthModule 被加載，FacebookStrategy 將被註冊');
-
-// 強制載入 FacebookStrategy
-import('./facebook.strategy').then(() => {
-  console.log('FacebookStrategy 模組已強制載入');
-}).catch(err => {
-  console.error('    FacebookStrategy 模組載入失敗:', err);
-});
 
 @Module({
   imports: [

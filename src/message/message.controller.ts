@@ -14,12 +14,15 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { Request } from 'express';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { MessageService, CreateMessageDto, MessageListQuery } from './message.service';
 import { HybridMessageService, CreateBroadcastDto, CreatePersonalMessageDto } from './hybrid-message.service';
 import { MarqueeTagService } from '../marquee-tag/marquee-tag.service';
+import { User } from '../user/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('api/portal/messages')
+@Controller('api/messages')
 @UseGuards(JwtAuthGuard)
 export class MessageController {
   constructor(
@@ -27,94 +30,58 @@ export class MessageController {
     private readonly hybridMessageService: HybridMessageService
   ) {}
 
+  // 測試端點
+  @Get('test')
+  async testEndpoint() {
+    return { message: '測試成功', timestamp: new Date().toISOString() };
+  }
+
   // 獲取消息列表（包含系統廣播和個人消息）
   @Get()
   async getMessages(@Req() req: Request, @Query() query: MessageListQuery) {
     const user = req.user as any;
     
-    console.log('🔍 getMessages - 用戶資訊:', {
-      id: user.id,
-      username: user.username,
-      company_id: user.company_id,
-      companyId: user.companyId,
-      company: user.company
-    });
-    
-    // 使用 companyId（JWT 策略已經設定好）
-    const companyId = user.companyId;
-    if (!companyId) {
-      console.error('🚨 無法獲取公司ID:', { user });
-      throw new BadRequestException('無法獲取公司ID');
-    }
-    
-    // 獲取未讀廣播
-    const unreadBroadcasts = await this.hybridMessageService.getUnreadBroadcasts(user.id, companyId);
-    
-    // 獲取所有廣播（用於已讀列表，排除用戶已刪除的）
-    const allBroadcastsResult = await this.hybridMessageService.getAllBroadcasts(companyId, 1, 1000, user.id);
-    
-    console.log('📢 廣播查詢結果:', {
-      userId: user.id,
-      companyId: companyId,
-      unreadBroadcastCount: unreadBroadcasts.length,
-      totalBroadcastCount: allBroadcastsResult.broadcasts.length,
-      unreadBroadcasts: unreadBroadcasts.map(b => ({
-        id: b.id,
-        title: b.title,
-        createdAt: b.createdAt
-      })),
-      allBroadcasts: allBroadcastsResult.broadcasts.map(b => ({
-        id: b.id,
-        title: b.title,
-        createdAt: b.createdAt
-      }))
-    });
-    
-    // 獲取個人消息（新表）
-    const personalResult = await this.hybridMessageService.getPersonalMessages(user.id, companyId, query.page || 1, query.limit || 20);
-    
-    // 獲取舊的消息表中的消息
-    const oldMessagesResult = await this.messageService.getMessages(user.id, companyId, { page: 1, limit: 1000 });
-    
-    console.log('📨 個人消息查詢結果:', {
-      userId: user.id,
-      companyId: companyId,
-      newPersonalMessageCount: personalResult.messages.length,
-      oldMessageCount: oldMessagesResult.messages.length,
-      unreadPersonalCount: personalResult.unreadCount,
-      newPersonalMessages: personalResult.messages.map(msg => ({
-        id: msg.id,
-        title: msg.title,
-        isRead: msg.isRead,
-        createdAt: msg.createdAt
-      })),
-      oldMessages: oldMessagesResult.messages.map(msg => ({
-        id: msg.id,
-        title: msg.title,
-        isRead: msg.isRead,
-        messageType: msg.messageType,
-        createdAt: msg.createdAt
-      }))
-    });
+    try {
+      // 使用 companyId（JWT 策略已經設定好）
+      const companyId = user.companyId;
+      if (!companyId) {
+        console.error('🚨 無法獲取公司ID:', { user });
+        throw new BadRequestException('無法獲取公司ID');
+      }
+      
+      // 獲取未讀廣播
+      const unreadBroadcasts = await this.hybridMessageService.getUnreadBroadcasts(user.id, companyId);
+      
+      // 獲取所有廣播（用於已讀列表，排除用戶已刪除的）
+      const allBroadcastsResult = await this.hybridMessageService.getAllBroadcasts(companyId, 1, 1000, user.id);
+      
+      // 獲取個人消息（新表）
+      const personalResult = await this.hybridMessageService.getPersonalMessages(user.id, companyId, query.page || 1, query.limit || 20);
+      
+      // 獲取舊的消息表中的消息
+      const oldMessagesResult = await this.messageService.getMessages(user.id, companyId, { page: 1, limit: 1000 });
+      
+      // 創建未讀廣播ID集合
+      const unreadBroadcastIds = new Set(unreadBroadcasts.map(b => b.id));
 
-    // 創建未讀廣播ID集合
-    const unreadBroadcastIds = new Set(unreadBroadcasts.map(b => b.id));
-
-    // 轉換格式以符合前端期望
-    const allMessages = [
+      // 轉換格式以符合前端期望
+      const allMessages = [
       // 所有系統廣播（根據是否在未讀列表中判斷已讀狀態）
-      ...allBroadcastsResult.broadcasts.map(broadcast => ({
-        id: `broadcast_${broadcast.id}`,
-        title: broadcast.title,
-        content: broadcast.content,
-        messageType: 'SYSTEM' as const,
-        isRead: !unreadBroadcastIds.has(broadcast.id), // 不在未讀列表中就是已讀
-        createdAt: broadcast.createdAt.toISOString(),
-        sender: broadcast.sender ? {
-          id: broadcast.sender.id,
-          username: broadcast.sender.username
-        } : undefined
-      })),
+      ...allBroadcastsResult.broadcasts.map(broadcast => {
+        const isRead = !unreadBroadcastIds.has(broadcast.id);
+        return {
+          id: `broadcast_${broadcast.id}`,
+          title: broadcast.title,
+          content: broadcast.content,
+          messageType: 'SYSTEM' as const,
+          isRead: isRead, // 不在未讀列表中就是已讀
+          createdAt: broadcast.createdAt.toISOString(),
+          sender: broadcast.sender ? {
+            id: broadcast.sender.id,
+            username: broadcast.sender.username
+          } : undefined
+        };
+      }),
       // 新的個人消息（personal_message 表）
       ...personalResult.messages.map(message => ({
         id: message.id,
@@ -143,63 +110,39 @@ export class MessageController {
           username: message.sender.username
         } : undefined
       }))
-    ];
+      ];
 
-    // 按創建時間排序
-    allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // 按創建時間排序
+      allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    console.log('🔄 合併後的消息列表:', {
-      totalMessages: allMessages.length,
-      broadcastMessages: allMessages.filter(m => m.messageType === 'SYSTEM').length,
-      adminMessages: allMessages.filter(m => m.messageType === 'ADMIN').length,
-      userMessages: allMessages.filter(m => m.messageType === 'USER').length,
-      queryIsRead: query.isRead,
-      allMessages: allMessages.map(m => ({
-        id: m.id,
-        title: m.title,
-        messageType: m.messageType,
-        isRead: m.isRead,
-        createdAt: m.createdAt
-      }))
-    });
+      // 應用篩選條件
+      let filteredMessages = allMessages;
+      if (query.isRead !== undefined) {
+        // 確保 query.isRead 是布爾值
+        const isReadFilter = String(query.isRead) === 'true';
+        filteredMessages = allMessages.filter(msg => msg.isRead === isReadFilter);
+      }
 
-    // 應用篩選條件
-    let filteredMessages = allMessages;
-    if (query.isRead !== undefined) {
-      // 確保 query.isRead 是布爾值
-      const isReadFilter = String(query.isRead) === 'true';
-      filteredMessages = allMessages.filter(msg => msg.isRead === isReadFilter);
-      
-      console.log('🔍 篩選後的消息:', {
-        isReadFilter,
-        originalCount: allMessages.length,
-        filteredCount: filteredMessages.length
-      });
+      // 分頁處理  
+      const page = query.page || 1;
+      const limit = query.limit || 20;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
+
+      return {
+        messages: paginatedMessages,
+        total: filteredMessages.length,
+        page: page,
+        limit: limit,
+        totalPages: Math.ceil(filteredMessages.length / limit),
+        unreadCount: filteredMessages.filter(msg => !msg.isRead).length
+      };
+    
+    } catch (error) {
+      console.error('❌ getMessages 錯誤:', error);
+      throw new BadRequestException('獲取消息失敗');
     }
-
-    // 應用分頁
-    const page = query.page || 1;
-    const limit = query.limit || 20;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedMessages = filteredMessages.slice(startIndex, endIndex);
-
-    console.log('📄 分頁結果:', {
-      page,
-      limit,
-      startIndex,
-      endIndex,
-      paginatedCount: paginatedMessages.length,
-      totalPages: Math.ceil(filteredMessages.length / limit)
-    });
-
-    return {
-      messages: paginatedMessages,
-      total: filteredMessages.length,
-      page: page,
-      limit: limit,
-      totalPages: Math.ceil(filteredMessages.length / limit)
-    };
   }
 
   // 獲取未讀消息數量
@@ -207,36 +150,34 @@ export class MessageController {
   async getUnreadCount(@Req() req: Request) {
     const user = req.user as any;
     
-    console.log('🔍 getUnreadCount - 用戶資訊:', {
-      id: user.id,
-      username: user.username,
-      company_id: user.company_id,
-      companyId: user.companyId,
-      company: user.company
-    });
+    try {
+      // 使用 companyId（JWT 策略已經設定好）
+      const companyId = user.companyId;
+      if (!companyId) {
+        console.error('🚨 無法獲取公司ID:', { user });
+        throw new BadRequestException('無法獲取公司ID');
+      }
+      
+      // 獲取未讀廣播數量
+      const unreadBroadcasts = await this.hybridMessageService.getUnreadBroadcasts(user.id, companyId);
+      const unreadBroadcastCount = unreadBroadcasts.length;
+      
+      // 獲取未讀個人消息數量
+      const personalResult = await this.hybridMessageService.getPersonalMessages(user.id, companyId, 1, 1000);
+      const unreadPersonalCount = personalResult.unreadCount;
+      
+      const totalUnreadCount = unreadBroadcastCount + unreadPersonalCount;
     
-    // 使用 companyId（JWT 策略已經設定好）
-    const companyId = user.companyId;
-    if (!companyId) {
-      console.error('🚨 無法獲取公司ID:', { user });
-      throw new BadRequestException('無法獲取公司ID');
+      return { 
+        count: totalUnreadCount,
+        broadcastCount: unreadBroadcastCount,
+        personalCount: unreadPersonalCount
+      };
+    
+    } catch (error) {
+      console.error('❌ getUnreadCount 錯誤:', error);
+      throw new BadRequestException('獲取未讀數量失敗');
     }
-    
-    // 獲取未讀廣播數量
-    const unreadBroadcasts = await this.hybridMessageService.getUnreadBroadcasts(user.id, companyId);
-    const unreadBroadcastCount = unreadBroadcasts.length;
-    
-    // 獲取未讀個人消息數量
-    const personalResult = await this.hybridMessageService.getPersonalMessages(user.id, companyId, 1, 1000);
-    const unreadPersonalCount = personalResult.unreadCount;
-    
-    const totalUnreadCount = unreadBroadcastCount + unreadPersonalCount;
-    
-    return { 
-      count: totalUnreadCount,
-      broadcastCount: unreadBroadcastCount,
-      personalCount: unreadPersonalCount
-    };
   }
 
   // 批量標記為已讀
@@ -275,14 +216,12 @@ export class MessageController {
         try {
           // 先嘗試標記新表（personal_message）中的消息
           await this.hybridMessageService.markPersonalMessageAsRead(messageId, user.id, user.companyId);
-          console.log('✅ 批量標記新表個人消息已讀:', messageId);
         } catch (error) {
           console.log('⚠️ 新表中未找到，嘗試舊表...', messageId);
           
           try {
             // 如果新表中沒有，嘗試舊表（message）
             await this.messageService.markAsRead(messageId, user.id, user.companyId);
-            console.log('✅ 批量標記舊表個人消息已讀:', messageId);
           } catch (oldTableError) {
             console.error('❌ 批量標記失敗:', messageId, oldTableError);
           }
@@ -550,7 +489,9 @@ export class AdminMessageController {
   constructor(
     private readonly messageService: MessageService,
     private readonly hybridMessageService: HybridMessageService,
-    private readonly marqueeTagService: MarqueeTagService
+    private readonly marqueeTagService: MarqueeTagService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   // 管理員獲取所有消息列表
@@ -677,31 +618,66 @@ export class AdminMessageController {
     }
   }
 
-  // 管理員發送消息給特定用戶
+  // 發送系統廣播消息
+  /**
+   * 管理員發送私信給指定用戶
+   */
   @Post('send')
-  async sendMessage(@Body() createMessageDto: CreateMessageDto, @Req() req: Request) {
+  async sendPersonalMessage(@Body() body: { receiverUsername: string; title: string; content: string }, @Req() req: Request) {
     const user = req.user as any;
     
-    // 檢查是否有管理員權限
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
-    if (!allowedRoles.includes(user.role)) {
-      throw new BadRequestException('沒有權限發送消息');
+    if (!body.receiverUsername || !body.title || !body.content) {
+      throw new BadRequestException('收件人、標題和內容均為必填');
     }
 
-    return await this.messageService.sendAdminMessage(user.id, user.companyId, createMessageDto);
+    try {
+      // 根據用戶名查找接收者
+      const receiver = await this.userRepository.findOne({
+        where: { 
+          username: body.receiverUsername,
+          company_id: user.companyId
+        }
+      });
+
+      if (!receiver) {
+        throw new NotFoundException(`找不到用戶：${body.receiverUsername}`);
+      }
+
+      // 發送個人消息
+      const message = await this.hybridMessageService.createPersonalMessage(
+        user.id,
+        user.companyId,
+        {
+          receiverId: receiver.id,
+          title: body.title,
+          content: body.content
+        }
+      );
+
+      return { success: true, message: '私信發送成功', data: message };
+    } catch (error) {
+      console.error('❌ 發送私信失敗:', error);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('發送私信失敗: ' + error.message);
+    }
   }
 
-  // 發送系統廣播消息
   @Post('system-broadcast')
   async sendSystemMessage(@Body() body: { title: string; content: string; broadcastType?: string; targetAudience?: string }, @Req() req: Request) {
     const user = req.user as any;
     
+    console.log('🎯 收到系統廣播發送請求:', { userId: user.id, companyId: user.companyId, body });
+    
     // 客服人員、代理商老闆、超級管理員可以發送系統廣播
     if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
+      console.log('❌ 權限檢查失敗:', { userRole: user.role, allowedRoles: ['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'] });
       throw new BadRequestException('沒有權限發送系統廣播');
     }
 
     if (!body.title || !body.content) {
+      console.log('❌ 參數驗證失敗:', { title: body.title, content: body.content });
       throw new BadRequestException('標題和內容不能為空');
     }
 
@@ -713,13 +689,17 @@ export class AdminMessageController {
         targetAudience: (body.targetAudience as any) || 'ALL'
       };
 
+      console.log('📤 準備呼叫 createBroadcast:', createBroadcastDto);
+      
       await this.hybridMessageService.createBroadcast(user.id, user.companyId, createBroadcastDto);
+      
+      console.log('✅ 系統廣播發送成功');
       return { 
         success: true, 
         message: '系統廣播發送成功' 
       };
     } catch (error) {
-      console.error('系統廣播發送失敗:', error);
+      console.error('❌ 系統廣播發送失敗:', error);
       throw new BadRequestException('系統廣播發送失敗');
     }
   }
@@ -779,16 +759,21 @@ export class AdminMessageController {
   async sendMessageByTags(@Body() body: { title: string; content: string; tagIds: number[] }, @Req() req: Request) {
     const user = req.user as any;
     
+    console.log('🏷️ 收到標籤群組廣播發送請求:', { userId: user.id, companyId: user.companyId, body });
+    
     // 客服人員、代理商老闆、超級管理員可以發送標籤群組消息
     if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
+      console.log('❌ 標籤群組權限檢查失敗:', { userRole: user.role, allowedRoles: ['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'] });
       throw new BadRequestException('沒有權限發送標籤群組消息');
     }
 
     if (!body.title || !body.content) {
+      console.log('❌ 標籤群組參數驗證失敗:', { title: body.title, content: body.content });
       throw new BadRequestException('標題和內容不能為空');
     }
 
     if (!body.tagIds || !Array.isArray(body.tagIds) || body.tagIds.length === 0) {
+      console.log('❌ 標籤群組標籤驗證失敗:', { tagIds: body.tagIds });
       throw new BadRequestException('請選擇至少一個標籤');
     }
 
@@ -797,6 +782,8 @@ export class AdminMessageController {
       const selectedTags = await this.marqueeTagService.findByCompany(user.companyId);
       const targetTags = selectedTags.filter(tag => body.tagIds.includes(tag.id));
       const tagNames = targetTags.map(tag => tag.name).join(', ');
+
+      console.log('🏷️ 標籤查詢結果:', { selectedTags: selectedTags.length, targetTags: targetTags.length, tagNames });
 
       // 創建系統廣播，但標記為標籤群組類型
       const createBroadcastDto = {
@@ -808,13 +795,17 @@ export class AdminMessageController {
         targetTagNames: tagNames
       };
 
+      console.log('📤 準備呼叫 createTagGroupBroadcast:', createBroadcastDto);
+
       await this.hybridMessageService.createTagGroupBroadcast(user.id, user.companyId, createBroadcastDto);
+      
+      console.log('✅ 標籤群組廣播發送成功');
       return { 
         success: true, 
         message: '標籤群組消息發送成功' 
       };
     } catch (error) {
-      console.error('標籤群組消息發送失敗:', error);
+      console.error('❌ 標籤群組消息發送失敗:', error);
       throw new BadRequestException(error.message || '標籤群組消息發送失敗');
     }
   }

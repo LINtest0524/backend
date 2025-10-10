@@ -6,6 +6,8 @@ import { SystemBroadcast } from './system-broadcast.entity';
 import { PersonalMessage } from './personal-message.entity';
 import { UserLoginLog } from './user-login-log.entity';
 import { AuditLog } from '../audit-log/audit-log.entity';
+import { User } from '../user/user.entity';
+import { UserTag } from '../user/user-tag.entity';
 
 @Module({
   imports: [
@@ -13,7 +15,9 @@ import { AuditLog } from '../audit-log/audit-log.entity';
       SystemBroadcast,
       PersonalMessage,
       UserLoginLog,
-      AuditLog
+      AuditLog,
+      User,
+      UserTag
     ])
   ],
   controllers: [HybridMessageController],

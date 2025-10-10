@@ -16,7 +16,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     const jwtSecret = configService.get<string>('JWT_SECRET') || 'fallback_secret';
 
-    console.log('  JWT_SECRET used for verify:', jwtSecret);
 
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -44,14 +43,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new Error('User not found');
     }
-
-    console.log('JWT validation - loaded user:', {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      company: user.company,
-      companyId: user.company?.id,
-    });
 
     // 確保 companyId 屬性直接可用
     return {

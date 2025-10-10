@@ -21,9 +21,6 @@ export class NewsService {
   async findAll(query: NewsQueryDto, companyId?: number) {
     const { page = 1, limit = 10, search, status, category, sortBy = 'publish_date', sortOrder = 'DESC', createdFrom, createdTo } = query;
     
-    console.log('NewsService.findAll - 查詢參數:', {
-      page, limit, search, status, category, sortBy, sortOrder, createdFrom, createdTo, companyId
-    });
     
     const queryBuilder = this.newsRepository.createQueryBuilder('news');
     
@@ -49,12 +46,10 @@ export class NewsService {
     // 日期篩選
     if (createdFrom) {
       queryBuilder.andWhere('news.publish_date >= :createdFrom', { createdFrom });
-      console.log('添加 createdFrom 條件:', createdFrom);
     }
     
     if (createdTo) {
       queryBuilder.andWhere('news.publish_date <= :createdTo', { createdTo });
-      console.log('添加 createdTo 條件:', createdTo);
     }
     
     // 置頂文章優先排序
@@ -104,15 +99,8 @@ export class NewsService {
   }
 
   async findPublicNews(companyId: number, query: NewsQueryDto) {
-    console.log(' findPublicNews 被調用:', { companyId, query });
     const publicQuery = { ...query, status: NewsStatus.ACTIVE };
     const result = await this.findAll(publicQuery, companyId);
-    console.log(' findPublicNews 結果:', { 
-      total: result.total, 
-      page: result.page, 
-      totalPages: result.totalPages,
-      dataLength: result.data?.length 
-    });
     return result;
   }
 

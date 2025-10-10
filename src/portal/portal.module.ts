@@ -16,6 +16,7 @@ import { PortalProductController } from './portal-product.controller'
 import { PortalOrderController } from './portal-order.controller';
 import { PortalShippingController } from './portal-shipping.controller';
 import { PortalPromotionController } from './portal-promotion.controller';
+import { PortalMessageController } from './portal-message.controller';
 
 
 import { UserModule } from '../user/user.module';
@@ -92,6 +93,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalOrderController,
     PortalShippingController,
     PortalPromotionController,
+    PortalMessageController,
   ],
 })
 export class PortalModule {}

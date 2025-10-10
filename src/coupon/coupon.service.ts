@@ -127,9 +127,9 @@ export class CouponService {
     return result;
   }
 
-  // 發放批量優惠碼
+  // 發放批量優惠碼（輕量化批次處理版本）
   async distributeBatchCoupons(companyId: number, adminUserId: number, dto: any): Promise<{ distributedCount: number, message: string }> {
-    console.log('🎯 開始發放優惠券:', { companyId, adminUserId, dto });
+    console.log('🎯 開始批次發放優惠券:', { companyId, adminUserId, dto });
     
     const { templateId, targetType, tagIds, userIds } = dto;
 
@@ -150,24 +150,19 @@ export class CouponService {
 
     console.log('✅ 找到模板:', { id: template.id, name: template.name, type: template.type });
 
-    // 獲取目標用戶列表
-    let targetUsers: any[] = [];
-    console.log('🔍 查詢目標用戶:', { targetType, tagIds, userIds });
+    // 獲取目標用戶數量（不載入全部用戶到記憶體）
+    let totalUserCount = 0;
+    console.log('🔍 統計目標用戶數量:', { targetType, tagIds, userIds });
 
     if (targetType === 'ALL_USERS') {
-      console.log('📋 查詢所有用戶，條件:', { company_id: companyId });
-      // 獲取所有用戶，使用正確的字段名
-      targetUsers = await this.userRepository.find({
+      totalUserCount = await this.userRepository.count({
         where: { 
           company_id: companyId, 
           role: Not(In(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) 
         }
       });
-      console.log('👥 找到用戶數量:', targetUsers.length);
     } else if (targetType === 'TAG_GROUP' && tagIds?.length > 0) {
-      console.log('🏷️ 根據標籤查詢用戶:', { companyId, tagIds });
-      // 根據標籤獲取用戶，使用正確的表名和字段名
-      targetUsers = await this.userRepository
+      totalUserCount = await this.userRepository
         .createQueryBuilder('user')
         .innerJoin('user_tag', 'ut', 'ut.user_id = user.id')
         .where('user.company_id = :companyId', { companyId })
@@ -175,93 +170,160 @@ export class CouponService {
         .andWhere('user.role NOT IN (:...excludeRoles)', { 
           excludeRoles: ['SUPER_ADMIN', 'GLOBAL_ADMIN'] 
         })
-        .getMany();
-      console.log('👥 根據標籤找到用戶數量:', targetUsers.length);
-      console.log('👥 找到的用戶詳情:', targetUsers.map(u => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        role: u.role,
-        company_id: u.company_id
-      })));
+        .getCount();
     } else if (targetType === 'SPECIFIC_USERS' && userIds?.length > 0) {
-      console.log('👤 查詢指定用戶:', { userIds, companyId });
-      targetUsers = await this.userRepository.find({
+      totalUserCount = await this.userRepository.count({
         where: { id: In(userIds), company_id: companyId }
       });
-      console.log('👥 找到指定用戶數量:', targetUsers.length);
     }
 
-    if (targetUsers.length === 0) {
-      console.error('❌ 沒有找到符合條件的用戶');
+    console.log('👥 目標用戶總數:', totalUserCount);
+
+    if (totalUserCount === 0) {
       throw new BadRequestException('沒有找到符合條件的用戶');
     }
 
-    // 過濾已經擁有此模板優惠碼的用戶
-    const existingCoupons = await this.couponRepository.find({
-      where: { templateId, assignedUserId: In(targetUsers.map(u => u.id)) }
-    });
-    
-    const usersWithCoupons = new Set(existingCoupons.map(c => c.assignedUserId));
-    const usersToDistribute = targetUsers.filter(user => !usersWithCoupons.has(user.id));
+    // 批次處理配置
+    const BATCH_SIZE = 500; // 每批處理 500 個用戶
+    const totalBatches = Math.ceil(totalUserCount / BATCH_SIZE);
+    let totalDistributed = 0;
 
-    if (usersToDistribute.length === 0) {
-      throw new BadRequestException('所有目標用戶都已經擁有此優惠碼');
-    }
+    console.log(`📦 開始批次處理: ${totalBatches} 批，每批 ${BATCH_SIZE} 個用戶`);
 
-    // 批量生成優惠碼
-    const couponsToCreate: any[] = [];
-    const maxRetries = 10;
+    // 分批處理用戶
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const offset = batchIndex * BATCH_SIZE;
+      console.log(`🔄 處理第 ${batchIndex + 1}/${totalBatches} 批 (偏移: ${offset})`);
 
-    for (const user of usersToDistribute) {
-      console.log('👤 準備為用戶生成優惠券:', { userId: user.id, username: user.username || user.email, companyId: user.company_id });
+      // 分批獲取用戶
+      let batchUsers: any[] = [];
       
-      let code = '';
-      let attempts = 0;
-      
-      // 確保生成的代碼是唯一的
-      do {
-        code = this.generateCouponCode();
-        attempts++;
-        
-        const existing = await this.couponRepository.findOne({ where: { code } });
-        if (!existing) break;
-        
-        if (attempts >= maxRetries) {
-          throw new BadRequestException('優惠碼生成失敗，請稍後再試');
-        }
-      } while (attempts < maxRetries);
+      if (targetType === 'ALL_USERS') {
+        batchUsers = await this.userRepository.find({
+          where: { 
+            company_id: companyId, 
+            role: Not(In(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) 
+          },
+          skip: offset,
+          take: BATCH_SIZE
+        });
+      } else if (targetType === 'TAG_GROUP' && tagIds?.length > 0) {
+        batchUsers = await this.userRepository
+          .createQueryBuilder('user')
+          .innerJoin('user_tag', 'ut', 'ut.user_id = user.id')
+          .where('user.company_id = :companyId', { companyId })
+          .andWhere('ut.tag_id IN (:...tagIds)', { tagIds })
+          .andWhere('user.role NOT IN (:...excludeRoles)', { 
+            excludeRoles: ['SUPER_ADMIN', 'GLOBAL_ADMIN'] 
+          })
+          .skip(offset)
+          .take(BATCH_SIZE)
+          .getMany();
+      } else if (targetType === 'SPECIFIC_USERS' && userIds?.length > 0) {
+        const batchUserIds = userIds.slice(offset, offset + BATCH_SIZE);
+        batchUsers = await this.userRepository.find({
+          where: { id: In(batchUserIds), company_id: companyId }
+        });
+      }
 
-      couponsToCreate.push({
-        templateId,
-        code,
-        assignedUserId: user.id,
-        isUsed: false,
-        createdAt: new Date()
+      if (batchUsers.length === 0) {
+        console.log(`⏭️ 第 ${batchIndex + 1} 批沒有用戶，跳過`);
+        continue;
+      }
+
+      // 過濾已有優惠券的用戶
+      const existingCoupons = await this.couponRepository.find({
+        where: { templateId, assignedUserId: In(batchUsers.map(u => u.id)) },
+        select: ['assignedUserId']
       });
       
-      console.log('🎫 生成優惠券:', { code, assignedUserId: user.id });
+      const usersWithCoupons = new Set(existingCoupons.map(c => c.assignedUserId));
+      const usersToDistribute = batchUsers.filter(user => !usersWithCoupons.has(user.id));
+
+      if (usersToDistribute.length === 0) {
+        console.log(`⏭️ 第 ${batchIndex + 1} 批用戶都已有優惠券，跳過`);
+        continue;
+      }
+
+      // 批次生成優惠碼（輕量化版本）
+      const batchResult = await this.generateAndSaveCouponBatch(templateId, usersToDistribute);
+      totalDistributed += batchResult.count;
+
+      console.log(`✅ 第 ${batchIndex + 1} 批完成: 發放 ${batchResult.count} 張優惠券`);
+
+      // 短暫休息避免資料庫過載
+      if (batchIndex < totalBatches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
-    // 批量插入優惠碼
-    const savedCoupons = await this.couponRepository.save(couponsToCreate);
-    
-    console.log('💾 優惠券保存完成:', savedCoupons.map(c => ({
-      id: c.id,
-      code: c.code,
-      assignedUserId: c.assignedUserId,
-      templateId: c.templateId
-    })));
-
-    // 發送標籤群組通知 (如果是標籤群組發放)
+    // 發送通知 (異步處理)
     if (targetType === 'TAG_GROUP' && tagIds?.length > 0) {
-      await this.sendCouponNotification(companyId, adminUserId, template, tagIds);
+      setImmediate(() => {
+        this.sendCouponNotification(companyId, adminUserId, template, tagIds);
+      });
     }
+
+    console.log(`🎉 批次發放完成: 總共發放 ${totalDistributed} 張優惠券`);
 
     return {
-      distributedCount: couponsToCreate.length,
-      message: `成功發放 ${couponsToCreate.length} 張優惠券`
+      distributedCount: totalDistributed,
+      message: `成功批次發放 ${totalDistributed} 張優惠券`
     };
+  }
+
+  // 輕量化批次生成和保存優惠券
+  private async generateAndSaveCouponBatch(templateId: number, users: any[]): Promise<{ count: number }> {
+    // 預生成一批唯一代碼（避免在循環中查詢資料庫）
+    const codes = await this.generateUniqueCoupons(users.length);
+    
+    // 直接使用 SQL 批量插入（最高效能）
+    const values = users.map((user, index) => 
+      `(${templateId}, '${codes[index]}', ${user.id}, false, NOW())`
+    ).join(', ');
+
+    const sql = `
+      INSERT INTO coupons (template_id, code, assigned_user_id, is_used, created_at) 
+      VALUES ${values}
+    `;
+
+    await this.dataSource.query(sql);
+    
+    return { count: users.length };
+  }
+
+  // 高效生成唯一優惠碼
+  private async generateUniqueCoupons(count: number): Promise<string[]> {
+    const codes: string[] = [];
+    const maxAttempts = count * 2; // 最多嘗試次數
+    let attempts = 0;
+
+    // 一次查詢所有現有代碼（快取在記憶體中）
+    const existingCodes = new Set<string>();
+    const recentCoupons = await this.couponRepository.find({
+      select: ['code'],
+      order: { id: 'DESC' },
+      take: 50000 // 只檢查最近的 5 萬筆
+    });
+    
+    recentCoupons.forEach(c => existingCodes.add(c.code));
+
+    while (codes.length < count && attempts < maxAttempts) {
+      const code = this.generateCouponCode();
+      
+      if (!existingCodes.has(code) && !codes.includes(code)) {
+        codes.push(code);
+        existingCodes.add(code); // 避免重複
+      }
+      
+      attempts++;
+    }
+
+    if (codes.length < count) {
+      throw new BadRequestException(`只能生成 ${codes.length}/${count} 個唯一優惠碼，請稍後再試`);
+    }
+
+    return codes;
   }
 
   // 發送優惠券通知
@@ -269,23 +331,26 @@ export class CouponService {
     try {
       console.log('🔔 準備發送優惠券通知:', { companyId, adminUserId, templateName: template.name, tagIds });
       
-      // 創建系統廣播訊息
+      // 創建系統廣播訊息（使用正確的字段）
       const broadcastData = {
         companyId,
+        senderId: adminUserId,  // ✅ 使用正確的字段名
         title: `${template.name} 優惠券已發放`,
         content: `恭喜您獲得專屬優惠券！請至「我的優惠券」頁面查看詳情。`,
-        broadcastType: 'COUPON_DISTRIBUTION',
+        broadcastType: 'TAG_GROUP',  // ✅ 使用 Entity 支援的值
+        targetAudience: 'TAG_USERS', // ✅ 發送給標籤用戶
         targetTagIds: JSON.stringify(tagIds),
-        relatedCouponTemplateId: template.id,
-        createdBy: adminUserId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        targetTagNames: null,
+        isActive: true,
+        expiresAt: null,
+        sendToNewMembers: false
       };
 
       await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
       console.log('✅ 優惠券通知發送成功');
     } catch (error) {
       console.error('❌ 發送優惠券通知失敗:', error);
+      console.error('❌ 錯誤詳情:', error.message);
       // 不要讓通知失敗影響優惠券發放
     }
   }
@@ -295,23 +360,26 @@ export class CouponService {
     try {
       console.log('🔔 準備發送公共優惠碼通知:', { companyId, adminUserId, templateName: template.name, couponCode });
       
-      // 創建系統廣播訊息給所有用戶
+      // 創建系統廣播訊息給所有用戶（使用正確的字段）
       const broadcastData = {
         companyId,
+        senderId: adminUserId,  // ✅ 使用正確的字段名
         title: `🎫 新的公共優惠碼：${couponCode}`,
         content: `🎉 ${template.name} 已發放！優惠碼：${couponCode}，請至「我的優惠券」或結帳時使用。`,
-        broadcastType: 'PUBLIC_COUPON_RELEASE',
-        targetTagIds: null, // 公共優惠碼發送給所有用戶
-        relatedCouponTemplateId: template.id,
-        createdBy: adminUserId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        broadcastType: 'GENERAL',  // ✅ 使用 Entity 支援的值
+        targetAudience: 'ALL',     // ✅ 發送給所有用戶
+        targetTagIds: null,
+        targetTagNames: null,
+        isActive: true,
+        expiresAt: null,
+        sendToNewMembers: false
       };
 
       await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
       console.log('✅ 公共優惠碼通知發送成功');
     } catch (error) {
       console.error('❌ 發送公共優惠碼通知失敗:', error);
+      console.error('❌ 錯誤詳情:', error.message);
       // 不要讓通知失敗影響優惠券發放
     }
   }

@@ -6,6 +6,7 @@ import { PersonalMessage } from './personal-message.entity';
 import { UserLoginLog } from './user-login-log.entity';
 import { AuditLog } from '../audit-log/audit-log.entity';
 import { User, UserRole } from '../user/user.entity';
+import { UserTag } from '../user/user-tag.entity';
 
 export interface CreateBroadcastDto {
   title: string;
@@ -47,12 +48,15 @@ export class HybridMessageService {
     
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    
+    @InjectRepository(UserTag)
+    private userTagRepository: Repository<UserTag>,
   ) {}
 
   // ==================== 系統廣播相關 ====================
   
   /**
-   * 檢查用戶是否為新會員（根據審計日誌判斷）
+   * 檢查用戶是否為新會員（最近7天內註冊）
    */
   private async isNewMember(userId: number, companyId: number): Promise<boolean> {
     // 查找該用戶的註冊記錄
@@ -64,25 +68,17 @@ export class HybridMessageService {
       .getOne();
 
     if (!registrationLog) {
-      // 如果沒有找到註冊記錄，回退到原來的邏輯
-      const loginLog = await this.userLoginLogRepository.findOne({
-        where: { userId, companyId }
-      });
-      return !loginLog || loginLog.lastBroadcastCheckAt.getTime() === 0;
+      // 如果沒有找到註冊記錄，表示這個用戶不存在或資料異常
+      return false;
     }
 
-    // 檢查用戶是否已經標記過廣播為已讀
-    const loginLog = await this.userLoginLogRepository.findOne({
-      where: { userId, companyId }
-    });
+    // 計算註冊時間距離現在的天數
+    const now = new Date();
+    const registrationDate = registrationLog.created_at;
+    const daysDiff = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    // 如果沒有廣播檢查記錄，或者廣播檢查時間早於註冊時間，則認為是新會員
-    if (!loginLog || loginLog.lastBroadcastCheckAt.getTime() === 0) {
-      return true;
-    }
-
-    // 如果廣播檢查時間晚於註冊時間，說明已經看過廣播了
-    return loginLog.lastBroadcastCheckAt < registrationLog.created_at;
+    // 新會員定義：最近7天內註冊
+    return daysDiff <= 7;
   }
   
   /**
@@ -93,6 +89,7 @@ export class HybridMessageService {
     companyId: number,
     createBroadcastDto: CreateBroadcastDto
   ): Promise<SystemBroadcast> {
+    
     // 根據廣播類型自動設定是否補發給新會員
     let sendToNewMembers = createBroadcastDto.sendToNewMembers;
     if (sendToNewMembers === undefined) {
@@ -105,7 +102,7 @@ export class HybridMessageService {
           break;
         case 'GENERAL':
         default:
-          sendToNewMembers = false;
+          sendToNewMembers = true; // 修改：讓一般廣播也能被新會員接收
           break;
       }
     }
@@ -117,7 +114,9 @@ export class HybridMessageService {
       sendToNewMembers,
     });
 
-    return await this.broadcastRepository.save(broadcast);
+    const savedBroadcast = await this.broadcastRepository.save(broadcast);
+    
+    return savedBroadcast;
   }
 
   /**
@@ -135,19 +134,21 @@ export class HybridMessageService {
       targetTagNames: string;
     }
   ): Promise<SystemBroadcast> {
+    
     // 驗證標籤ID是否有效
     if (!createBroadcastDto.targetTagIds || createBroadcastDto.targetTagIds.length === 0) {
       throw new Error('請選擇至少一個標籤');
     }
 
     // 檢查是否有用戶擁有這些標籤
-    const usersWithTags = await this.userRepository
-      .createQueryBuilder('user')
-      .innerJoin('user.userTags', 'userTag')
+    const usersWithTags = await this.userTagRepository
+      .createQueryBuilder('userTag')
+      .innerJoin('userTag.user', 'user')
       .where('user.company_id = :companyId', { companyId })
       .andWhere('user.role = :role', { role: UserRole.USER })
       .andWhere('userTag.tag_id IN (:...tagIds)', { tagIds: createBroadcastDto.targetTagIds })
       .getCount();
+
 
     if (usersWithTags === 0) {
       throw new Error('找不到具有指定標籤的用戶');
@@ -166,16 +167,18 @@ export class HybridMessageService {
       sendToNewMembers: false, // 標籤群組不補發給新會員
     });
 
-    return await this.broadcastRepository.save(broadcast);
+    const savedBroadcast = await this.broadcastRepository.save(broadcast);
+    
+    return savedBroadcast;
   }
 
   /**
    * 檢查用戶是否擁有指定標籤
    */
   private async userHasTags(userId: number, companyId: number, tagIds: number[]): Promise<boolean> {
-    const userTagCount = await this.userRepository
-      .createQueryBuilder('user')
-      .innerJoin('user.userTags', 'userTag')
+    const userTagCount = await this.userTagRepository
+      .createQueryBuilder('userTag')
+      .innerJoin('userTag.user', 'user')
       .where('user.id = :userId', { userId })
       .andWhere('user.company_id = :companyId', { companyId })
       .andWhere('userTag.tag_id IN (:...tagIds)', { tagIds })
@@ -195,7 +198,21 @@ export class HybridMessageService {
 
     // 使用新的新會員判斷邏輯
     const isNewMemberResult = await this.isNewMember(userId, companyId);
-    const userRegistrationTime = loginLog?.lastLoginAt || new Date();
+    
+    // 獲取用戶的註冊時間
+    let userRegistrationTime = new Date(0); // 預設很早的時間
+    if (isNewMemberResult) {
+      const registrationLog = await this.auditLogRepository
+        .createQueryBuilder('audit')
+        .where('audit.user_id = :userId', { userId })
+        .andWhere('audit.action LIKE :action', { action: '%註冊後自動登入%' })
+        .orderBy('audit.created_at', 'ASC')
+        .getOne();
+      
+      if (registrationLog) {
+        userRegistrationTime = registrationLog.created_at;
+      }
+    }
     
     // 解析已刪除的廣播ID列表
     let deletedBroadcastIds: number[] = [];
@@ -222,10 +239,14 @@ export class HybridMessageService {
       .andWhere('(broadcast.expiresAt IS NULL OR broadcast.expiresAt > NOW())');
     
     if (isNewMemberResult) {
-      // 新會員邏輯：只接收標記為「補發給新會員」的廣播 + 新會員專屬廣播
+      // 新會員邏輯：接收新會員專屬廣播 + 標記為「補發給新會員」的廣播 + 標籤群組廣播
       queryBuilder = queryBuilder.andWhere(
-        '(broadcast.sendToNewMembers = true OR broadcast.broadcastType = :newMemberType)',
-        { newMemberType: 'NEW_MEMBER' }
+        '(broadcast.broadcastType = :newMemberType OR broadcast.broadcastType = :tagGroupType OR (broadcast.sendToNewMembers = true AND broadcast.createdAt > :userRegistrationTime))',
+        { 
+          newMemberType: 'NEW_MEMBER',
+          tagGroupType: 'TAG_GROUP',
+          userRegistrationTime: userRegistrationTime
+        }
       );
       
       // 新會員還需要檢查有效天數限制（PostgreSQL 語法）
@@ -233,11 +254,8 @@ export class HybridMessageService {
         '(broadcast.validDays IS NULL OR EXTRACT(DAY FROM (NOW() - broadcast.createdAt)) <= broadcast.validDays)'
       );
     } else {
-      // 現有會員邏輯：接收在最後檢查時間之後的廣播，但排除新會員專屬廣播
-      const lastCheckTime = loginLog?.lastBroadcastCheckAt || new Date(0);
-      queryBuilder = queryBuilder
-        .andWhere('broadcast.createdAt > :lastCheckTime', { lastCheckTime })
-        .andWhere('broadcast.broadcastType != :newMemberType', { newMemberType: 'NEW_MEMBER' });
+      // 舊會員邏輯：顯示所有廣播（除了新會員專屬廣播），包含標籤群組廣播
+      queryBuilder = queryBuilder.andWhere('broadcast.broadcastType != :newMemberType', { newMemberType: 'NEW_MEMBER' });
     }
     
     // 排除已刪除的廣播
@@ -319,10 +337,24 @@ export class HybridMessageService {
     // 根據會員類型過濾廣播
     if (userId) {
       if (isNewMember) {
-        // 新會員：只顯示標記為「補發給新會員」的廣播 + 新會員專屬廣播
+        // 獲取用戶的註冊時間
+        const registrationLog = await this.auditLogRepository
+          .createQueryBuilder('audit')
+          .where('audit.user_id = :userId', { userId })
+          .andWhere('audit.action LIKE :action', { action: '%註冊後自動登入%' })
+          .orderBy('audit.created_at', 'ASC')
+          .getOne();
+        
+        const userRegistrationTime = registrationLog ? registrationLog.created_at : new Date(0);
+        
+        // 新會員：接收新會員專屬廣播 + 標記為「補發給新會員」且在註冊後建立的廣播 + 標籤群組廣播
         queryBuilder = queryBuilder.andWhere(
-          '(broadcast.sendToNewMembers = true OR broadcast.broadcastType = :newMemberType)',
-          { newMemberType: 'NEW_MEMBER' }
+          '(broadcast.broadcastType = :newMemberType OR broadcast.broadcastType = :tagGroupType OR (broadcast.sendToNewMembers = true AND broadcast.createdAt > :userRegistrationTime))',
+          { 
+            newMemberType: 'NEW_MEMBER',
+            tagGroupType: 'TAG_GROUP',
+            userRegistrationTime: userRegistrationTime
+          }
         );
         
         // 新會員還需要檢查有效天數限制（PostgreSQL 語法）
@@ -330,7 +362,7 @@ export class HybridMessageService {
           '(broadcast.validDays IS NULL OR EXTRACT(DAY FROM (NOW() - broadcast.createdAt)) <= broadcast.validDays)'
         );
       } else {
-        // 現有會員：排除新會員專屬廣播
+        // 舊會員：排除新會員專屬廣播
         queryBuilder = queryBuilder.andWhere('broadcast.broadcastType != :newMemberType', { newMemberType: 'NEW_MEMBER' });
       }
     }
@@ -406,11 +438,10 @@ export class HybridMessageService {
     });
 
     if (existingLog) {
-      // 更新現有記錄
+      // 更新現有記錄，但不更新 lastBroadcastCheckAt，讓會員能持續看到廣播
       await this.userLoginLogRepository.update(
         { userId, companyId },
         { 
-          lastBroadcastCheckAt: new Date(),
           lastLoginAt: new Date()
         }
       );
@@ -419,7 +450,7 @@ export class HybridMessageService {
       const newLog = this.userLoginLogRepository.create({
         userId,
         companyId,
-        lastBroadcastCheckAt: new Date(),
+        lastBroadcastCheckAt: new Date(0), // 設為很早的時間
         lastLoginAt: new Date(),
         deletedBroadcastIds: '[]'
       });
@@ -485,7 +516,6 @@ export class HybridMessageService {
       await this.userLoginLogRepository.save(newLog);
     }
     
-    console.log(`✅ 用戶 ${userId} 已標記廣播 ${broadcastId} 為已讀，已讀列表:`, readBroadcastIds);
   }
 
   /**
@@ -513,12 +543,11 @@ export class HybridMessageService {
         deletedBroadcastIds.push(broadcastId);
       }
       
-      // 更新記錄
+      // 更新記錄，但不更新 lastBroadcastCheckAt
       await this.userLoginLogRepository.update(
         { userId, companyId },
         { 
           deletedBroadcastIds: JSON.stringify(deletedBroadcastIds),
-          lastBroadcastCheckAt: new Date(),
           lastLoginAt: new Date()
         }
       );
@@ -528,14 +557,13 @@ export class HybridMessageService {
       const newLog = this.userLoginLogRepository.create({
         userId,
         companyId,
-        lastBroadcastCheckAt: new Date(),
+        lastBroadcastCheckAt: new Date(0), // 設為很早的時間
         lastLoginAt: new Date(),
         deletedBroadcastIds: JSON.stringify(deletedBroadcastIds)
       });
       await this.userLoginLogRepository.save(newLog);
     }
     
-    console.log(`✅ 用戶 ${userId} 已刪除廣播 ${broadcastId}，已刪除列表:`, deletedBroadcastIds);
   }
 
   // ==================== 個人訊息相關 ====================
@@ -597,7 +625,7 @@ export class HybridMessageService {
   /**
    * 標記個人訊息為已讀
    */
-  async markPersonalMessageAsRead(messageId: number, userId: number, companyId?: number): Promise<void> {
+  async markPersonalMessageAsRead(messageId: number, userId: number, companyId?: number): Promise<{ success: boolean }> {
     const updateConditions: any = { id: messageId, receiverId: userId };
     if (companyId) {
       updateConditions.companyId = companyId;
@@ -608,22 +636,17 @@ export class HybridMessageService {
       { isRead: true, readAt: new Date() }
     );
     
-    console.log(`📝 標記個人消息已讀結果:`, {
-      messageId,
-      userId,
-      companyId,
-      affected: result.affected
-    });
-    
     if (result.affected === 0) {
       throw new Error(`個人消息 ${messageId} 不存在或無權限標記為已讀`);
     }
+    
+    return { success: true };
   }
 
   /**
    * 刪除個人訊息（軟刪除）
    */
-  async deletePersonalMessage(messageId: number, userId: number, companyId?: number): Promise<void> {
+  async deletePersonalMessage(messageId: number, userId: number, companyId?: number): Promise<{ success: boolean }> {
     const updateConditions: any = { id: messageId, receiverId: userId };
     if (companyId) {
       updateConditions.companyId = companyId;
@@ -634,16 +657,11 @@ export class HybridMessageService {
       { isDeletedByReceiver: true }
     );
     
-    console.log(`🗑️ 刪除個人消息結果:`, {
-      messageId,
-      userId,
-      companyId,
-      affected: result.affected
-    });
-    
     if (result.affected === 0) {
       throw new Error(`個人消息 ${messageId} 不存在或無權限刪除`);
     }
+    
+    return { success: true };
   }
 
   // ==================== 綜合功能 ====================

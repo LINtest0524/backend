@@ -32,39 +32,32 @@ export class AuthService {
   pass: string,
   companyCode?: string,
 ): Promise<User | null> {
-  console.log('validateUser called:', username, companyCode);
   
 
   
   const user = await this.userService.findOneByUsername(username, ['company']);
 
-  console.log(' 查詢帳號:', user);
   
 
   if (!user) {
-    console.log('    查無此帳號');
     return null;
   }
 
   if (companyCode) {
     const decodedCode = decodeURIComponent(companyCode);
     if (user.company?.code !== decodedCode) {
-      console.log(`Company code mismatch: user = ${user.company?.code}, from URL = ${decodedCode}`);
       return null;
     }
   }
 
   if (!user.password) {
-    console.log('    使用者密碼為空');
     return null;
   }
   
   const isMatch = await bcrypt.compare(pass, user.password);
   
-  console.log(' 密碼比對結果:', isMatch);
 
   if (!isMatch) {
-    console.log('    密碼錯誤');
     return null;
   }
 
@@ -98,7 +91,6 @@ export class AuthService {
     platform: string,
     companyCode?: string,
   ): Promise<{ user: any; token: string }> {
-    console.log(' login service hit', companyCode);
 
     const user = await this.validateUser(username, password, companyCode);
 
@@ -128,7 +120,6 @@ export class AuthService {
     };
 
     const secret = this.configService.get('JWT_SECRET');
-    console.log(`  正在簽發 JWT，使用的 secret 是: ${secret}`);
     const token = this.jwtService.sign(payload, { secret });
 
     let enabledModules: CompanyModule[] = [];
@@ -155,8 +146,6 @@ export class AuthService {
   }
 
   async validateFacebookUser(facebookUser: any, companyCode?: string): Promise<any> {
-    console.log(' Facebook 用戶資料:', facebookUser);
-    console.log(' 登入的公司代碼:', companyCode);
     
     const { facebookId, firstName, lastName, picture } = facebookUser;
 
@@ -167,9 +156,7 @@ export class AuthService {
       const company = await companyRepo.findOne({ where: { code: companyCode } });
       if (company) {
         companyId = company.id;
-        console.log(` 找到公司: ${company.name} (ID: ${companyId})`);
       } else {
-        console.log(`   not found公司代碼 ${companyCode}，使用預設公司`);
       }
     }
 
@@ -182,11 +169,9 @@ export class AuthService {
       relations: ['company'],
     });
 
-    console.log(' 找到該公司的現有用戶:', user ? 'Yes' : 'No');
 
     // 如果還是沒找到，為該公司創建新用戶
     if (!user) {
-      console.log(` 為公司 ${companyCode} 創建新的 Facebook 用戶...`);
       
       // 生成唯一的用戶名（包含公司代碼以避免衝突）
       const username = `fb_${facebookId}_${companyCode || 'default'}`;
@@ -205,7 +190,6 @@ export class AuthService {
       
       try {
         await this.userRepository.save(user);
-        console.log(`  新用戶created successfully: ${username}`);
         
         // 重新查詢以獲取完整的關聯資料
         user = await this.userRepository.findOne({
