@@ -18,7 +18,7 @@ import { AuditLog } from '../audit-log/audit-log.entity';
   imports: [
     TypeOrmModule.forFeature([Message, User, UserTag, SystemBroadcast, PersonalMessage, UserLoginLog, AuditLog, MarqueeTag]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
+      secret: process.env.JWT_SECRET || 'fallback_secret',
       signOptions: { expiresIn: '24h' },
     }),
   ],

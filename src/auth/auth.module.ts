@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { SessionService } from '../common/session.service';
 
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
@@ -27,7 +28,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET') || 'fallback_secret',
-        signOptions: { expiresIn: '1d' },
+        signOptions: { expiresIn: '7d' },
       }),
     }),
     UserModule,
@@ -37,11 +38,12 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
   providers: [
     AuthService,
     JwtStrategy,
+    SessionService,
     {
       provide: FacebookStrategy,
       useClass: FacebookStrategy,
     },
   ],
-  exports: [AuthService],
+  exports: [AuthService, SessionService],
 })
 export class AuthModule {}

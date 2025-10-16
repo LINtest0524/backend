@@ -16,6 +16,8 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import * as UAParser from 'ua-parser-js';
+import { SessionService } from '../common/session.service';
+import { JwtService } from '@nestjs/jwt';
 
 // 統一 IP 格式的輔助函數
 function normalizeIP(ip: string): string {
@@ -32,7 +34,11 @@ function normalizeIP(ip: string): string {
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly sessionService: SessionService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   // 將 normalizeIP 設為類方法，方便調用
   private normalizeIP(ip: string): string {
@@ -107,6 +113,27 @@ export class AuthController {
     return {
       user: req.user,
       message: '當前用戶資訊'
+    };
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  async logout(@Req() req: Request) {
+    // 從 Authorization header 獲取 token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      // 清除會話
+      const sessionRemoved = this.sessionService.removeSession(token);
+      
+      return {
+        message: sessionRemoved ? '登出成功' : '登出成功（會話已過期）',
+      };
+    }
+    
+    return {
+      message: '登出成功',
     };
   }
 

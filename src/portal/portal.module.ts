@@ -4,6 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { PortalAuthController } from './portal-auth.controller';
+import { LoginAttemptService } from '../common/login-attempt.service';
+import { SessionService } from '../common/session.service';
 import { PortalBannerController } from './portal-banner.controller';
 import { PortalModuleController } from './portal-module.controller'; //   正確
 import { PortalFloatingAdController } from './portal-floating-ad.controller';
@@ -22,6 +24,7 @@ import { PortalMessageController } from './portal-message.controller';
 import { UserModule } from '../user/user.module';
 import { OrderModule } from '../order/order.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { AuthModule } from '../auth/auth.module';
 import { BannerModule } from '../banner/banner.module';
 import { MarqueeModule } from '../marquee/marquee.module';
 import { FloatingAdModule } from '../floating-ad/floating-ad.module';
@@ -48,6 +51,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     ConfigModule,
     UserModule,
     AuditLogModule,
+    AuthModule,
     BannerModule,
     MarqueeModule,
     FloatingAdModule,
@@ -74,7 +78,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET'),
+        secret: config.get('JWT_SECRET') || 'fallback_secret',
         signOptions: { expiresIn: '7d' },
       }),
     }),
@@ -94,6 +98,9 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalShippingController,
     PortalPromotionController,
     PortalMessageController,
+  ],
+  providers: [
+    LoginAttemptService
   ],
 })
 export class PortalModule {}

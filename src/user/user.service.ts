@@ -941,11 +941,11 @@ if (format === 'xlsx') {
   if (!user) return null;
 
   if (!user.password) {
-    throw new UnauthorizedException('使用者密碼未設定');
+    return null; // 統一回傳 null，讓 Controller 處理
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) throw new UnauthorizedException('密碼錯誤');
+  if (!isMatch) return null; // 統一回傳 null，讓 Controller 處理
 
   if (user.is_blacklisted) {
     throw new UnauthorizedException('此帳號已被封鎖，請聯絡客服');

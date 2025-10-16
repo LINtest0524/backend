@@ -7,6 +7,7 @@ import {
   ConflictException,
   Get,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
@@ -16,6 +17,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CompanyModule } from '../company-module/company-module.entity';
 import * as UAParser from 'ua-parser-js';
+import { CsrfGuard } from '../common/csrf.guard';
+import { LoginAttemptService } from '../common/login-attempt.service';
+import { SessionService } from '../common/session.service';
 
 // 統一 IP 格式的輔助函數
 function normalizeIP(ip: string): string {
@@ -35,6 +39,8 @@ export class PortalAuthController {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly auditLogService: AuditLogService,
+    private readonly loginAttemptService: LoginAttemptService,
+    private readonly sessionService: SessionService,
     @InjectRepository(CompanyModule)
     private readonly moduleRepo: Repository<CompanyModule>,
   ) {}
@@ -45,6 +51,7 @@ export class PortalAuthController {
 
 
 @Post('register')
+@UseGuards(CsrfGuard)
 async register(@Body() body: RegisterDto, @Req() req: any) {
   const companyCode = req.query.company;
 
@@ -54,7 +61,7 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
 
   const existing = await this.userService.findOneByUsername(body.username);
   if (existing) {
-    throw new ConflictException('帳號already exists');
+    throw new ConflictException('註冊失敗，請檢查輸入資料');
   }
 
   const user = await this.userService.createFromPortal({
@@ -122,6 +129,15 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
 
   const token = this.jwtService.sign(payload);
 
+  // 創建會話記錄
+  this.sessionService.createSession(
+    fullUser.id,
+    fullUser.username,
+    fullUser.company?.id ?? 0,
+    token,
+    platform
+  );
+
   return {
     message: '註冊成功',
     token,
@@ -140,32 +156,22 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
 
 
   @Post('login')
+  @UseGuards(CsrfGuard)
   async login(
     @Body() body: { username: string; password: string },
     @Req() req: any,
   ) {
     const { username, password } = body;
-
-    const user = await this.userService.validatePortalUser(username, password);
-    if (!user) {
-      throw new UnauthorizedException('帳號或密碼錯誤');
-    }
-
     const companyCode = req.query.company;
-    if (companyCode && user.company?.code !== companyCode) {
-      console.warn(` 公司代碼錯誤：帳號 ${user.username} 嘗試從 ${companyCode} 登入`);
-      throw new UnauthorizedException('帳號或密碼錯誤');
-    }
 
+    // 🔹 收集 IP 與平台裝置資訊
     const rawIp =
       (req.headers['x-forwarded-for'] as string) ||
       req.socket?.remoteAddress ||
       req.ip ||
       'unknown';
     
-    // 統一 IP 格式：將 IPv6 localhost 轉換為 IPv4
     const clientIp = normalizeIP(rawIp);
-
     const userAgent = req.headers['user-agent'] || '';
     const parser = new UAParser.UAParser(userAgent);
     const info = parser.getResult();
@@ -178,37 +184,71 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
     } else if (deviceType === 'tablet') {
       device = '平板';
     } else {
-      device = '電腦'; //   改這行，把 unknown 譯為「電腦」
+      device = '電腦';
     }
 
     const os = `${info.os.name} ${info.os.version}`;
     const browser = `${info.browser.name} ${info.browser.version}`;
     const platform = `${device} / ${os} / ${browser}`;
 
-    //   寫入操作紀錄：登入代理商官網
+    // 1. 檢查是否被封鎖
+    const attemptKey = `${clientIp}:${username}`;
+    if (this.loginAttemptService.isBlocked(attemptKey)) {
+      const remainingTime = this.loginAttemptService.getBlockedTimeRemaining(attemptKey);
+      throw new UnauthorizedException(`登入失敗次數過多，請於 ${remainingTime} 分鐘後再試`);
+    }
+
+    // 2. 驗證用戶
+    const user = await this.userService.validatePortalUser(username, password);
+    if (!user) {
+      // 記錄失敗嘗試
+      this.loginAttemptService.recordFailedAttempt(attemptKey);
+      throw new UnauthorizedException('帳號或密碼錯誤');
+    }
+
+    // 3. 檢查公司代碼
+    if (companyCode && user.company?.code !== companyCode) {
+      this.loginAttemptService.recordFailedAttempt(attemptKey);
+      throw new UnauthorizedException('帳號或密碼錯誤');
+    }
+
+    // 4. 清除失敗記錄（登入成功）
+    this.loginAttemptService.clearAttempts(attemptKey);
+
+    // 5. 生成 JWT Token
+    const payload = {
+      userId: user.id,
+      username: user.username,
+      companyId: user.company?.id ?? null,
+    };
+    const token = this.jwtService.sign(payload);
+
+    // 6. 創建會話（後者踢掉前者）
+    this.sessionService.createSession(
+      user.id, 
+      user.username, 
+      user.company?.id ?? 0, 
+      token, 
+      platform
+    );
+
+    // 7. 記錄登入操作
     await this.userService.updateLoginInfo(user.id, clientIp, platform);
     await this.auditLogService.record({
       user,
       action: `登入代理商${user.company?.code ?? ''}官網`,
       ip: clientIp,
       platform,
-      target: `login-portal:${user.id}`, //   必須補上，讓前台能篩選登入紀錄
+      target: `login-portal:${user.id}`,
     });
 
-
-
-    const token = this.jwtService.sign({
-      userId: user.id,
-      username: user.username,
-      companyId: user.company?.id ?? null,
-    });
-
+    // 8. 獲取啟用模組
     const enabledModules = await this.moduleRepo.find({
       where: { company: { id: user.company.id }, enabled: true },
     });
 
     return {
-      message: 'Login successful',
+      message: '登入成功',
       token,
       user: {
         id: user.id,
@@ -223,6 +263,7 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
       },
     };
   }
+
 
   @Post('verify-token')
   async verifyToken(@Headers('authorization') authHeader: string, @Req() req: any) {
@@ -258,6 +299,12 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
 
       if (user.status !== 'ACTIVE') {
         throw new UnauthorizedException('帳號已inactive或封鎖，無法登入');
+      }
+
+      // 🔹 檢查會話是否有效（前台用戶需要檢查踢出機制）
+      const session = this.sessionService.validateToken(token);
+      if (!session) {
+        throw new UnauthorizedException('會話已失效，請重新登入');
       }
 
       // 🔹 收集 IP 與平台裝置資訊
@@ -433,6 +480,9 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
       const browser = `${info.browser.name} ${info.browser.version}`;
       const platform = `${device} / ${os} / ${browser}`;
 
+      // 清除會話（會話管理）
+      const sessionRemoved = this.sessionService.removeSession(token);
+      
       // 記錄登出操作
       await this.auditLogService.record({
         user,
@@ -443,7 +493,7 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
       });
 
       return {
-        message: '登出成功',
+        message: sessionRemoved ? '登出成功' : '登出成功（會話已過期）',
       };
     } catch (error) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
@@ -451,5 +501,14 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
       }
       throw error;
     }
+  }
+
+  @Post('reset-sessions')
+  async resetSessions() {
+    // 開發階段用：清除所有會話
+    this.sessionService.clearAllSessions();
+    return {
+      message: '所有會話已清除',
+    };
   }
 }

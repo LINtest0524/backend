@@ -12,6 +12,7 @@ import { Company } from '../company/company.entity';
 import { Blacklist } from '../blacklist/blacklist.entity';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { SessionService } from '../common/session.service';
 
 
 @Injectable()
@@ -28,6 +29,7 @@ export class AuthService {
     @InjectRepository(Blacklist)
     private readonly blacklistRepository: Repository<Blacklist>,
     private readonly auditLogService: AuditLogService,
+    private readonly sessionService: SessionService,
   ) {}
 
   // 統一 IP 格式的輔助函數
@@ -193,6 +195,15 @@ export class AuthService {
     const secret = this.configService.get('JWT_SECRET');
     const token = this.jwtService.sign(payload, { secret });
 
+    // 創建會話記錄
+    this.sessionService.createSession(
+      user.id,
+      user.username,
+      user.company?.id ?? 0,
+      token,
+      `${platform} - ${clientIp}`
+    );
+
     let enabledModules: CompanyModule[] = [];
 
     if (user.company?.id) {
@@ -309,6 +320,15 @@ export class AuthService {
 
     const secret = this.configService.get('JWT_SECRET');
     const token = this.jwtService.sign(payload, { secret });
+
+    // 創建會話記錄
+    this.sessionService.createSession(
+      validatedUser.id,
+      validatedUser.username,
+      validatedUser.company?.id ?? 0,
+      token,
+      `${platform} - ${clientIp}`
+    );
 
     let enabledModules: CompanyModule[] = [];
 

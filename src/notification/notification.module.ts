@@ -9,7 +9,7 @@ import { IdentityVerification } from '../identity-verification/identity-verifica
   imports: [
     TypeOrmModule.forFeature([IdentityVerification]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
+      secret: process.env.JWT_SECRET || 'fallback_secret',
       signOptions: { expiresIn: '24h' },
     }),
   ],
