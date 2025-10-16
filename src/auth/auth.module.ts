@@ -12,6 +12,7 @@ import { AuthController } from './auth.controller';
 import { UserModule } from '../user/user.module';
 import { User } from '../user/user.entity';
 import { CompanyModule as CompanyModuleEntity } from '../company-module/company-module.entity'; //   改名避免與 Nest 的 Module 撞名
+import { Blacklist } from '../blacklist/blacklist.entity';
 
 import { AuditLogModule } from '../audit-log/audit-log.module';
 
@@ -30,7 +31,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
       }),
     }),
     UserModule,
-    TypeOrmModule.forFeature([CompanyModuleEntity, User]), //   用改名後的 Entity
+    TypeOrmModule.forFeature([CompanyModuleEntity, User, Blacklist]), //   用改名後的 Entity
   ],
   controllers: [AuthController],
   providers: [

@@ -49,6 +49,18 @@ export class UserService {
     private readonly walletTransactionService: WalletTransactionService,
   ) {}
 
+  // 統一 IP 格式的輔助函數（與 auth.controller.ts 一致）
+  private normalizeIP(ip: string): string {
+    if (ip === '::1' || ip === '::ffff:127.0.0.1' || ip === '127.0.0.1') {
+      return '127.0.0.1'; // 統一顯示為 IPv4 localhost
+    }
+    // 處理其他 IPv6 mapped IPv4 地址
+    if (ip.startsWith('::ffff:')) {
+      return ip.substring(7); // 移除 ::ffff: 前綴
+    }
+    return ip;
+  }
+
 
 
 
@@ -72,7 +84,7 @@ export class UserService {
 
 
   async create(createUserDto: CreateUserDto, creator: User, ip?: string, platform?: string): Promise<User> {
-    const { username, password, email, modules, role, companyId } = createUserDto;
+    const { username, password, email, modules, role, companyId, department_type } = createUserDto;
 
     if (creator.role === 'AGENT_SUPPORT') {
       throw new UnauthorizedException('AGENT_SUPPORT 不可新增帳號');
@@ -106,6 +118,7 @@ export class UserService {
       role: role as any,
       company,
       created_by: creator,
+      department_type: department_type ?? null,
     });
 
     const savedUser: User = await this.userRepository.save(user);
@@ -129,7 +142,7 @@ export class UserService {
     if (this.auditLogService && ip && platform) {
       await this.auditLogService.record({
         user: { id: creator.id },
-        action: `新增後台使用者 - ${savedUser.username}（角色：${savedUser.role}）`,
+        action: `新增後台使用者 - ${savedUser.username}（角色：${savedUser.role}${department_type ? `，部門：${department_type}` : ''}）`,
         ip,
         platform,
         target: `admin-user:${savedUser.id}`,
@@ -137,6 +150,7 @@ export class UserService {
           username: savedUser.username,
           role: savedUser.role,
           email: savedUser.email,
+          department_type: savedUser.department_type,
           modules: modules ?? [],
         },
       });
@@ -181,12 +195,14 @@ async update(
     throw new BadRequestException('更新資料不可為空');
   }
 
-  const { email, status, modules, is_blacklisted } = updateUserDto;
+  const { email, status, modules, is_blacklisted, ip_whitelist, department_type } = updateUserDto;
   const before = { ...user };
 
   if (email !== undefined) user.email = email;
   if (status !== undefined) user.status = status;
   if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
+  if (ip_whitelist !== undefined) user.ip_whitelist = ip_whitelist;
+  if (department_type !== undefined) user.department_type = department_type;
 
   await this.userRepository.save(user);
 
@@ -287,6 +303,44 @@ if (
     });
   }
 
+  //   log4：紀錄IP白名單變更
+  if (
+    this.auditLogService &&
+    ip &&
+    platform &&
+    ip_whitelist !== undefined &&
+    ip_whitelist !== before.ip_whitelist
+  ) {
+    await this.auditLogService.record({
+      user: { id: currentUser.id },
+      action: `🔒 IP白名單變更 - ${user.username}（${before.ip_whitelist ?? '無限制'} → ${ip_whitelist ?? '無限制'}）`,
+      ip,
+      platform,
+      target: `admin-user:${user.id}`,
+      before: { ip_whitelist: before.ip_whitelist },
+      after: { ip_whitelist: user.ip_whitelist },
+    });
+  }
+
+  //   log5：紀錄部門類型變更
+  if (
+    this.auditLogService &&
+    ip &&
+    platform &&
+    department_type !== undefined &&
+    department_type !== before.department_type
+  ) {
+    await this.auditLogService.record({
+      user: { id: currentUser.id },
+      action: `🏢 部門類型變更 - ${user.username}（${before.department_type ?? '未設定'} → ${department_type ?? '未設定'}）`,
+      ip,
+      platform,
+      target: `admin-user:${user.id}`,
+      before: { department_type: before.department_type },
+      after: { department_type: user.department_type },
+    });
+  }
+
   return user;
 }
 
@@ -383,6 +437,7 @@ async findOneByUsername(username: string, relations: string[] = []): Promise<Use
       'role',
       'status',
       'is_blacklisted',
+      'ip_whitelist', // 添加IP白名單欄位
     ],
     relations,
   });
@@ -502,6 +557,7 @@ async findAll(
       email: user.email,
       status: user.status,
       role: user.role,
+      department_type: user.department_type,
       last_login_at: user.last_login_at,
       last_login_ip: user.last_login_ip,
       last_login_platform: user.last_login_platform,
@@ -940,13 +996,26 @@ if (format === 'xlsx') {
 
 
 async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
+    // 全域管理員可以查詢所有用戶，其他角色只能查詢同公司用戶
+    const isGlobalAdmin = ['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(currentUser.role);
+    
+    const whereClause: any = { id, deleted_at: IsNull() };
+    if (!isGlobalAdmin) {
+      whereClause.company = { id: currentUser.company_id };
+    }
+    
     const user = await this.userRepository.findOne({
-      where: { id, company: { id: currentUser.company_id }, deleted_at: IsNull() },
+      where: whereClause,
       relations: ['company'],
     });
+    
     if (!user) {
-      throw new NotFoundException('not found該使用者或不屬於你的公司');
+      const errorMsg = isGlobalAdmin 
+        ? 'not found該使用者' 
+        : 'not found該使用者或不屬於你的公司';
+      throw new NotFoundException(errorMsg);
     }
+    
     return user;
   }
 
@@ -1333,10 +1402,16 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     // 🔒 使用 transaction 確保資料一致性
     return await this.userRepository.manager.transaction(async manager => {
       // 重新查詢最新資料，避免併發問題
-      const latestUser = await manager.findOne(User, { where: { id: userId } });
+      const latestUser = await manager.findOne(User, { 
+        where: { id: userId },
+        relations: ['company']
+      });
       if (!latestUser) {
         throw new BadRequestException('用戶不存在');
       }
+      
+      // 確保有 username，如果沒有則使用 ID 作為備用
+      const displayUsername = latestUser.username || `用戶${latestUser.id}`;
 
       const oldBalance = latestUser.balance || 0;
       const newBalance = oldBalance + amount;
@@ -1384,17 +1459,21 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
         
         await this.auditLogService.record({
           user: { id: currentUser.id },
-          action: `💰 ${operationType}操作 - ${latestUser.username}（金額：${operationAmount}，餘額：${oldBalance} → ${newBalance}）`,
-          ip,
+          action: `💰 ${operationType}操作 - ${displayUsername}（金額：${operationAmount}，餘額：${oldBalance} → ${newBalance}）`,
+          ip: this.normalizeIP(ip || '127.0.0.1'),
           platform,
           target: `balance:${latestUser.id}`,
           before: { 
             balance: oldBalance,
+            username: displayUsername,
+            userId: latestUser.id,
             remark: remark || '無備註',
             operator: currentUser.username
           },
           after: { 
             balance: newBalance,
+            username: displayUsername,
+            userId: latestUser.id,
             remark: remark || '無備註',
             operator: currentUser.username
           },
@@ -1492,5 +1571,111 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
         return false;
     }
   }
+
+  // 簽到系統專用的餘額更新方法 - 不需要權限檢查
+  async updateBalanceForCheckin(
+    userId: number, 
+    amount: number, 
+    description: string,
+    systemUserInfo: any,
+    ip?: string
+  ): Promise<{ message: string; newBalance: number; oldBalance: number }> {
+
+    // 基本輸入驗證
+    if (!amount || amount === 0 || !Number.isInteger(amount)) {
+      throw new BadRequestException('金額必須為非零整數');
+    }
+
+    if (amount < 0) {
+      throw new BadRequestException('簽到獎勵金額不能為負數');
+    }
+
+    if (amount > 100000) {
+      throw new BadRequestException('單次簽到獎勵不能超過 100,000');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['company']
+    });
+
+    if (!user) {
+      throw new NotFoundException('用戶不存在');
+    }
+    
+    // 使用 transaction 確保資料一致性
+    return await this.userRepository.manager.transaction(async manager => {
+      // 重新查詢最新資料，避免併發問題
+      const latestUser = await manager.findOne(User, { 
+        where: { id: userId },
+        relations: ['company']
+      });
+      if (!latestUser) {
+        throw new BadRequestException('用戶不存在');
+      }
+      
+      const displayUsername = latestUser.username || `用戶${latestUser.id}`;
+      const oldBalance = latestUser.balance || 0;
+      const newBalance = oldBalance + amount;
+
+      // 檢查餘額範圍
+      if (newBalance > 10000000) {
+        throw new BadRequestException('餘額不能超過 10,000,000');
+      }
+
+      latestUser.balance = newBalance;
+      await manager.save(latestUser);
+
+      // 記錄錢包交易
+      if (this.walletTransactionService) {
+        const transaction = manager.create(WalletTransaction, {
+          userId: latestUser.id,
+          companyId: latestUser.company_id,
+          transactionType: 'checkin_reward',
+          amount: amount,
+          balanceBefore: oldBalance,
+          balanceAfter: newBalance,
+          description: description,
+          referenceId: undefined,
+          referenceType: 'checkin_system',
+          ipAddress: ip,
+          createdBy: systemUserInfo?.id || 1,
+        });
+
+        await manager.save(WalletTransaction, transaction);
+      }
+
+      // 記錄審計日誌
+      if (this.auditLogService && ip) {
+        await this.auditLogService.record({
+          user: { id: systemUserInfo?.id || 1 },
+          action: `🎁 簽到獎勵 - ${displayUsername}（金額：${amount}，餘額：${oldBalance} → ${newBalance}）`,
+          ip: this.normalizeIP(ip || '127.0.0.1'),
+          platform: 'Checkin System',
+          target: `checkin-reward:${latestUser.id}`,
+          before: { 
+            balance: oldBalance,
+            username: displayUsername,
+            userId: latestUser.id,
+            description: description
+          },
+          after: { 
+            balance: newBalance,
+            username: displayUsername,
+            userId: latestUser.id,
+            description: description
+          },
+        });
+      }
+
+
+      return {
+        message: '簽到獎勵發放成功',
+        newBalance,
+        oldBalance
+      };
+    });
+  }
+
 
 }

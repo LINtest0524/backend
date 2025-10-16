@@ -18,19 +18,19 @@ import { CreateBlacklistDto } from './dto/create-blacklist.dto';
 export class BlacklistController {
   constructor(private readonly blacklistService: BlacklistService) {}
 
-  @Roles('ADMIN')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Post()
   async create(@Body() dto: CreateBlacklistDto) {
     return this.blacklistService.create(dto);
   }
 
-  @Roles('ADMIN')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Get()
   async findAll() {
     return this.blacklistService.findAll();
   }
 
-  @Roles('ADMIN')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   @Delete(':id')
   async remove(@Param('id') id: number) {
     return this.blacklistService.remove(id);

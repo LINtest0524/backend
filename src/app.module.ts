@@ -35,6 +35,10 @@ import { PromotionModule } from './promotion/promotion.module';
 import { PromotionCategoryModule } from './promotion-category/promotion-category.module';
 import { CouponModule } from './coupon/coupon.module';
 import { WalletTransactionModule } from './wallet-transaction/wallet-transaction.module';
+import { DailyCheckinModule } from './daily-checkin/daily-checkin.module';
+import { CheckinModule } from './checkin/checkin.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
+import { ContactInfoModule } from './contact-info/contact-info.module';
 
 
 @Module({
@@ -85,6 +89,10 @@ import { WalletTransactionModule } from './wallet-transaction/wallet-transaction
     PromotionCategoryModule,
     CouponModule,
     WalletTransactionModule,
+    DailyCheckinModule,
+    CheckinModule,
+    MaintenanceModule,
+    ContactInfoModule,
 
   ],
   controllers: [],

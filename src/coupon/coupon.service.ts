@@ -10,6 +10,7 @@ import { PublicCouponDto } from './dto/public-coupon.dto';
 import { BatchCouponDto } from './dto/batch-coupon.dto';
 import { ValidateCouponDto, UseCouponDto } from './dto/validate-coupon.dto';
 import { WalletTransactionService } from '../wallet-transaction/wallet-transaction.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class CouponService {
@@ -28,7 +29,97 @@ export class CouponService {
     
     private dataSource: DataSource,
     private walletTransactionService: WalletTransactionService,
+    private auditLogService: AuditLogService,
   ) {}
+
+  // 統一 IP 格式的輔助函數
+  private normalizeIP(ip: string): string {
+    if (ip === '::1' || ip === '::ffff:127.0.0.1' || ip === '127.0.0.1') {
+      return '127.0.0.1';
+    }
+    if (ip.startsWith('::ffff:')) {
+      return ip.substring(7);
+    }
+    return ip;
+  }
+
+  // 記錄優惠券操作到 audit log
+  async recordCouponOperation(payload: {
+    operatorUser: any;
+    operationType: 'CREATE_TEMPLATE' | 'DELETE_TEMPLATE' | 'DISTRIBUTE_COUPON' | 'DELETE_COUPON' | 'USE_COUPON';
+    templateId?: number;
+    templateName?: string;
+    couponId?: number;
+    couponCode?: string;
+    targetUser?: string;
+    beforeStatus?: string;
+    afterStatus?: string;
+    ip: string;
+    platform: string;
+  }) {
+    const {
+      operatorUser,
+      operationType,
+      templateId,
+      templateName,
+      couponId,
+      couponCode,
+      targetUser,
+      beforeStatus,
+      afterStatus,
+      ip,
+      platform,
+    } = payload;
+
+    const actionMap = {
+      CREATE_TEMPLATE: '新增優惠券模板',
+      DELETE_TEMPLATE: '刪除優惠券模板',
+      DISTRIBUTE_COUPON: '發放優惠券',
+      DELETE_COUPON: '刪除優惠券',
+      USE_COUPON: '兌換優惠券',
+    };
+
+    let actionDescription = actionMap[operationType];
+    let target = '';
+
+    if (templateName || templateId) {
+      actionDescription += ` - ${templateName || `模板ID: ${templateId}`}`;
+      target = `CouponTemplate:${templateId}`;
+    }
+    
+    if (couponCode || couponId) {
+      actionDescription += ` - ${couponCode || `優惠券ID: ${couponId}`}`;
+      target = `Coupon:${couponId}`;
+    }
+
+    if (targetUser) {
+      actionDescription += ` (目標用戶: ${targetUser})`;
+    }
+
+    return this.auditLogService.record({
+      user: operatorUser,
+      action: actionDescription,
+      ip: this.normalizeIP(ip),
+      platform,
+      target,
+      before: {
+        templateId,
+        templateName,
+        couponId,
+        couponCode,
+        targetUser,
+        status: beforeStatus,
+      },
+      after: {
+        templateId,
+        templateName,
+        couponId,
+        couponCode,
+        targetUser,
+        status: afterStatus,
+      },
+    });
+  }
 
 
   // 確保優惠碼唯一性

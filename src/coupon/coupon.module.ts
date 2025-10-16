@@ -7,6 +7,7 @@ import { User } from '../user/user.entity';
 import { CouponService } from './coupon.service';
 import { AdminCouponController, PortalCouponController } from './coupon.controller';
 import { WalletTransactionModule } from '../wallet-transaction/wallet-transaction.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { WalletTransactionModule } from '../wallet-transaction/wallet-transactio
       User,
     ]),
     WalletTransactionModule,
+    AuditLogModule,
   ],
   controllers: [AdminCouponController, PortalCouponController],
   providers: [CouponService],

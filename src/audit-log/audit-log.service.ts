@@ -158,4 +158,56 @@ export class AuditLogService {
       after: payload.snapshot,
     });
   }
+
+  // 記錄餘額操作
+  async recordBalanceOperation(payload: {
+    operatorUser: User;
+    targetUser: User;
+    operationType: 'ADD' | 'DEDUCT' | 'ADJUST';
+    beforeBalance: number;
+    afterBalance: number;
+    amount: number;
+    reason?: string;
+    ip: string;
+    platform: string;
+  }) {
+    const {
+      operatorUser,
+      targetUser,
+      operationType,
+      beforeBalance,
+      afterBalance,
+      amount,
+      reason,
+      ip,
+      platform,
+    } = payload;
+
+    const actionMap = {
+      ADD: '餘額存款',
+      DEDUCT: '餘額扣款',
+      ADJUST: '餘額調整',
+    };
+
+    const action = `BALANCE_${operationType}`;
+    const actionDescription = `${actionMap[operationType]} ${amount.toLocaleString('zh-TW')} 元${reason ? ` (${reason})` : ''}`;
+
+    return this.record({
+      user: operatorUser,
+      action: actionDescription,
+      ip,
+      platform,
+      target: `User:${targetUser.id}`,
+      before: {
+        balance: beforeBalance,
+        username: targetUser.username,
+        userId: targetUser.id,
+      },
+      after: {
+        balance: afterBalance,
+        username: targetUser.username,
+        userId: targetUser.id,
+      },
+    });
+  }
 }

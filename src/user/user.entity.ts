@@ -110,6 +110,12 @@ export class User {
   @Column({ type: 'integer', default: 0 })
   balance: number;
 
+  @Column({ type: 'varchar', nullable: true })
+  ip_whitelist: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  department_type: string | null;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
   created_by?: User;

@@ -15,4 +15,12 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   is_blacklisted?: boolean; //   加這行解決紅線
+
+  @IsOptional()
+  @IsString()
+  ip_whitelist?: string; //   IP白名單欄位
+
+  @IsOptional()
+  @IsString()
+  department_type?: string; //   部門類型欄位
 }

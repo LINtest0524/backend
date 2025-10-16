@@ -31,4 +31,8 @@ export class CreateUserDto {
   @IsArray()
   @IsString({ each: true })
   modules?: string[];
+
+  @IsOptional()
+  @IsString()
+  department_type?: string;
 }

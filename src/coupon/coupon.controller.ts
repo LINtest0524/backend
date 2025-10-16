@@ -16,6 +16,8 @@ import {
 import { Request } from 'express';
 import { CouponService } from './coupon.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CreateCouponTemplateDto } from './dto/create-coupon-template.dto';
 import { PublicCouponDto } from './dto/public-coupon.dto';
 import { BatchCouponDto } from './dto/batch-coupon.dto';
@@ -24,7 +26,8 @@ import { DistributeCouponDto } from './dto/distribute-coupon.dto';
 
 // 管理員端優惠碼控制器
 @Controller('api/admin/coupons')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
 export class AdminCouponController {
   constructor(private readonly couponService: CouponService) {}
 
@@ -40,7 +43,28 @@ export class AdminCouponController {
       throw new BadRequestException('沒有權限創建優惠碼模板');
     }
 
-    return await this.couponService.createTemplate(user.companyId, createDto);
+    const result = await this.couponService.createTemplate(user.companyId, createDto);
+    
+    // 記錄操作到 audit log
+    try {
+      await this.couponService.recordCouponOperation({
+        operatorUser: { 
+          id: user.sub || user.id,
+          username: user.username,
+          role: user.role
+        },
+        operationType: 'CREATE_TEMPLATE',
+        templateId: result.id,
+        templateName: result.name,
+        afterStatus: '已創建',
+        ip: req.ip || req.socket?.remoteAddress || '127.0.0.1',
+        platform: req.get('User-Agent') || 'unknown',
+      });
+    } catch (error) {
+      console.error('記錄優惠券創建操作失敗:', error);
+    }
+
+    return result;
   }
 
   // 獲取模板列表
@@ -79,7 +103,32 @@ export class AdminCouponController {
       throw new BadRequestException('沒有權限刪除優惠碼模板');
     }
 
-    return await this.couponService.deleteTemplate(id, user.companyId);
+    // 先獲取模板資訊（刪除前）
+    const template = await this.couponService.getTemplate(id, user.companyId);
+    
+    const result = await this.couponService.deleteTemplate(id, user.companyId);
+    
+    // 記錄操作到 audit log
+    try {
+      await this.couponService.recordCouponOperation({
+        operatorUser: { 
+          id: user.sub || user.id,
+          username: user.username,
+          role: user.role
+        },
+        operationType: 'DELETE_TEMPLATE',
+        templateId: id,
+        templateName: template?.name || `模板${id}`,
+        beforeStatus: '已創建',
+        afterStatus: '已刪除',
+        ip: req.ip || req.socket?.remoteAddress || '127.0.0.1',
+        platform: req.get('User-Agent') || 'unknown',
+      });
+    } catch (error) {
+      console.error('記錄優惠券刪除操作失敗:', error);
+    }
+
+    return result;
   }
 
   // 發放公共優惠碼
@@ -105,7 +154,31 @@ export class AdminCouponController {
       throw new BadRequestException('沒有權限發放優惠碼');
     }
 
-    return await this.couponService.distributeBatchCoupons(user.companyId, user.id, dto);
+    const result = await this.couponService.distributeBatchCoupons(user.companyId, user.id, dto);
+    
+    // 記錄操作到 audit log
+    try {
+      await this.couponService.recordCouponOperation({
+        operatorUser: { 
+          id: user.sub || user.id,
+          username: user.username,
+          role: user.role
+        },
+        operationType: 'DISTRIBUTE_COUPON',
+        templateId: dto.templateId,
+        targetUser: dto.targetType === 'ALL_USERS' ? '所有用戶' : 
+                   dto.targetType === 'TAG_GROUP' ? `標籤群組: ${dto.tagIds?.join(', ') || '未指定'}` :
+                   dto.targetType === 'SPECIFIC_USERS' ? `指定用戶: ${dto.userIds?.join(', ') || '未指定'}` :
+                   `${dto.quantity || 1} 個用戶`,
+        afterStatus: '已發放',
+        ip: req.ip || req.socket?.remoteAddress || '127.0.0.1',
+        platform: req.get('User-Agent') || 'unknown',
+      });
+    } catch (error) {
+      console.error('記錄優惠券發放操作失敗:', error);
+    }
+
+    return result;
   }
 
   // 獲取優惠碼統計
@@ -135,7 +208,28 @@ export class AdminCouponController {
       throw new BadRequestException('模板ID和優惠碼均為必填')
     }
 
-    return this.couponService.createCashCoupon(body.templateId, body.code, user.companyId)
+    const result = await this.couponService.createCashCoupon(body.templateId, body.code, user.companyId);
+    
+    // 記錄操作到 audit log
+    try {
+      await this.couponService.recordCouponOperation({
+        operatorUser: { 
+          id: user.sub || user.id,
+          username: user.username,
+          role: user.role
+        },
+        operationType: 'DISTRIBUTE_COUPON',
+        templateId: body.templateId,
+        couponCode: body.code,
+        afterStatus: '已創建',
+        ip: req.ip || req.socket?.remoteAddress || '127.0.0.1',
+        platform: req.get('User-Agent') || 'unknown',
+      });
+    } catch (error) {
+      console.error('記錄現金優惠券創建操作失敗:', error);
+    }
+
+    return result;
   }
 
   // 獲取現金優惠券列表

@@ -9,6 +9,7 @@ import { UserService } from '../user/user.service';
 import { User, UserRole } from '../user/user.entity';
 import { CompanyModule } from '../company-module/company-module.entity';
 import { Company } from '../company/company.entity';
+import { Blacklist } from '../blacklist/blacklist.entity';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
@@ -24,16 +25,75 @@ export class AuthService {
     private readonly moduleRepo: Repository<CompanyModule>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Blacklist)
+    private readonly blacklistRepository: Repository<Blacklist>,
     private readonly auditLogService: AuditLogService,
   ) {}
+
+  // 統一 IP 格式的輔助函數
+  private normalizeIP(ip: string): string {
+    if (ip === '::1' || ip === '::ffff:127.0.0.1' || ip === '127.0.0.1') {
+      return '127.0.0.1'; // 統一顯示為 IPv4 localhost
+    }
+    // 處理其他 IPv6 mapped IPv4 地址
+    if (ip.startsWith('::ffff:')) {
+      return ip.substring(7); // 移除 ::ffff: 前綴
+    }
+    return ip;
+  }
+
+  // IP封鎖檢查
+  private async checkIPBlacklist(clientIp: string): Promise<void> {
+    const blacklistRecords = await this.blacklistRepository.find({
+      where: { ip: clientIp },
+    });
+
+    // 檢查完全匹配的IP
+    for (const record of blacklistRecords) {
+      if (record.ip === clientIp) {
+        throw new UnauthorizedException(`IP地址已被封鎖${record.reason ? `：${record.reason}` : ''}`);
+      }
+    }
+
+    // 檢查通配符匹配
+    const allBlacklistRecords = await this.blacklistRepository.find();
+    for (const record of allBlacklistRecords) {
+      if (record.ip && this.isIPMatched(clientIp, record.ip)) {
+        throw new UnauthorizedException(`IP地址已被封鎖${record.reason ? `：${record.reason}` : ''}`);
+      }
+    }
+  }
+
+  // IP匹配檢查（支持通配符）
+  private isIPMatched(clientIp: string, blacklistIp: string): boolean {
+    // 如果黑名單是 * 則匹配所有IP
+    if (blacklistIp === '*') {
+      return true;
+    }
+
+    // 如果黑名單包含 * 通配符
+    if (blacklistIp.includes('*')) {
+      // 將 * 替換為正則表達式的 .*
+      const regex = new RegExp('^' + blacklistIp.replace(/\*/g, '.*') + '$');
+      return regex.test(clientIp);
+    }
+
+    // 完全匹配
+    return clientIp === blacklistIp;
+  }
 
   async validateUser(
   username: string,
   pass: string,
   companyCode?: string,
+  clientIp?: string,
 ): Promise<User | null> {
   
-
+  // IP封鎖檢查
+  if (clientIp) {
+    const normalizedClientIp = this.normalizeIP(clientIp);
+    await this.checkIPBlacklist(normalizedClientIp);
+  }
   
   const user = await this.userService.findOneByUsername(username, ['company']);
 
@@ -69,6 +129,17 @@ export class AuthService {
     throw new UnauthorizedException('帳號已inactive或封鎖，無法登入');
   }
 
+  // IP白名單檢查
+  if (user.ip_whitelist && clientIp) {
+    // 標準化IP格式
+    const normalizedClientIp = this.normalizeIP(clientIp);
+    const normalizedWhitelistIp = this.normalizeIP(user.ip_whitelist);
+    
+    if (normalizedClientIp !== normalizedWhitelistIp) {
+      throw new UnauthorizedException('此帳號僅限特定網路位置登入，請聯絡管理員');
+    }
+  }
+
   //   僅允許特定角色登入後台
   const allowedRoles = [
     'SUPER_ADMIN',
@@ -92,7 +163,7 @@ export class AuthService {
     companyCode?: string,
   ): Promise<{ user: any; token: string }> {
 
-    const user = await this.validateUser(username, password, companyCode);
+    const user = await this.validateUser(username, password, companyCode, clientIp);
 
     if (!user) {
       throw new UnauthorizedException('帳號、密碼或公司錯誤');

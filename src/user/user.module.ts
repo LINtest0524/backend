@@ -4,6 +4,7 @@ import { User } from './user.entity';
 import { UserTag } from './user-tag.entity';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
+import { BalanceOperationsController } from './balance-operations.controller';
 import { Module as ModuleEntity } from '../module/module.entity';
 import { UserModule as UserModuleEntity } from '../user-module/user-module.entity';
 import { Company } from '../company/company.entity'; //   新增
@@ -22,7 +23,7 @@ import { WalletTransactionModule } from '../wallet-transaction/wallet-transactio
     WalletTransactionModule,
   ],
   providers: [UserService, AutoTagRuleService],
-  controllers: [UserController],
+  controllers: [UserController, BalanceOperationsController],
   exports: [UserService],
 })
 export class UserModule {}
