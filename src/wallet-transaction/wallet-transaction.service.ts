@@ -181,7 +181,7 @@ export class WalletTransactionService {
       .getManyAndCount();
 
     return {
-      transactions,
+      data: transactions,
       total,
       page,
       limit,

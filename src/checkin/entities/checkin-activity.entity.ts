@@ -34,11 +34,11 @@ export class CheckinActivity {
   @Column({ type: 'int', nullable: true })
   days: number;
 
-  @Column({ type: 'date', name: 'start_date' })
-  startDate: string;
+  @Column({ type: 'timestamp', name: 'start_date' })
+  startDate: Date;
 
-  @Column({ type: 'date', name: 'end_date' })
-  endDate: string;
+  @Column({ type: 'timestamp', name: 'end_date' })
+  endDate: Date;
 
   @Column({ type: 'timestamp', nullable: true, name: 'publish_at' })
   publishAt: Date;

@@ -52,11 +52,11 @@ export class MenuService {
   async findByCompany(companyId: number, deviceType?: MenuDeviceType): Promise<Menu[]> {
     const queryBuilder = this.menuRepository
       .createQueryBuilder('menu')
-      .leftJoinAndSelect('menu.children', 'children')
-      .leftJoinAndSelect('children.children', 'grandchildren')
+      .leftJoinAndSelect('menu.children', 'children', 'children.status = :activeStatus')
+      .leftJoinAndSelect('children.children', 'grandchildren', 'grandchildren.status = :activeStatus')
       .where('menu.company_id = :companyId', { companyId })
       .andWhere('menu.parent_id IS NULL')
-      .andWhere('menu.status = :status', { status: MenuStatus.ACTIVE })
+      .andWhere('menu.status = :status', { status: MenuStatus.ACTIVE, activeStatus: MenuStatus.ACTIVE })
       .orderBy('menu.sort_order', 'ASC')
       .addOrderBy('children.sort_order', 'ASC')
       .addOrderBy('grandchildren.sort_order', 'ASC');

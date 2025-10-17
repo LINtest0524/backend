@@ -109,7 +109,6 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getCurrentUser(@Req() req: Request) {
-    console.log('當前用戶資訊:', req.user);
     return {
       user: req.user,
       message: '當前用戶資訊'
@@ -140,8 +139,6 @@ export class AuthController {
   @Get('test-strategies')
   async testStrategies() {
     const passport = require('passport');
-    console.log('🧪 測試可用的 Passport 策略:');
-    console.log('Strategies:', Object.keys(passport._strategies || {}));
     return {
       strategies: Object.keys(passport._strategies || {}),
       hasFacebook: !!passport._strategies?.facebook
@@ -151,16 +148,12 @@ export class AuthController {
   @Get('facebook')
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
     // 這個路由會重定向到 Facebook
-    console.log(' Facebook 認證路由被調用');
-    console.log(' 公司代碼:', req.query.company);
-    
     const companyCode = req.query.company as string || 'a';
     
     // 將公司代碼保存到 session
     if (req.query.company) {
       req.session = req.session || {};
       req.session.companyCode = req.query.company as string;
-      console.log(' 已保存公司代碼到 session:', req.session.companyCode);
     }
     
     // 使用 state 參數傳遞公司代碼，這樣更可靠
@@ -170,21 +163,33 @@ export class AuthController {
       state: companyCode // 將公司代碼作為 state 參數傳遞
     };
     
-    console.log(' Facebook 認證選項:', authenticateOptions);
-    
     passport.authenticate('facebook', authenticateOptions)(req, res);
+  }
+
+  @Get('facebook/get-login-data')
+  async getFacebookLoginData(@Req() req: Request) {
+    // 從session獲取Facebook登入資料
+    const loginData = req.session?.facebookLoginData;
+    
+    if (loginData) {
+      // 清除session中的資料（一次性使用）
+      delete req.session.facebookLoginData;
+      return {
+        success: true,
+        data: loginData
+      };
+    }
+    
+    return {
+      success: false,
+      message: '找不到Facebook登入資料'
+    };
   }
 
   @Get('facebook/callback')
   async facebookAuthRedirect(@Req() req: Request, @Res() res: Response, @Ip() ip: string) {
-    // 記錄所有查詢參數以便調試
-    console.log(' Facebook callback 查詢參數:', req.query);
-    console.log(' State 參數:', req.query.state);
-    console.log(' Session 中的公司代碼:', req.session?.companyCode);
-    
     // 獲取公司代碼，優先從 state 參數取得，其次從 session，最後從 query
     const companyCode = req.query.state as string || req.session?.companyCode || req.query.company as string || 'a';
-    console.log(' 最終使用的公司代碼:', companyCode);
     const loginUrl = `http://localhost:3000/${companyCode}/login`;
     
     // 檢查是否有錯誤參數（用戶取消授權）
@@ -193,37 +198,26 @@ export class AuthController {
     const errorDescription = req.query.error_description;
 
     if (error) {
-      console.log('    Facebook 授權錯誤:', { error, errorReason, errorDescription });
-      
       // User取消授權或其他錯誤
       if (error === 'access_denied' || errorReason === 'user_denied') {
-        console.log(' 用戶取消了 Facebook 授權');
         return res.redirect(`${loginUrl}?error=facebook_cancelled`);
       }
       
       // 其他錯誤
-      console.log(' 其他 Facebook 錯誤，重定向到 facebook_error');
       return res.redirect(`${loginUrl}?error=facebook_error`);
     }
-
-    // 如果沒有錯誤，則使用 Facebook Guard 進行驗證
-    console.log('  沒有錯誤參數，繼續 Facebook 登入流程');
     return this.handleFacebookCallback(req, res, ip);
   }
 
   async handleFacebookCallback(@Req() req: Request, @Res() res: Response, @Ip() ip: string) {
     // 獲取公司代碼，優先從 state 參數取得，其次從 session，最後從 query
     const companyCode = req.query.state as string || req.session?.companyCode || req.query.company as string || 'a';
-    console.log(' handleFacebookCallback 使用的公司代碼:', companyCode);
     const loginUrl = `http://localhost:3000/${companyCode}/login`;
     try {
-      console.log(' Facebook 回調開始...');
-      
       // 手動執行 Facebook Guard 並捕獲錯誤
       const guard = new (AuthGuard('facebook'))();
       
       try {
-        console.log(' 執行 Facebook Guard...');
         const result = await guard.canActivate({
           switchToHttp: () => ({
             getRequest: () => req,
@@ -232,9 +226,6 @@ export class AuthController {
           getHandler: () => {},
           getClass: () => {},
         } as any);
-        
-        console.log(' Guard 執行結果:', result);
-        console.log(' Guard 執行後 req.user:', req.user);
         
       } catch (guardError) {
         console.error('    Facebook Guard 執行錯誤:', guardError);
@@ -263,16 +254,20 @@ export class AuthController {
       const browser = `${info.browser.name ?? ''} ${info.browser.version ?? ''}`.trim();
       const platform = `${device} / ${os} / ${browser}`;
 
-      console.log(' 開始 Facebook 登入處理...');
       // 統一 IP 格式
       const normalizedIp = this.normalizeIP(ip);
       const result = await this.authService.facebookLogin(req.user, normalizedIp, platform, companyCode);
-      console.log('  Facebook 登入處理成功');
       
-      // 將 token 和用戶資訊傳遞給前端，包含公司代碼
-      const redirectUrl = `http://localhost:3000/auth/facebook/success?token=${result.token}&user=${encodeURIComponent(JSON.stringify(result.user))}&company=${companyCode}`;
+      // 將敏感資料儲存到session而不是URL參數
+      req.session = req.session || {};
+      req.session.facebookLoginData = {
+        token: result.token,
+        user: result.user,
+        company: companyCode
+      };
       
-      console.log('🔗 重定向到:', redirectUrl);
+      // 只傳遞安全的重定向URL，不包含敏感資料
+      const redirectUrl = `http://localhost:3000/auth/facebook/success?company=${companyCode}`;
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('    Facebook 回調錯誤:', error);
