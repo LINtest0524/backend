@@ -104,14 +104,16 @@ export class WalletTransactionController {
       endDate.setHours(23, 59, 59, 999);
     }
     
-    // 處理用戶搜尋
-    let userId: number | undefined;
-    if (user) {
-      // 這裡可以根據用戶名搜尋用戶ID，暫時先當作ID處理
-      const userIdNum = parseInt(user);
-      if (!isNaN(userIdNum)) {
-        userId = userIdNum;
-      }
+    // 處理金額範圍
+    let minAmountNum: number | undefined;
+    let maxAmountNum: number | undefined;
+    
+    if (minAmount && !isNaN(parseFloat(minAmount))) {
+      minAmountNum = parseFloat(minAmount);
+    }
+    
+    if (maxAmount && !isNaN(parseFloat(maxAmount))) {
+      maxAmountNum = parseFloat(maxAmount);
     }
     
     const result = await this.walletTransactionService.getAllTransactions(
@@ -121,9 +123,74 @@ export class WalletTransactionController {
       startDate,
       endDate,
       transactionType,
-      userId
+      undefined, // userId - 不使用ID直接搜尋，改用用戶名搜尋
+      search,
+      minAmountNum,
+      maxAmountNum,
+      user
     );
     
     return result;
+  }
+
+  /**
+   * 獲取管理員存扣款操作記錄
+   */
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  async getBalanceOperations(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('type') type?: string,
+    @Query('transactionType') transactionType?: string,
+    @Query('operator') operator?: string,
+    @Query('targetUser') targetUser?: string,
+    @Query('search') search?: string,
+  ) {
+    // 只查詢管理員操作的記錄
+    if (type === 'admin_operations') {
+      const companyId = req.user.company_id;
+      const pageNum = page ? parseInt(page) : 1;
+      const limitNum = limit ? parseInt(limit) : 20;
+      
+      // 處理日期範圍
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+      
+      if (from) {
+        startDate = new Date(from);
+        startDate.setHours(0, 0, 0, 0);
+      }
+      
+      if (to) {
+        endDate = new Date(to);
+        endDate.setHours(23, 59, 59, 999);
+      }
+      
+      const result = await this.walletTransactionService.getAdminOperations(
+        companyId,
+        pageNum,
+        limitNum,
+        startDate,
+        endDate,
+        transactionType,
+        operator,
+        targetUser,
+        search
+      );
+      
+      return result;
+    }
+    
+    // 如果不是管理員操作查詢，返回空結果
+    return {
+      data: [],
+      totalCount: 0,
+      totalPages: 0,
+    };
   }
 }

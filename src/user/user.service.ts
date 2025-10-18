@@ -479,12 +479,6 @@ async findAll(
   if (!isGlobal) {
     // 從完整User Entity中取得公司 ID
     const companyId = currentUser.company?.id || currentUser.company_id;
-    console.log('UserService.findAll 公司檢查:', { 
-      userId: currentUser.id, 
-      role: currentUser.role, 
-      company: currentUser.company, 
-      companyId 
-    });
     
     if (!companyId) {
       throw new UnauthorizedException('not found使用者的公司資訊');
@@ -1432,7 +1426,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       if (this.walletTransactionService) {
         const operationType = amount > 0 ? 'admin_deposit' : 'admin_deduction';
         const operationTypeText = amount > 0 ? '管理員存款' : '管理員扣款';
-        const description = `${operationTypeText}${remark ? `: ${remark}` : ''}（操作員：${currentUser.username}）`;
+        const description = `${operationTypeText}${remark ? `: ${remark}` : ''}`;
 
         // 直接創建交易記錄，使用已計算好的餘額
         const transaction = manager.create(WalletTransaction, {
@@ -1445,7 +1439,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
           description: description,
           referenceId: undefined,
           referenceType: 'admin_operation',
-          ipAddress: ip,
+          ipAddress: this.normalizeIP(ip || '127.0.0.1'),
           createdBy: currentUser.id,
         });
 
@@ -1467,15 +1461,13 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
             balance: oldBalance,
             username: displayUsername,
             userId: latestUser.id,
-            remark: remark || '無備註',
-            operator: currentUser.username
+            remark: remark || '無備註'
           },
           after: { 
             balance: newBalance,
             username: displayUsername,
             userId: latestUser.id,
-            remark: remark || '無備註',
-            operator: currentUser.username
+            remark: remark || '無備註'
           },
         });
       }

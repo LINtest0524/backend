@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { WalletTransaction } from './wallet-transaction.entity';
 import { User } from '../user/user.entity';
 
@@ -141,6 +141,10 @@ export class WalletTransactionService {
    * @param endDate 結束日期
    * @param transactionType 交易類型
    * @param userId 指定用戶ID
+   * @param search 搜尋描述
+   * @param minAmount 最小金額
+   * @param maxAmount 最大金額
+   * @param user 用戶名搜尋
    */
   async getAllTransactions(
     companyId: number,
@@ -149,7 +153,11 @@ export class WalletTransactionService {
     startDate?: Date,
     endDate?: Date,
     transactionType?: string,
-    userId?: number
+    userId?: number,
+    search?: string,
+    minAmount?: number,
+    maxAmount?: number,
+    user?: string
   ) {
     const queryBuilder = this.walletTransactionRepository
       .createQueryBuilder('wt')
@@ -170,6 +178,22 @@ export class WalletTransactionService {
 
     if (userId) {
       queryBuilder.andWhere('wt.userId = :userId', { userId });
+    }
+
+    if (search) {
+      queryBuilder.andWhere('wt.description LIKE :search', { search: `%${search}%` });
+    }
+
+    if (minAmount !== undefined && minAmount !== null) {
+      queryBuilder.andWhere('ABS(wt.amount) >= :minAmount', { minAmount });
+    }
+
+    if (maxAmount !== undefined && maxAmount !== null) {
+      queryBuilder.andWhere('ABS(wt.amount) <= :maxAmount', { maxAmount });
+    }
+
+    if (user) {
+      queryBuilder.andWhere('user.username LIKE :user', { user: `%${user}%` });
     }
 
     const offset = (page - 1) * limit;
@@ -226,6 +250,111 @@ export class WalletTransactionService {
       totalIncome: result?.totalIncome || '0',
       totalExpense: result?.totalExpense || '0', 
       totalTransactions: result?.totalTransactions || '0'
+    };
+  }
+
+  /**
+   * 獲取管理員存扣款操作記錄
+   * @param companyId 公司ID
+   * @param page 頁碼
+   * @param limit 每頁數量
+   * @param startDate 開始日期
+   * @param endDate 結束日期
+   * @param transactionType 交易類型
+   * @param operator 操作員
+   * @param targetUser 目標用戶
+   * @param search 搜尋關鍵字
+   */
+  async getAdminOperations(
+    companyId: number,
+    page: number = 1,
+    limit: number = 20,
+    startDate?: Date,
+    endDate?: Date,
+    transactionType?: string,
+    operator?: string,
+    targetUser?: string,
+    search?: string
+  ) {
+    const queryBuilder = this.walletTransactionRepository
+      .createQueryBuilder('wt')
+      .leftJoinAndSelect('wt.user', 'user')
+      .where('wt.companyId = :companyId', { companyId })
+      .andWhere('wt.transactionType IN (:...adminTypes)', { 
+        adminTypes: ['admin_deposit', 'admin_deduction'] 
+      });
+
+    if (startDate) {
+      queryBuilder.andWhere('wt.createdAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      queryBuilder.andWhere('wt.createdAt <= :endDate', { endDate });
+    }
+
+    if (transactionType) {
+      queryBuilder.andWhere('wt.transactionType = :transactionType', { transactionType });
+    }
+
+    if (targetUser) {
+      queryBuilder.andWhere('user.username LIKE :targetUser', { targetUser: `%${targetUser}%` });
+    }
+
+    if (search) {
+      queryBuilder.andWhere('wt.description LIKE :search', { search: `%${search}%` });
+    }
+
+    const offset = (page - 1) * limit;
+    const [transactions, totalCount] = await queryBuilder
+      .orderBy('wt.createdAt', 'DESC')
+      .limit(limit)
+      .offset(offset)
+      .getManyAndCount();
+
+    // 獲取操作員信息
+    const operatorIds = transactions
+      .map(t => t.createdBy)
+      .filter(id => id !== null && id !== undefined);
+
+    let operators: User[] = [];
+    if (operatorIds.length > 0) {
+      const uniqueOperatorIds = [...new Set(operatorIds)];
+      operators = await this.dataSource.manager.find(User, {
+        where: { id: In(uniqueOperatorIds) },
+        select: ['id', 'username']
+      });
+    }
+
+    // 應用操作員篩選
+    let filteredTransactions = transactions;
+    if (operator) {
+      const filteredOperatorIds = operators
+        .filter(op => op.username.includes(operator))
+        .map(op => op.id);
+      
+      filteredTransactions = transactions.filter(t => 
+        t.createdBy && filteredOperatorIds.includes(t.createdBy)
+      );
+    }
+
+    // 組裝最終結果
+    const enhancedTransactions = filteredTransactions.map(transaction => {
+      const operatorInfo = operators.find(op => op.id === transaction.createdBy);
+      return {
+        ...transaction,
+        operator: operatorInfo ? {
+          id: operatorInfo.id,
+          username: operatorInfo.username
+        } : null
+      };
+    });
+
+    return {
+      data: enhancedTransactions,
+      totalCount: operator ? enhancedTransactions.length : totalCount,
+      totalPages: Math.ceil((operator ? enhancedTransactions.length : totalCount) / limit),
+      page,
+      limit
     };
   }
 }
