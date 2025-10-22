@@ -51,7 +51,7 @@ async function bootstrap() {
   app.enableCors({
     origin: true, // 允許所有來源，包括 file:// 協議
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   });
 
