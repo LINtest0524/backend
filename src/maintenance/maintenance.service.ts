@@ -88,4 +88,59 @@ export class MaintenanceService {
       userId
     );
   }
+
+  // 檢查是否有進行中的遊戲
+  async checkActiveGames(companyId: number): Promise<{
+    hasActiveGames: boolean;
+    pendingRounds: number;
+    activeUsers: number;
+  }> {
+    // 這裡需要注入 MockGamesService 來檢查 pending games
+    // 暫時返回模擬數據，實際實作時需要檢查真實狀態
+    return {
+      hasActiveGames: false,
+      pendingRounds: 0,
+      activeUsers: 0
+    };
+  }
+
+  // 優雅啟動維護模式
+  async enableMaintenanceGracefully(
+    companyId: number, 
+    options: {
+      waitForGames?: boolean; // 是否等待遊戲完成
+      forceTimeout?: number;  // 強制超時時間（秒）
+      notifyUsers?: boolean;  // 是否提前通知用戶
+    },
+    userId?: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    pendingGames?: number;
+  }> {
+    
+    const gameStatus = await this.checkActiveGames(companyId);
+    
+    if (gameStatus.hasActiveGames && options.waitForGames) {
+      return {
+        success: false,
+        message: `目前有 ${gameStatus.pendingRounds} 個進行中的遊戲，${gameStatus.activeUsers} 個活躍用戶。建議等待遊戲完成或使用強制模式。`,
+        pendingGames: gameStatus.pendingRounds
+      };
+    }
+    
+    // 啟動維護模式
+    await this.updateMaintenanceStatus(
+      companyId,
+      { isEnabled: true },
+      userId
+    );
+    
+    return {
+      success: true,
+      message: gameStatus.hasActiveGames 
+        ? `維護模式已啟動。有 ${gameStatus.pendingRounds} 個遊戲被中斷。`
+        : '維護模式已啟動，沒有進行中的遊戲。'
+    };
+  }
 }

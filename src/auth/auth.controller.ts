@@ -283,4 +283,23 @@ export class AuthController {
       res.redirect(`${loginUrl}?error=facebook_login_failed`);
     }
   }
+
+  @Post('validate')
+  @UseGuards(JwtAuthGuard)
+  async validateToken(@Req() req) {
+    // 如果能通過 JwtAuthGuard，表示 token 有效
+    // 返回用戶基本信息
+    const { id, username, email, role, company } = req.user;
+    
+    return {
+      valid: true,
+      user: {
+        id,
+        username,
+        email,
+        role,
+        companyId: company?.id
+      }
+    };
+  }
 }

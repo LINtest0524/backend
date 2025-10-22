@@ -18,6 +18,21 @@ export class SessionService {
   // 存儲 token 到 userId 的映射
   private tokenToUser: Map<string, number> = new Map();
   
+  private hasChanges = false;
+  
+  constructor() {
+    // 服務啟動時從持久化存儲加載會話（如果存在）
+    this.loadSessionsFromStorage();
+    
+    // 定期保存會話到持久化存儲（僅當有變更時）
+    setInterval(() => {
+      if (this.hasChanges) {
+        this.saveSessionsToStorage();
+        this.hasChanges = false;
+      }
+    }, 60000); // 改為每60秒檢查一次，減少頻率
+  }
+  
   // 創建新會話（後者踢掉前者）
   createSession(userId: number, username: string, companyId: number, token: string, deviceInfo?: string): void {
     const tokenPrefix = token.substring(0, 6);
@@ -44,6 +59,7 @@ export class SessionService {
     // 存儲新會話
     this.activeSessions.set(userId, newSession);
     this.tokenToUser.set(token, userId);
+    this.hasChanges = true;
   }
   
   // 驗證 token 是否有效
@@ -81,6 +97,7 @@ export class SessionService {
     if (session && session.token === token) {
       this.activeSessions.delete(userId);
       this.tokenToUser.delete(token);
+      this.hasChanges = true;
       return true;
     }
     
@@ -102,6 +119,7 @@ export class SessionService {
       if (now - session.lastActivity > SEVEN_DAYS) {
         this.activeSessions.delete(userId);
         this.tokenToUser.delete(session.token);
+        this.hasChanges = true;
       }
     }
   }
@@ -112,6 +130,7 @@ export class SessionService {
     if (session) {
       this.activeSessions.delete(userId);
       this.tokenToUser.delete(session.token);
+      this.hasChanges = true;
       return true;
     }
     return false;
@@ -121,5 +140,66 @@ export class SessionService {
   clearAllSessions(): void {
     this.activeSessions.clear();
     this.tokenToUser.clear();
+    this.saveSessionsToStorage(); // 清除時也要保存
+  }
+  
+  // 保存會話到文件（非同步，避免阻塞）
+  private saveSessionsToStorage(): void {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      const sessionsData = {
+        activeSessions: Array.from(this.activeSessions.entries()),
+        tokenToUser: Array.from(this.tokenToUser.entries()),
+        timestamp: Date.now()
+      };
+      
+      const filePath = path.join(process.cwd(), 'sessions-backup.json');
+      
+      // 使用非同步寫入，避免阻塞主程序
+      fs.writeFile(filePath, JSON.stringify(sessionsData, null, 2), (error) => {
+        if (error) {
+          console.warn('Failed to save sessions to storage:', error.message);
+        }
+      });
+    } catch (error) {
+      // 靜默處理存儲錯誤，不影響主要功能
+      console.warn('Failed to save sessions to storage:', error.message);
+    }
+  }
+  
+  // 從文件載入會話
+  private loadSessionsFromStorage(): void {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      const filePath = path.join(process.cwd(), 'sessions-backup.json');
+      
+      if (!fs.existsSync(filePath)) {
+        return; // 文件不存在，跳過
+      }
+      
+      const data = fs.readFileSync(filePath, 'utf8');
+      const sessionsData = JSON.parse(data);
+      
+      // 檢查數據是否太舊（超過7天）
+      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+      if (Date.now() - sessionsData.timestamp > SEVEN_DAYS) {
+        fs.unlinkSync(filePath); // 刪除過期文件
+        return;
+      }
+      
+      // 恢復會話數據
+      this.activeSessions = new Map(sessionsData.activeSessions);
+      this.tokenToUser = new Map(sessionsData.tokenToUser);
+      
+      console.log(`Restored ${this.activeSessions.size} sessions from backup`);
+      
+    } catch (error) {
+      // 靜默處理載入錯誤，不影響主要功能
+      console.warn('Failed to load sessions from storage:', error.message);
+    }
   }
 }
