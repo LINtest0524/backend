@@ -438,6 +438,8 @@ async findOneByUsername(username: string, relations: string[] = []): Promise<Use
       'status',
       'is_blacklisted',
       'ip_whitelist', // 添加IP白名單欄位
+      'balance', // 添加餘額欄位
+      'created_at', // 添加創建時間
     ],
     relations,
   });
@@ -1360,6 +1362,18 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       message: `已為使用者 ${user.username} 應用自動化標籤，新增 ${appliedTags.length} 個標籤`,
       appliedTags
     };
+  }
+
+  // 直接設定用戶餘額（不進行權限檢查，用於系統內部初始化）
+  async setUserBalance(userId: number, balance: number): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('用戶不存在');
+    }
+    
+    user.balance = balance;
+    await this.userRepository.save(user);
+    console.log(`[USER-SERVICE] 直接設定用戶 ${user.username} 餘額為 ${balance}`);
   }
 
   // 更新使用者餘額 - 加強安全性

@@ -39,6 +39,7 @@ import { DailyCheckinModule } from './daily-checkin/daily-checkin.module';
 import { CheckinModule } from './checkin/checkin.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { ContactInfoModule } from './contact-info/contact-info.module';
+import { MockGamesModule } from './modules/mock-games/mock-games.module';
 
 
 @Module({
@@ -93,6 +94,7 @@ import { ContactInfoModule } from './contact-info/contact-info.module';
     CheckinModule,
     MaintenanceModule,
     ContactInfoModule,
+    MockGamesModule,
 
   ],
   controllers: [],
