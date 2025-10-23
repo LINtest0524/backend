@@ -90,9 +90,11 @@ export class UserService {
       throw new UnauthorizedException('AGENT_SUPPORT 不可新增帳號');
     }
 
-    if (creator.role === 'AGENT_OWNER') {
+    // 代理商角色權限檢查
+    const agentRoles = ['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'];
+    if (agentRoles.includes(creator.role)) {
       if (role !== 'AGENT_SUPPORT') {
-        throw new BadRequestException('AGENT_OWNER 僅可建立 AGENT_SUPPORT 帳號');
+        throw new BadRequestException('代理商僅可建立 AGENT_SUPPORT 帳號');
       }
       if (!creator.company || Number(companyId) !== Number(creator.company.id)) {
         throw new BadRequestException('只能建立自己公司底下的員工帳號');
@@ -469,6 +471,7 @@ async findAll(
     .createQueryBuilder('user')
     .leftJoinAndSelect('user.company', 'company')
     .leftJoinAndSelect('user.created_by', 'created_by')
+    .leftJoinAndSelect('user.parent_agent', 'parent_agent')
     .where('user.deleted_at IS NULL');
 
   if (options?.excludeUserRole === true) {
@@ -568,6 +571,14 @@ async findAll(
       bank_verified_at: user.bank_verified_at,
       vip_level: user.vip_level,
       balance: user.balance || 0,
+      // 添加代理商資訊
+      parent_agent: user.parent_agent 
+        ? { 
+            id: user.parent_agent.id, 
+            username: user.parent_agent.username,
+            agent_code: user.parent_agent.agent_code 
+          } 
+        : null,
       modules,
       tags,
       company: user.company
@@ -961,8 +972,9 @@ if (format === 'xlsx') {
     password: string;
     email?: string;
     companyCode: string;
+    agent_code?: string;
   }): Promise<User> {
-    const { username, password, email, companyCode } = dto;
+    const { username, password, email, companyCode, agent_code } = dto;
 
     const existing = await this.userRepository.findOne({ where: { username } });
     if (existing) {
@@ -976,6 +988,35 @@ if (format === 'xlsx') {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 處理代理商分配邏輯
+    let parentAgent: User | null = null;
+    
+    if (agent_code && agent_code.trim()) {
+      // 如果有填寫代理商代碼，查找對應的代理商
+      parentAgent = await this.userRepository.findOne({ 
+        where: { 
+          agent_code: agent_code.trim(),
+          company: { id: company.id } // 確保代理商屬於同一公司
+        } 
+      });
+      
+      if (!parentAgent) {
+        throw new NotFoundException('代理商代碼無效');
+      }
+    } else {
+      // 如果沒有填寫代理商代碼，自動分配給一級代理商
+      parentAgent = await this.userRepository.findOne({
+        where: {
+          agent_level: 1,
+          company: { id: company.id }
+        }
+      });
+      
+      if (!parentAgent) {
+        throw new NotFoundException('找不到一級代理商，請聯絡客服');
+      }
+    }
+
     const user = this.userRepository.create({
       username,
       password: hashedPassword,
@@ -984,6 +1025,8 @@ if (format === 'xlsx') {
       status: 'ACTIVE',
       is_blacklisted: false,
       company,
+      parent_agent: parentAgent,
+      parent_agent_id: parentAgent.id,
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -1108,7 +1151,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const hasPermission = 
       currentUser.role === 'SUPER_ADMIN' || 
       currentUser.id === userId ||
-      (currentUser.role === 'AGENT_OWNER' && currentUser.company_id === targetUser.company?.id) ||
+      (['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === targetUser.company?.id) ||
       (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === targetUser.company?.id);
 
     if (!hasPermission) {
@@ -1145,7 +1188,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const hasPermission = 
       currentUser.role === 'SUPER_ADMIN' || 
       currentUser.id === userId ||
-      (currentUser.role === 'AGENT_OWNER' && currentUser.company_id === user.company?.id) ||
+      (['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === user.company?.id) ||
       (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === user.company?.id);
 
     if (!hasPermission) {
@@ -1207,7 +1250,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const hasPermission = 
       currentUser.role === 'SUPER_ADMIN' || 
       currentUser.id === userId ||
-      (currentUser.role === 'AGENT_OWNER' && currentUser.company_id === userTag.user.company?.id) ||
+      (['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === userTag.user.company?.id) ||
       (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === userTag.user.company?.id);
 
     if (!hasPermission) {
@@ -1386,7 +1429,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     platform?: string
   ): Promise<{ message: string; newBalance: number; oldBalance: number }> {
     // 🔒 嚴格權限檢查
-    const allowedRoles = ['SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(currentUser.role)) {
       throw new ForbiddenException('無權限執行此操作');
     }

@@ -28,11 +28,15 @@ export class RolesGuard implements CanActivate {
     }
 
     const roleHierarchy: Record<UserRole, number> = {
-      [UserRole.SUPER_ADMIN]: 5,
-      [UserRole.GLOBAL_ADMIN]: 4,
-      [UserRole.AGENT_OWNER]: 3,
-      [UserRole.AGENT_SUPPORT]: 2,
-      [UserRole.USER]: 1,
+      [UserRole.SUPER_ADMIN]: 9,     // 超級管理員(系統開發者)
+      [UserRole.GLOBAL_ADMIN]: 8,    // 全域管理者(大老闆)
+      [UserRole.AGENT_OWNER]: 7,     // 保留舊角色(一級代理商等級)
+      [UserRole.AGENT_LEVEL_1]: 7,   // 一級代理商
+      [UserRole.AGENT_LEVEL_2]: 6,   // 二級代理商
+      [UserRole.AGENT_LEVEL_3]: 5,   // 三級代理商
+      [UserRole.AGENT_LEVEL_4]: 4,   // 四級代理商
+      [UserRole.AGENT_SUPPORT]: 3,   // 客服人員
+      [UserRole.USER]: 1,            // 一般會員
     };
 
     const userLevel = roleHierarchy[user.role];

@@ -67,6 +67,7 @@ async register(@Body() body: RegisterDto, @Req() req: any) {
   const user = await this.userService.createFromPortal({
     ...body,
     companyCode,
+    agent_code: body.agent_code, // 傳遞代理商代碼
   });
 
   const fullUser = await this.userService.findById(user.id);

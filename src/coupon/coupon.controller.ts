@@ -27,7 +27,7 @@ import { DistributeCouponDto } from './dto/distribute-coupon.dto';
 // 管理員端優惠碼控制器
 @Controller('api/admin/coupons')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+@Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
 export class AdminCouponController {
   constructor(private readonly couponService: CouponService) {}
 
@@ -38,7 +38,7 @@ export class AdminCouponController {
     const user = req.user as any;
     
     // 檢查是否有管理員權限
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限創建優惠碼模板');
     }
@@ -72,7 +72,7 @@ export class AdminCouponController {
   async getTemplates(@Req() req: Request) {
     const user = req.user as any;
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限查看優惠碼模板');
     }
@@ -85,9 +85,9 @@ export class AdminCouponController {
   async getTemplate(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     const user = req.user as any;
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
-      throw new BadRequestException('沒有權限查看優惠碼模板');
+      throw new BadRequestException('沒有權限查看優惠碼模板詳情');
     }
 
     return await this.couponService.getTemplate(id, user.companyId);
@@ -98,7 +98,7 @@ export class AdminCouponController {
   async deleteTemplate(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     const user = req.user as any;
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限刪除優惠碼模板');
     }
@@ -136,7 +136,7 @@ export class AdminCouponController {
   async distributePublicCoupon(@Body() dto: PublicCouponDto, @Req() req: Request) {
     const user = req.user as any;
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限發放優惠碼');
     }
@@ -149,7 +149,7 @@ export class AdminCouponController {
   async distributeBatchCoupons(@Body() dto: DistributeCouponDto, @Req() req: Request) {
     const user = req.user as any;
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限發放優惠碼');
     }
@@ -186,7 +186,7 @@ export class AdminCouponController {
   async getCouponStats(@Query('templateId', ParseIntPipe) templateId: number, @Req() req: Request) {
     const user = req.user as any;
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限查看統計');
     }
@@ -199,7 +199,7 @@ export class AdminCouponController {
   async createCashCoupon(@Body() body: { templateId: number; code: string }, @Req() req: Request) {
     const user = req.user as any
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限創建現金優惠券');
     }
@@ -237,7 +237,7 @@ export class AdminCouponController {
   async getCashCoupons(@Param('templateId', ParseIntPipe) templateId: number, @Req() req: Request) {
     const user = req.user as any
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限查看現金優惠券');
     }
@@ -250,7 +250,7 @@ export class AdminCouponController {
   async deleteCashCoupon(@Param('couponId', ParseIntPipe) couponId: number, @Req() req: Request) {
     const user = req.user as any
     
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限刪除現金優惠券');
     }

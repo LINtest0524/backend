@@ -471,7 +471,7 @@ export class AdminMessageController {
     const user = req.user as any;
     
     // 檢查是否有管理員權限
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限查看消息');
     }
@@ -676,7 +676,7 @@ export class AdminMessageController {
     const user = req.user as any;
     
     // 檢查是否有管理員權限
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限查看標籤');
     }
@@ -767,7 +767,7 @@ export class AdminMessageController {
     const user = req.user as any;
     
     // 檢查是否有管理員權限
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限刪除消息');
     }
@@ -800,7 +800,7 @@ export class AdminMessageController {
     const user = req.user as any;
     
     // 檢查是否有管理員權限
-    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(user.role)) {
       throw new BadRequestException('沒有權限編輯消息');
     }

@@ -31,9 +31,10 @@ export class LogoController {
   constructor(private readonly logoService: LogoService) {}
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   create(@Body() createLogoDto: CreateLogoDto, @Request() req) {
-    const companyId = req.user.role === UserRole.AGENT_OWNER 
+    const agentRoles = [UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
+    const companyId = agentRoles.includes(req.user.role)
       ? req.user.company_id 
       : (createLogoDto as any).companyId || req.user.company_id;
     
@@ -41,7 +42,7 @@ export class LogoController {
   }
 
   @Post('upload')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
       destination: './public/uploads/logo',
@@ -57,7 +58,7 @@ export class LogoController {
       cb(null, true);
     },
     limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB
+      fileSize: 10 * 1024 * 1024, // 10MB
     },
   }))
   uploadFile(@UploadedFile() file: Express.Multer.File) {
@@ -73,19 +74,19 @@ export class LogoController {
   }
 
   @Get()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   findAll(@Request() req) {
     return this.logoService.findAll(req.user.role, req.user.company_id);
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.logoService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateLogoDto: UpdateLogoDto,
@@ -95,7 +96,7 @@ export class LogoController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.logoService.remove(id, req.user.role, req.user.company_id);
   }

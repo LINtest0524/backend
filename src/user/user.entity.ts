@@ -12,10 +12,14 @@ import { Company } from '../company/company.entity';
 import { UserTag } from './user-tag.entity';
 
 export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',     //   最高權限（你自己）
-  GLOBAL_ADMIN = 'GLOBAL_ADMIN',   //   全站管理者（次高權限）
-  AGENT_OWNER = 'AGENT_OWNER',     //   代理商老闆
-  AGENT_SUPPORT = 'AGENT_SUPPORT', //   代理商客服
+  SUPER_ADMIN = 'SUPER_ADMIN',     //   超級管理員（系統開發者）
+  GLOBAL_ADMIN = 'GLOBAL_ADMIN',   //   全域管理者（大老闆）
+  AGENT_OWNER = 'AGENT_OWNER',     //   代理商老闆（保留舊角色，等遷移完成後移除）
+  AGENT_LEVEL_1 = 'AGENT_LEVEL_1', //   一級代理商
+  AGENT_LEVEL_2 = 'AGENT_LEVEL_2', //   二級代理商
+  AGENT_LEVEL_3 = 'AGENT_LEVEL_3', //   三級代理商
+  AGENT_LEVEL_4 = 'AGENT_LEVEL_4', //   四級代理商
+  AGENT_SUPPORT = 'AGENT_SUPPORT', //   客服人員
   USER = 'USER',                   //   一般會員
 }
 
@@ -115,6 +119,20 @@ export class User {
 
   @Column({ type: 'varchar', nullable: true })
   department_type: string | null;
+
+  // 代理商層級相關欄位
+  @Column({ type: 'integer', nullable: true })
+  agent_level: number | null; // 1=一級, 2=二級, 3=三級, 4=四級, null=會員/客服
+
+  @Column({ type: 'varchar', length: 50, nullable: true, unique: true })
+  agent_code: string | null; // 代理商推廣代碼
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'parent_agent_id' })
+  parent_agent: User | null; // 上級代理商
+
+  @Column({ type: 'integer', nullable: true })
+  parent_agent_id: number | null;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
