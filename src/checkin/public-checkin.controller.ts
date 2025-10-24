@@ -32,11 +32,11 @@ export class PublicCheckinController {
       throw new Error('權限不足：只能為自己簽到');
     }
     
-    // 檢查活動權限：確保活動屬於用戶的公司
+    // 檢查活動權限：確保活動屬於用戶的公司或為全公司通用活動
     const userCompanyId = req.user.company_id;
     const activity = await this.checkinService.findActivityById(id);
     
-    if (activity.companyId !== userCompanyId) {
+    if (activity.companyId !== null && activity.companyId !== userCompanyId) {
       throw new Error('無權限訪問此活動');
     }
     
@@ -78,11 +78,11 @@ export class PublicCheckinController {
       throw new Error('權限不足：只能查看自己的簽到狀態');
     }
     
-    // 檢查活動權限：確保活動屬於用戶的公司
+    // 檢查活動權限：確保活動屬於用戶的公司或為全公司通用活動
     const userCompanyId = req.user.company_id;
     const activity = await this.checkinService.findActivityById(id);
     
-    if (activity.companyId !== userCompanyId) {
+    if (activity.companyId !== null && activity.companyId !== userCompanyId) {
       throw new Error('無權限訪問此活動');
     }
     
@@ -114,7 +114,7 @@ export class PublicCheckinController {
     const userCompanyId = req.user?.company_id || 1;
     const activity = await this.checkinService.findActivityById(id);
     
-    if (activity.companyId !== userCompanyId) {
+    if (activity.companyId !== null && activity.companyId !== userCompanyId) {
       throw new Error('無權限訪問此活動');
     }
     
@@ -143,11 +143,11 @@ export class PublicCheckinController {
       throw new Error('權限不足：只能查看自己的簽到狀態');
     }
     
-    // 檢查活動權限：確保活動屬於用戶的公司
+    // 檢查活動權限：確保活動屬於用戶的公司或為全公司通用活動
     const userCompanyId = req.user.company_id;
     const activity = await this.checkinService.findActivityById(id);
     
-    if (activity.companyId !== userCompanyId) {
+    if (activity.companyId !== null && activity.companyId !== userCompanyId) {
       throw new Error('無權限訪問此活動');
     }
     

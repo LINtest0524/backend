@@ -48,17 +48,9 @@ export class ArticleController {
     @Query() query: ArticleQueryDto,
     @Request() req,
   ) {
-    console.log('findByCompany - 用戶資訊:', {
-      userId: req.user.id,
-      userRole: req.user.role,
-      userCompanyId: req.user.companyId,
-      requestedCompanyId: companyId
-    });
-    
     // Permission檢查
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       if (req.user.companyId !== companyId) {
-        console.log('權限檢查失敗: 用戶公司ID與請求公司ID不匹配');
         throw new UnauthorizedException('您只能查看自己公司的文章');
       }
     }

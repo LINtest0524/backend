@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -13,7 +14,6 @@ import { ModuleModule } from './module/module.module';
 import { MarqueeModule } from './marquee/marquee.module';
 import { FloatingAdModule } from './floating-ad/floating-ad.module';
 import { IdentityVerificationModule } from './identity-verification/identity-verification.module';
-import { LoanProductModule } from './loan-product/loan-product.module';
 
 import { LuckyPrizeModule } from './lucky-draw/lucky-prize.module';
 import { CompanyModule } from './company/company.module';
@@ -45,6 +45,7 @@ import { MockGamesModule } from './modules/mock-games/mock-games.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -70,7 +71,6 @@ import { MockGamesModule } from './modules/mock-games/mock-games.module';
     FloatingAdModule,
     CompanyModuleModule, 
     IdentityVerificationModule,
-    LoanProductModule,
     LuckyPrizeModule,
     MenuModule,
     NewsModule,

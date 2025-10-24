@@ -93,10 +93,8 @@ export class AuditLogService {
       .leftJoinAndSelect('log.user', 'user')
       .orderBy('log.created_at', 'DESC');
 
-    if (
-      currentUser.role === 'AGENT_OWNER' ||
-      currentUser.role === 'AGENT_SUPPORT'
-    ) {
+    // 權限檢查：代理商只能查看自己公司的審計日誌
+    if (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'GLOBAL_ADMIN') {
       qb.andWhere('user.company_id = :companyId', { companyId: currentUser.company_id });
     }
 

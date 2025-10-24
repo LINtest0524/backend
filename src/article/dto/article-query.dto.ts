@@ -41,4 +41,12 @@ export class ArticleQueryDto {
   @IsOptional()
   @IsDateString()
   createdTo?: string;
+
+  @IsOptional()
+  @IsDateString()
+  publishFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  publishTo?: string;
 }

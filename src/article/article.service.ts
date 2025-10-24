@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindManyOptions, Not, LessThan, MoreThan } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Article, ArticleStatus } from './article.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
@@ -19,11 +20,7 @@ export class ArticleService {
   }
 
   async findAll(query: ArticleQueryDto, companyId?: number) {
-    const { page = 1, limit = 10, search, status, categoryId, sortBy = 'publish_date', sortOrder = 'DESC', createdFrom, createdTo } = query;
-    
-    console.log('ArticleService.findAll - 查詢參數:', {
-      page, limit, search, status, categoryId, sortBy, sortOrder, createdFrom, createdTo, companyId
-    });
+    const { page = 1, limit = 10, search, status, categoryId, sortBy = 'publish_date', sortOrder = 'DESC', createdFrom, createdTo, publishFrom, publishTo } = query;
     
     const queryBuilder = this.articleRepository.createQueryBuilder('article')
       .leftJoinAndSelect('article.category', 'category');
@@ -47,13 +44,22 @@ export class ArticleService {
       queryBuilder.andWhere('article.categoryId = :categoryId', { categoryId });
     }
     
-    // 日期篩選
+    // 建立日期篩選 (createdAt)
     if (createdFrom) {
-      queryBuilder.andWhere('article.publish_date >= :createdFrom', { createdFrom });
+      queryBuilder.andWhere('article.createdAt >= :createdFrom', { createdFrom });
     }
     
     if (createdTo) {
-      queryBuilder.andWhere('article.publish_date <= :createdTo', { createdTo });
+      queryBuilder.andWhere('article.createdAt <= :createdTo', { createdTo });
+    }
+    
+    // 發布日期篩選 (publish_date)
+    if (publishFrom) {
+      queryBuilder.andWhere('article.publish_date >= :publishFrom', { publishFrom });
+    }
+    
+    if (publishTo) {
+      queryBuilder.andWhere('article.publish_date <= :publishTo', { publishTo });
     }
     
     // 置頂文章優先排序
@@ -103,15 +109,8 @@ export class ArticleService {
   }
 
   async findPublicArticles(companyId: number, query: ArticleQueryDto) {
-    console.log('findPublicArticles 被調用:', { companyId, query });
     const publicQuery = { ...query, status: ArticleStatus.ACTIVE };
     const result = await this.findAll(publicQuery, companyId);
-    console.log('findPublicArticles 結果:', { 
-      total: result.total, 
-      page: result.page, 
-      totalPages: result.totalPages,
-      dataLength: result.data?.length 
-    });
     return result;
   }
 
@@ -175,5 +174,36 @@ export class ArticleService {
     });
     
     return { prev, next };
+  }
+
+  // 自動發布到期的文章 - 每15分鐘執行一次
+  @Cron('*/15 * * * *')
+  async autoPublishScheduledArticles(): Promise<void> {
+    try {
+      const now = new Date();
+      
+      // 查找狀態為 DRAFT 且發布時間已到的文章
+      const articlesToPublish = await this.articleRepository.find({
+        where: {
+          status: ArticleStatus.DRAFT,
+          publish_date: LessThan(now),
+        },
+      });
+      
+      if (articlesToPublish.length > 0) {
+        // 批量更新狀態為 ACTIVE
+        await this.articleRepository.update(
+          { 
+            status: ArticleStatus.DRAFT,
+            publish_date: LessThan(now),
+          },
+          { 
+            status: ArticleStatus.ACTIVE 
+          }
+        );
+      }
+    } catch (error) {
+      console.error('自動發布文章時發生錯誤:', error);
+    }
   }
 }

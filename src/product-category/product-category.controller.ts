@@ -72,16 +72,6 @@ export class ProductCategoryController {
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async findAll(@Request() req) {
     const { query, user } = req;
-    console.log('=== 後端收到的查詢參數 ===');
-    console.log('query:', query);
-    console.log('name:', query.name);
-    console.log('is_active:', query.is_active);
-    console.log('is_visible:', query.is_visible);
-    console.log('createdFrom:', query.createdFrom);
-    console.log('createdTo:', query.createdTo);
-    console.log('limit:', query.limit);
-    console.log('page:', query.page);
-    
     return this.categoryService.findAllWithFilters(user, query);
   }
 

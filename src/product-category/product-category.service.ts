@@ -71,8 +71,6 @@ export class ProductCategoryService {
   }
 
   async findAllWithFilters(user: User, filters: any) {
-    console.log('=== Service 收到的篩選條件 ===');
-    console.log('filters:', filters);
     
     const queryBuilder = this.categoryRepository.createQueryBuilder('category')
       .leftJoinAndSelect('category.company', 'company')
@@ -87,42 +85,33 @@ export class ProductCategoryService {
     // 名稱篩選
     if (filters.name) {
       queryBuilder.andWhere('category.name LIKE :name', { name: `%${filters.name}%` });
-      console.log('添加名稱篩選:', filters.name);
     }
 
     // 啟用狀態篩選
     if (filters.is_active !== undefined && filters.is_active !== '') {
       const isActive = filters.is_active === 'true' || filters.is_active === true;
       queryBuilder.andWhere('category.is_active = :isActive', { isActive });
-      console.log('添加啟用狀態篩選:', isActive);
     }
 
     // 顯示狀態篩選
     if (filters.is_visible !== undefined && filters.is_visible !== '') {
       const isVisible = filters.is_visible === 'true' || filters.is_visible === true;
       queryBuilder.andWhere('category.is_visible = :isVisible', { isVisible });
-      console.log('添加顯示狀態篩選:', isVisible);
     }
 
     // 建立時間篩選
     if (filters.createdFrom) {
       queryBuilder.andWhere('category.created_at >= :createdFrom', { createdFrom: filters.createdFrom });
-      console.log('添加開始時間篩選:', filters.createdFrom);
     }
 
     if (filters.createdTo) {
       queryBuilder.andWhere('category.created_at <= :createdTo', { createdTo: filters.createdTo });
-      console.log('添加結束時間篩選:', filters.createdTo);
     }
 
     queryBuilder.orderBy('category.sort_order', 'ASC')
       .addOrderBy('category.name', 'ASC');
 
     const result = await queryBuilder.getMany();
-    console.log('=== 查詢結果 ===');
-    console.log('總筆數:', result.length);
-    console.log('前3筆資料:', result.slice(0, 3).map(r => ({ id: r.id, name: r.name, created_at: r.created_at })));
-
     return result;
   }
 

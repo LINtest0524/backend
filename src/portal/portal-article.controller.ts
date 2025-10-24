@@ -58,8 +58,6 @@ export class PortalArticleController {
     @Param('id', ParseIntPipe) id: number,
     @Query('company') companyCode: string,
   ) {
-    console.log(`getArticleDetail 被調用 - articleId: ${id}, company: ${companyCode}`);
-    
     if (!companyCode) {
       throw new NotFoundException('Company code is required');
     }
@@ -73,12 +71,10 @@ export class PortalArticleController {
     }
 
     // 增加瀏覽次數
-    console.log(`增加瀏覽次數前: ${article.view_count}`);
     await this.articleService.incrementViewCount(id);
     
     // 重新獲取文章資料以取得更新後的瀏覽次數
     const updatedArticle = await this.articleService.findOne(id);
-    console.log(`增加瀏覽次數後: ${updatedArticle.view_count}`);
 
     // 獲取相關文章和上下篇
     const [relatedArticles, prevNext] = await Promise.all([
