@@ -147,6 +147,10 @@ export class AuthService {
     'SUPER_ADMIN',
     'GLOBAL_ADMIN',
     'AGENT_OWNER',
+    'AGENT_LEVEL_1',
+    'AGENT_LEVEL_2',
+    'AGENT_LEVEL_3',
+    'AGENT_LEVEL_4',
     'AGENT_SUPPORT',
   ];
   if (!allowedRoles.includes(user.role)) {

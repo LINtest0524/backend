@@ -269,13 +269,13 @@ export class MessageService {
       queryBuilder.andWhere('message.isRead = :isRead', { isRead });
     }
 
-    // 時間篩選
+    // 時間篩選 - 使用完整的日期時間比較
     if (createdFrom) {
-      queryBuilder.andWhere('DATE(message.createdAt) >= :createdFrom', { createdFrom });
+      queryBuilder.andWhere('message.createdAt >= :createdFrom', { createdFrom });
     }
 
     if (createdTo) {
-      queryBuilder.andWhere('DATE(message.createdAt) <= :createdTo', { createdTo });
+      queryBuilder.andWhere('message.createdAt <= :createdTo', { createdTo });
     }
 
     // 搜尋功能

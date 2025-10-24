@@ -374,11 +374,11 @@ export class HybridMessageService {
 
     // 時間篩選
     if (options?.createdFrom) {
-      queryBuilder = queryBuilder.andWhere('DATE(broadcast.createdAt) >= :createdFrom', { createdFrom: options.createdFrom });
+      queryBuilder = queryBuilder.andWhere('broadcast.createdAt >= :createdFrom', { createdFrom: options.createdFrom });
     }
 
     if (options?.createdTo) {
-      queryBuilder = queryBuilder.andWhere('DATE(broadcast.createdAt) <= :createdTo', { createdTo: options.createdTo });
+      queryBuilder = queryBuilder.andWhere('broadcast.createdAt <= :createdTo', { createdTo: options.createdTo });
     }
 
     // 搜尋功能

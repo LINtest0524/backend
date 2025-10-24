@@ -640,8 +640,8 @@ export class AdminMessageController {
     const user = req.user as any;
     
     
-    // 客服人員、代理商老闆、超級管理員可以發送系統廣播
-    if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
+    // 客服人員、代理商老闆、代理商等級、超級管理員可以發送系統廣播
+    if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'SUPER_ADMIN'].includes(user.role)) {
       throw new BadRequestException('沒有權限發送系統廣播');
     }
 
@@ -719,8 +719,8 @@ export class AdminMessageController {
     const user = req.user as any;
     
     
-    // 客服人員、代理商老闆、超級管理員可以發送標籤群組消息
-    if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'SUPER_ADMIN'].includes(user.role)) {
+    // 客服人員、代理商老闆、代理商等級、超級管理員可以發送標籤群組消息
+    if (!['AGENT_SUPPORT', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'SUPER_ADMIN'].includes(user.role)) {
       throw new BadRequestException('沒有權限發送標籤群組消息');
     }
 

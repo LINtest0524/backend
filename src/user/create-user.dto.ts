@@ -35,4 +35,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   department_type?: string;
+
+  @IsOptional()
+  @IsString()
+  ip_whitelist?: string;
 }

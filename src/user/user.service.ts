@@ -84,7 +84,7 @@ export class UserService {
 
 
   async create(createUserDto: CreateUserDto, creator: User, ip?: string, platform?: string): Promise<User> {
-    const { username, password, email, modules, role, companyId, department_type } = createUserDto;
+    const { username, password, email, modules, role, companyId, department_type, ip_whitelist } = createUserDto;
 
     if (creator.role === 'AGENT_SUPPORT') {
       throw new UnauthorizedException('AGENT_SUPPORT 不可新增帳號');
@@ -121,6 +121,7 @@ export class UserService {
       company,
       created_by: creator,
       department_type: department_type ?? null,
+      ip_whitelist: ip_whitelist ?? null,
     });
 
     const savedUser: User = await this.userRepository.save(user);
@@ -153,6 +154,7 @@ export class UserService {
           role: savedUser.role,
           email: savedUser.email,
           department_type: savedUser.department_type,
+          ip_whitelist: savedUser.ip_whitelist,
           modules: modules ?? [],
         },
       });
@@ -1416,7 +1418,6 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     
     user.balance = balance;
     await this.userRepository.save(user);
-    console.log(`[USER-SERVICE] 直接設定用戶 ${user.username} 餘額為 ${balance}`);
   }
 
   // 更新使用者餘額 - 加強安全性

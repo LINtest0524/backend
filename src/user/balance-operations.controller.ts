@@ -142,7 +142,6 @@ export class BalanceOperationsController {
         },
       };
     } catch (error) {
-      console.error('餘額操作失敗:', error);
       if (error.message) {
         throw new BadRequestException(error.message);
       }

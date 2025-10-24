@@ -56,7 +56,6 @@ export class UserController {
 
     // 代理商角色必須驗證公司
     const companyId = user.company?.id || user.companyId;
-    console.log('用戶公司檢查:', { userId: user.id, role: user.role, company: user.company, companyId });
     
     if (!companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
       throw new UnauthorizedException('not found使用者的公司資訊');
@@ -128,7 +127,6 @@ export class UserController {
     const user = req.user;
 
     const companyId = user.company?.id || user.companyId;
-    console.log('用戶公司檢查 (findAll):', { userId: user.id, role: user.role, company: user.company, companyId });
     
     if (!companyId && user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
       throw new UnauthorizedException('not found使用者的公司資訊');
