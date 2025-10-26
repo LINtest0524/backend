@@ -168,10 +168,10 @@ export class OrderService {
 
     // 日期範圍篩選
     if (filters?.startDate) {
-      queryBuilder.andWhere('DATE(order.created_at) >= :startDate', { startDate: filters.startDate })
+      queryBuilder.andWhere('order.created_at >= :startDate', { startDate: filters.startDate })
     }
     if (filters?.endDate) {
-      queryBuilder.andWhere('DATE(order.created_at) <= :endDate', { endDate: filters.endDate })
+      queryBuilder.andWhere('order.created_at <= :endDate', { endDate: filters.endDate })
     }
 
     // 商品名稱篩選

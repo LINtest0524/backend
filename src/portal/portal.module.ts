@@ -100,7 +100,8 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalMessageController,
   ],
   providers: [
-    LoginAttemptService
+    LoginAttemptService,
+    SessionService,
   ],
 })
 export class PortalModule {}

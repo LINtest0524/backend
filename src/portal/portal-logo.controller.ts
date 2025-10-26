@@ -5,10 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { LogoService } from '../logo/logo.service';
+import { CompanyService } from '../company/company.service';
 
 @Controller('portal/logo')
 export class PortalLogoController {
-  constructor(private readonly logoService: LogoService) {}
+  constructor(
+    private readonly logoService: LogoService,
+    private readonly companyService: CompanyService,
+  ) {}
 
   @Get()
   async getCompanyLogo(@Query('company') companyCode: string) {
@@ -33,18 +37,11 @@ export class PortalLogoController {
   }
 
   private async getCompanyIdByCode(companyCode: string): Promise<number> {
-    // TODO: 實作根據 companyCode 獲取 companyId 的邏輯
-    // 這裡暫時返回固定值，實際應該查詢 company 表
-    const companyMap: { [key: string]: number } = {
-      'a': 1,
-      'b': 2,
-    };
-    
-    const companyId = companyMap[companyCode];
-    if (!companyId) {
+    const company = await this.companyService.findByCode(companyCode);
+    if (!company) {
       throw new NotFoundException('Company not found');
     }
     
-    return companyId;
+    return company.id;
   }
 }

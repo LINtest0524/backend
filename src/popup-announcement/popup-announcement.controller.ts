@@ -34,11 +34,11 @@ export class PopupAnnouncementController {
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   create(@Request() req: any, @Body() createDto: CreatePopupAnnouncementDto) {
     const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
+    const userCompanyCode = user.company?.code;
     
     // 代理商建立的彈窗公告自動設定為自己的公司
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      createDto.company_code = userCompanyId.toString();
+      createDto.company_code = userCompanyCode;
     }
     
     return this.popupAnnouncementService.create(createDto)
@@ -50,12 +50,17 @@ export class PopupAnnouncementController {
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findAll(@Request() req: any, @Query('company') companyCode: string) {
     const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
+    const userCompanyCode = user.company?.code;
     
     // 權限檢查：代理商只能查看自己公司的彈窗公告
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
       // 代理商只能查看自己公司的公告，忽略前端傳來的 company 參數
-      companyCode = userCompanyId.toString();
+      companyCode = userCompanyCode;
+    }
+    
+    // 確保有 companyCode 才查詢，否則回傳空陣列
+    if (!companyCode) {
+      return []
     }
     
     return this.popupAnnouncementService.findAll(companyCode)
@@ -72,11 +77,11 @@ export class PopupAnnouncementController {
     }
     
     const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
+    const userCompanyCode = user.company?.code;
     
     // 權限檢查：代理商只能查看自己公司的彈窗公告
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      if (result.company_code !== userCompanyId.toString()) {
+      if (result.company_code !== userCompanyCode) {
         throw new NotFoundException('彈窗公告不存在')
       }
     }
@@ -95,11 +100,11 @@ export class PopupAnnouncementController {
     }
     
     const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
+    const userCompanyCode = user.company?.code;
     
     // 權限檢查：代理商只能修改自己公司的彈窗公告
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      if (result.company_code !== userCompanyId.toString()) {
+      if (result.company_code !== userCompanyCode) {
         throw new NotFoundException('彈窗公告不存在')
       }
     }
@@ -118,11 +123,11 @@ export class PopupAnnouncementController {
     }
     
     const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
+    const userCompanyCode = user.company?.code;
     
     // 權限檢查：代理商只能刪除自己公司的彈窗公告
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      if (result.company_code !== userCompanyId.toString()) {
+      if (result.company_code !== userCompanyCode) {
         throw new NotFoundException('彈窗公告不存在')
       }
     }

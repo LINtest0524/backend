@@ -69,6 +69,7 @@ export class SessionService {
     const userId = this.tokenToUser.get(token);
     
     if (!userId) {
+      console.log(`❌ Token not found in mapping: ${tokenPrefix}...${tokenSuffix}, total mappings: ${this.tokenToUser.size}`);
       return null;
     }
     

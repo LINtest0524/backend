@@ -20,6 +20,11 @@ export class PopupAnnouncementService {
 
   // 獲取所有彈窗公告（後台管理用）
   async findAll(companyCode: string): Promise<PopupAnnouncement[]> {
+    // 如果沒有提供 companyCode，返回空陣列（安全措施）
+    if (!companyCode) {
+      return []
+    }
+    
     return await this.popupAnnouncementRepository.find({
       where: { company_code: companyCode },
       order: { sort_order: 'DESC', created_at: 'DESC' }
@@ -28,6 +33,11 @@ export class PopupAnnouncementService {
 
   // 獲取有效的彈窗公告（前台顯示用）
   async findActiveAnnouncements(companyCode: string): Promise<PopupAnnouncement[]> {
+    // 如果沒有提供 companyCode，返回空陣列（安全措施）
+    if (!companyCode) {
+      return []
+    }
+    
     const now = new Date()
 
     // 獲取所有有效的公告
