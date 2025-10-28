@@ -26,7 +26,7 @@ export class PortalLogoController {
     const logo = await this.logoService.findByCompany(companyId);
     
     if (!logo) {
-      return null; // 沒有 LOGO 時返回 null
+      return {}; // 沒有 LOGO 時返回空物件
     }
 
     return {

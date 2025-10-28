@@ -32,7 +32,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async createEvent(@Body() createEventDto: CreateEventDto) {
@@ -45,7 +45,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getEvents(@Query('company_id') companyId: number) {
@@ -71,7 +71,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getEvent(@Param('id') id: number) {
@@ -89,7 +89,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4
   )
   async updateEvent(
     @Param('id') id: number,
@@ -101,7 +101,7 @@ export class DailyCheckinEventController {
   // 刪除活動
   @Delete('events/:id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   async deleteEvent(@Param('id') id: number) {
     return await this.eventService.deleteEvent(id);
   }
@@ -112,7 +112,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async duplicateEvent(
@@ -135,7 +135,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async createReward(@Body() createRewardDto: CreateRewardDto) {
@@ -148,7 +148,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async batchCreateRewards(@Body() batchDto: BatchCreateRewardsDto) {
@@ -161,7 +161,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async updateReward(
@@ -174,7 +174,7 @@ export class DailyCheckinEventController {
   // 刪除獎勵
   @Delete('rewards/:id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   async deleteReward(@Param('id') id: number) {
     return await this.eventService.deleteReward(id);
   }
@@ -185,7 +185,7 @@ export class DailyCheckinEventController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getEventRewards(@Param('eventId') eventId: number) {

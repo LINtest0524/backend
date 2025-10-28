@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard'; // ⬅️ 加這個
@@ -18,19 +19,19 @@ import { CreateBlacklistDto } from './dto/create-blacklist.dto';
 export class BlacklistController {
   constructor(private readonly blacklistService: BlacklistService) {}
 
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Post()
-  async create(@Body() dto: CreateBlacklistDto) {
-    return this.blacklistService.create(dto);
+  async create(@Body() dto: CreateBlacklistDto, @Request() req) {
+    return this.blacklistService.create(dto, req.user.companyId);
   }
 
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Get()
-  async findAll() {
-    return this.blacklistService.findAll();
+  async findAll(@Request() req) {
+    return this.blacklistService.findAll(req.user.companyId);
   }
 
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Delete(':id')
   async remove(@Param('id') id: number) {
     return this.blacklistService.remove(id);

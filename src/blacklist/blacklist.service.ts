@@ -18,7 +18,7 @@ export class BlacklistService {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  async create(dto: CreateBlacklistDto): Promise<Blacklist> {
+  async create(dto: CreateBlacklistDto, companyId: number): Promise<Blacklist> {
     const { userId, email, ip, reason } = dto;
 
     if (!userId && !email && !ip) {
@@ -34,19 +34,23 @@ export class BlacklistService {
       await this.userRepo.save(user);
     }
 
-    // 建立封鎖紀錄
+    // 建立封鎖紀錄，包含公司 ID
     const record = this.blacklistRepo.create({
       userId,
       email,
       ip,
       reason,
+      company_id: companyId,
     });
 
     return await this.blacklistRepo.save(record);
   }
 
-  async findAll(): Promise<Blacklist[]> {
-    return this.blacklistRepo.find();
+  async findAll(companyId: number): Promise<Blacklist[]> {
+    return this.blacklistRepo.find({
+      where: { company_id: companyId },
+      order: { created_at: 'DESC' }
+    });
   }
 
   async remove(id: number): Promise<{ message: string }> {

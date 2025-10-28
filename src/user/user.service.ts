@@ -91,7 +91,7 @@ export class UserService {
     }
 
     // 代理商角色權限檢查
-    const agentRoles = ['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'];
+    const agentRoles = ['AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'];
     if (agentRoles.includes(creator.role)) {
       if (role !== 'AGENT_SUPPORT') {
         throw new BadRequestException('代理商僅可建立 AGENT_SUPPORT 帳號');
@@ -199,7 +199,7 @@ async update(
     throw new BadRequestException('更新資料不可為空');
   }
 
-  const { email, status, modules, is_blacklisted, ip_whitelist, department_type } = updateUserDto;
+  const { email, status, modules, is_blacklisted, ip_whitelist, department_type, agent_code } = updateUserDto;
   const before = { ...user };
 
   if (email !== undefined) user.email = email;
@@ -207,6 +207,7 @@ async update(
   if (is_blacklisted !== undefined) user.is_blacklisted = is_blacklisted;
   if (ip_whitelist !== undefined) user.ip_whitelist = ip_whitelist;
   if (department_type !== undefined) user.department_type = department_type;
+  if (agent_code !== undefined) user.agent_code = agent_code;
 
   await this.userRepository.save(user);
 
@@ -342,6 +343,25 @@ if (
       target: `admin-user:${user.id}`,
       before: { department_type: before.department_type },
       after: { department_type: user.department_type },
+    });
+  }
+
+  //   log6：紀錄代理商推廣代碼變更
+  if (
+    this.auditLogService &&
+    ip &&
+    platform &&
+    agent_code !== undefined &&
+    agent_code !== before.agent_code
+  ) {
+    await this.auditLogService.record({
+      user: { id: currentUser.id },
+      action: `🎯 代理商推廣代碼變更 - ${user.username}（${before.agent_code ?? '未設定'} → ${agent_code ?? '未設定'}）`,
+      ip,
+      platform,
+      target: `admin-user:${user.id}`,
+      before: { agent_code: before.agent_code },
+      after: { agent_code: user.agent_code },
     });
   }
 
@@ -1014,8 +1034,29 @@ if (format === 'xlsx') {
         }
       });
       
+      // 如果找不到 agent_level: 1 的代理商，嘗試找其他代理商
       if (!parentAgent) {
-        throw new NotFoundException('找不到一級代理商，請聯絡客服');
+        parentAgent = await this.userRepository.findOne({
+          where: {
+            role: UserRole.AGENT_LEVEL_1,
+            company: { id: company.id }
+          }
+        });
+      }
+      
+      // 如果還是找不到，找任何有推廣代碼的代理商
+      if (!parentAgent) {
+        parentAgent = await this.userRepository
+          .createQueryBuilder('user')
+          .where('user.agent_code IS NOT NULL')
+          .andWhere('user.agent_code != \'\'')
+          .andWhere('user.company_id = :companyId', { companyId: company.id })
+          .andWhere('user.role LIKE \'AGENT_%\'')
+          .getOne();
+      }
+      
+      if (!parentAgent) {
+        throw new NotFoundException('找不到可用的代理商，請聯絡客服或使用推廣代碼註冊');
       }
     }
 
@@ -1153,7 +1194,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const hasPermission = 
       currentUser.role === 'SUPER_ADMIN' || 
       currentUser.id === userId ||
-      (['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === targetUser.company?.id) ||
+      (['AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === targetUser.company?.id) ||
       (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === targetUser.company?.id);
 
     if (!hasPermission) {
@@ -1190,7 +1231,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const hasPermission = 
       currentUser.role === 'SUPER_ADMIN' || 
       currentUser.id === userId ||
-      (['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === user.company?.id) ||
+      (['AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === user.company?.id) ||
       (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === user.company?.id);
 
     if (!hasPermission) {
@@ -1252,7 +1293,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     const hasPermission = 
       currentUser.role === 'SUPER_ADMIN' || 
       currentUser.id === userId ||
-      (['AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === userTag.user.company?.id) ||
+      (['AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4'].includes(currentUser.role) && currentUser.company_id === userTag.user.company?.id) ||
       (currentUser.role === 'AGENT_SUPPORT' && currentUser.company_id === userTag.user.company?.id);
 
     if (!hasPermission) {
@@ -1430,7 +1471,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     platform?: string
   ): Promise<{ message: string; newBalance: number; oldBalance: number }> {
     // 🔒 嚴格權限檢查
-    const allowedRoles = ['SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
+    const allowedRoles = ['SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'];
     if (!allowedRoles.includes(currentUser.role)) {
       throw new ForbiddenException('無權限執行此操作');
     }

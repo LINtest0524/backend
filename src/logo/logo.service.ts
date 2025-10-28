@@ -26,7 +26,7 @@ export class LogoService {
       .leftJoinAndSelect('logo.company', 'company');
 
     // Permission控制
-    const agentRoles = [UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
+    const agentRoles = [UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
     if (agentRoles.includes(userRole) && userCompanyId) {
       // 代理商只能看到自己公司的 LOGO
       queryBuilder.where('logo.companyId = :companyId', { companyId: userCompanyId });
@@ -67,7 +67,7 @@ export class LogoService {
     const logo = await this.findOne(id);
 
     // Permission檢查
-    const agentRoles = [UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
+    const agentRoles = [UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
     if (agentRoles.includes(userRole) && logo.companyId !== userCompanyId) {
       throw new ForbiddenException('You can only update your own company logo');
     }
@@ -80,7 +80,7 @@ export class LogoService {
     const logo = await this.findOne(id);
 
     // Permission檢查
-    const agentRoles = [UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
+    const agentRoles = [UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
     if (agentRoles.includes(userRole) && logo.companyId !== userCompanyId) {
       throw new ForbiddenException('You can only delete your own company logo');
     }

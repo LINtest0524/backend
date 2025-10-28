@@ -45,7 +45,7 @@ export class UserController {
 
   
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Get('export')
   async exportUsers(
     @Request() req,
@@ -93,7 +93,7 @@ export class UserController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async create(@Body() createUserDto: CreateUserDto, @Request() req): Promise<User> {
     const userId = req.user.id || req.user.userId;
     const fullUser = await this.userService.findById(userId);
@@ -121,7 +121,7 @@ export class UserController {
 
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Get()
   async findAll(@Request() req, @Query() query: any) {
     const user = req.user;
@@ -269,7 +269,7 @@ export class UserController {
 
   // 身分證驗證 API
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Patch(':id/id-verification')
   async updateIdVerification(@Param('id') id: number, @Body('verified') verified: boolean, @Request() req) {
     return this.userService.updateIdVerification(id, verified, req.user);
@@ -277,7 +277,7 @@ export class UserController {
 
   // 銀行驗證 API
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Patch(':id/bank-verification')
   async updateBankVerification(@Param('id') id: number, @Body('verified') verified: boolean, @Request() req) {
     return this.userService.updateBankVerification(id, verified, req.user);
@@ -285,7 +285,7 @@ export class UserController {
 
   // VIP等級 API
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Patch(':id/vip-level')
   async updateVipLevel(@Param('id') id: number, @Body('level') level: number, @Request() req) {
     return this.userService.updateVipLevel(id, level, req.user);
@@ -293,7 +293,7 @@ export class UserController {
 
   // 批量應用自動化標籤
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   @Post('apply-auto-tags')
   async applyAutoTagsToAllUsers(@Request() req) {
     const companyId = req.user.role === 'SUPER_ADMIN' ? undefined : req.user.company_id;
@@ -302,7 +302,7 @@ export class UserController {
 
   // 為特定使用者應用自動化標籤
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Post(':id/apply-auto-tags')
   async applyAutoTagsToUser(@Param('id') id: number, @Request() req) {
     return this.userService.applyAutoTagsToUser(id, req.user);
@@ -310,7 +310,7 @@ export class UserController {
 
   // 檢查自動標籤狀態
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Get(':id/auto-tag-status')
   async checkAutoTagStatus(@Param('id') id: number, @Request() req) {
     return this.userService.checkAutoTagStatus(id, req.user);
@@ -318,7 +318,7 @@ export class UserController {
 
   // 餘額管理 API
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Patch(':id/balance')
   async updateBalance(
     @Param('id') id: number,

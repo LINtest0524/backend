@@ -14,6 +14,7 @@ export interface BetTxnData {
   sessionToken: string;
   txnId: string;
   processingTimeMs?: number;
+  company_id?: number; // 讓它成為可選的
 }
 
 export interface RoundResultData {
@@ -25,6 +26,7 @@ export interface RoundResultData {
   balanceAfter: number;
   betAmount?: number;
   processingTimeMs?: number;
+  company_id?: number; // 讓它成為可選的
 }
 
 export interface BetHistoryQuery {
@@ -35,6 +37,7 @@ export interface BetHistoryQuery {
   status?: string;
   startDate?: Date;
   endDate?: Date;
+  company_id: number;
 }
 
 export interface RoundHistoryQuery {
@@ -45,6 +48,7 @@ export interface RoundHistoryQuery {
   finished?: boolean;
   startDate?: Date;
   endDate?: Date;
+  company_id: number;
 }
 
 @Injectable()
@@ -57,6 +61,10 @@ export class MockGamesRepository {
   ) {}
 
   async saveBetTxn(data: BetTxnData): Promise<BetTxnEntity> {
+    if (!data.company_id) {
+      throw new Error('company_id is required for saving bet transaction');
+    }
+
     const entity = this.betTxnRepo.create({
       playerId: data.playerId,
       roundId: data.roundId,
@@ -68,12 +76,17 @@ export class MockGamesRepository {
       txnId: data.txnId,
       processingTimeMs: data.processingTimeMs,
       status: 'ACCEPTED',
+      company_id: data.company_id,
     });
 
     return await this.betTxnRepo.save(entity);
   }
 
   async saveRoundResult(data: RoundResultData): Promise<RoundResultEntity> {
+    if (!data.company_id) {
+      throw new Error('company_id is required for saving round result');
+    }
+
     // 計算結果類型
     let outcome = 'LOSE';
     if (data.winAmount > 0) {
@@ -91,6 +104,7 @@ export class MockGamesRepository {
       processingTimeMs: data.processingTimeMs,
       finished: true,
       outcome,
+      company_id: data.company_id,
     });
 
     return await this.roundResultRepo.save(entity);
@@ -101,7 +115,8 @@ export class MockGamesRepository {
     total: number;
   }> {
     const queryBuilder = this.betTxnRepo
-      .createQueryBuilder('bet');
+      .createQueryBuilder('bet')
+      .where('bet.company_id = :companyId', { companyId: query.company_id });
 
     if (query.playerId) {
       queryBuilder.andWhere('bet.playerId = :playerId', { playerId: query.playerId });
@@ -143,7 +158,8 @@ export class MockGamesRepository {
     total: number;
   }> {
     const queryBuilder = this.roundResultRepo
-      .createQueryBuilder('round');
+      .createQueryBuilder('round')
+      .where('round.company_id = :companyId', { companyId: query.company_id });
 
     if (query.playerId) {
       queryBuilder.andWhere('round.playerId = :playerId', { playerId: query.playerId });

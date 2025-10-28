@@ -14,7 +14,6 @@ import { UserTag } from './user-tag.entity';
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',     //   超級管理員（系統開發者）
   GLOBAL_ADMIN = 'GLOBAL_ADMIN',   //   全域管理者（大老闆）
-  AGENT_OWNER = 'AGENT_OWNER',     //   代理商老闆（保留舊角色，等遷移完成後移除）
   AGENT_LEVEL_1 = 'AGENT_LEVEL_1', //   一級代理商
   AGENT_LEVEL_2 = 'AGENT_LEVEL_2', //   二級代理商
   AGENT_LEVEL_3 = 'AGENT_LEVEL_3', //   三級代理商

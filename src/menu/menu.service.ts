@@ -162,7 +162,7 @@ export class MenuService {
     }
 
     // 代理商角色權限檢查
-    const agentRoles = [UserRole.AGENT_OWNER, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
+    const agentRoles = [UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4];
     if (agentRoles.includes(user.role)) {
       // 代理商只能管理自己的公司
       if (!user.company || user.company.id !== companyId) {

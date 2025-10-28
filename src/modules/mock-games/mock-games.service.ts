@@ -143,7 +143,7 @@ export class MockGamesService {
     }
   }
 
-  async placeBet(dto: PlaceBetDto & { clientTxnId?: string }): Promise<BetResultDto> {
+  async placeBet(dto: PlaceBetDto & { clientTxnId?: string }, companyId: number): Promise<BetResultDto> {
     const s = this.sessions.get(dto.sessionToken);
     if (!s) throw new BadRequestException({ code: 'INVALID_SESSION', message: 'SessionToken 無效或已過期' });
     
@@ -228,14 +228,14 @@ export class MockGamesService {
       sessionToken: dto.sessionToken,
       txnId,
       processingTimeMs: Date.now() - startTime,
-    }).catch(err => {
+    }, companyId).catch(err => {
       console.warn('[MOCK-GAMES:DB] Failed to save bet transaction:', err.message);
     });
 
     return result;
   }
 
-  async settle(roundId: string): Promise<SettleResponseDto> {
+  async settle(roundId: string, companyId: number): Promise<SettleResponseDto> {
     // 防重複結算：若已結算，直接回傳快取結果
     const cached = this.settledRounds.get(roundId);
     if (cached) {
@@ -371,7 +371,7 @@ export class MockGamesService {
         balanceAfter: finalBalance,
         betAmount: p.betAmount,
         processingTimeMs: Date.now() - startTime,
-      }).catch(err => {
+      }, companyId).catch(err => {
         console.warn('[MOCK-GAMES:DB] Failed to save round result:', err.message);
       });
 
@@ -387,9 +387,9 @@ export class MockGamesService {
   }
 
   // 私有方法：異步保存下注記錄
-  private async saveBetTxnToDb(data: BetTxnData): Promise<void> {
+  private async saveBetTxnToDb(data: BetTxnData, companyId: number): Promise<void> {
     try {
-      await this.repository.saveBetTxn(data);
+      await this.repository.saveBetTxn({ ...data, company_id: companyId });
     } catch (error) {
       // 靜默失敗，不影響業務邏輯
       console.warn('[MOCK-GAMES:DB] Database save bet failed:', error.message);
@@ -398,9 +398,9 @@ export class MockGamesService {
   }
 
   // 私有方法：異步保存結算記錄
-  private async saveRoundResultToDb(data: RoundResultData): Promise<void> {
+  private async saveRoundResultToDb(data: RoundResultData, companyId: number): Promise<void> {
     try {
-      await this.repository.saveRoundResult(data);
+      await this.repository.saveRoundResult({ ...data, company_id: companyId });
     } catch (error) {
       // 靜默失敗，不影響業務邏輯
       console.warn('[MOCK-GAMES:DB] Database save round result failed:', error.message);
@@ -409,7 +409,7 @@ export class MockGamesService {
   }
 
   // 公開方法：查詢下注歷史
-  async getBetHistory(playerId: string | null, limit: number = 20, gameId?: string, status?: string, dateFrom?: string, dateTo?: string) {
+  async getBetHistory(playerId: string | null, limit: number = 20, gameId?: string, status?: string, dateFrom?: string, dateTo?: string, companyId?: number) {
     try {
       // 處理日期參數
       let startDate: Date | undefined;
@@ -429,6 +429,10 @@ export class MockGamesService {
         }
       }
 
+      if (!companyId) {
+        throw new Error('company_id is required for getBetHistory');
+      }
+
       return await this.repository.getBetHistory({
         playerId,
         limit,
@@ -436,6 +440,7 @@ export class MockGamesService {
         status,
         startDate,
         endDate,
+        company_id: companyId,
       });
     } catch (error) {
       console.warn('[MOCK-GAMES:DB] Failed to get bet history:', error.message);
@@ -444,7 +449,7 @@ export class MockGamesService {
   }
 
   // 公開方法：查詢結算歷史
-  async getRoundHistory(playerId: string | null, limit: number = 20, gameId?: string, finished?: string, dateFrom?: string, dateTo?: string) {
+  async getRoundHistory(playerId: string | null, limit: number = 20, gameId?: string, finished?: string, dateFrom?: string, dateTo?: string, companyId?: number) {
     try {
       // 處理日期參數
       let startDate: Date | undefined;
@@ -472,6 +477,10 @@ export class MockGamesService {
         finishedFilter = false;
       }
 
+      if (!companyId) {
+        throw new Error('company_id is required for getRoundHistory');
+      }
+
       return await this.repository.getRoundHistory({
         playerId,
         limit,
@@ -479,6 +488,7 @@ export class MockGamesService {
         finished: finishedFilter,
         startDate,
         endDate,
+        company_id: companyId,
       });
     } catch (error) {
       console.warn('[MOCK-GAMES:DB] Failed to get round history:', error.message);

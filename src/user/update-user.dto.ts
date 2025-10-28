@@ -23,4 +23,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   department_type?: string; //   部門類型欄位
+
+  @IsOptional()
+  @IsString()
+  agent_code?: string; //   代理商推廣代碼欄位
 }

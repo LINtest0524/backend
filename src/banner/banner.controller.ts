@@ -47,7 +47,10 @@ export class BannerController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1,
+    UserRole.AGENT_LEVEL_2,
+    UserRole.AGENT_LEVEL_3,
+    UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   @Post()
@@ -80,7 +83,10 @@ export class BannerController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1,
+    UserRole.AGENT_LEVEL_2,
+    UserRole.AGENT_LEVEL_3,
+    UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   @Patch(':id')
@@ -116,7 +122,7 @@ export class BannerController {
 
 
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     const user = req.user;
@@ -142,7 +148,10 @@ export class BannerController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1,
+    UserRole.AGENT_LEVEL_2,
+    UserRole.AGENT_LEVEL_3,
+    UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   @Post('upload')

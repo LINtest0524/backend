@@ -1,9 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { Company } from '../../../company/company.entity';
 
 @Entity('mock_games_round_result')
 @Index('idx_round_result_player_settled', ['playerId', 'settledAt'])
 @Index('idx_round_result_round_unique', ['roundId'], { unique: true })
 @Index('idx_round_result_game_settled', ['gameId', 'settledAt'])
+@Index('idx_round_result_company_player', ['company_id', 'playerId'])
 export class RoundResultEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -13,6 +15,13 @@ export class RoundResultEntity {
 
   @Column({ length: 255 })
   playerId: string;
+
+  @Column({ nullable: true })
+  company_id: number;
+
+  @ManyToOne(() => Company)
+  @JoinColumn({ name: 'company_id' })
+  company: Company;
 
   @Column({ length: 255, unique: true })
   roundId: string;

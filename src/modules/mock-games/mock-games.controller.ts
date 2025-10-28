@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Query, Param, Res, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Param, Res, HttpStatus, BadRequestException, UseGuards, Request } from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { MockGamesService } from './mock-games.service';
 import { PlaceBetDto, SessionRequestDto } from './dto';
 import type { Response } from 'express';
@@ -68,8 +69,9 @@ export class MockGamesController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('bet')
-  async placeBet(@Body() dto: PlaceBetDto & { clientTxnId?: string }, @Res() res: Response) {
+  async placeBet(@Body() dto: PlaceBetDto & { clientTxnId?: string }, @Request() req, @Res() res: Response) {
     try {
       // 驗證必要參數
       if (!dto.sessionToken || typeof dto.sessionToken !== 'string' || dto.sessionToken.trim().length === 0) {
@@ -92,28 +94,30 @@ export class MockGamesController {
         throw new BadRequestException({ code: 'MISSING_BET_PAYLOAD', message: 'betPayload 為必填參數' });
       }
 
-      const result = await this.svc.placeBet(dto);
+      const result = await this.svc.placeBet(dto, req.user.companyId);
       return res.status(HttpStatus.OK).json(result);
     } catch (error) {
       return this.handleError(error, res);
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('settle')
-  async settle(@Query('roundId') roundId: string, @Res() res: Response) {
+  async settle(@Query('roundId') roundId: string, @Request() req, @Res() res: Response) {
     try {
       // 驗證必要參數
       if (!roundId || typeof roundId !== 'string' || roundId.trim().length === 0) {
         throw new BadRequestException({ code: 'MISSING_ROUND_ID', message: 'roundId 為必填參數' });
       }
 
-      const result = await this.svc.settle(roundId);
+      const result = await this.svc.settle(roundId, req.user.companyId);
       return res.status(HttpStatus.OK).json(result);
     } catch (error) {
       return this.handleError(error, res);
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('history/bets')
   async getBetHistory(
     @Query('playerId') playerId: string,
@@ -122,6 +126,7 @@ export class MockGamesController {
     @Query('status') status: string,
     @Query('dateFrom') dateFrom: string,
     @Query('dateTo') dateTo: string,
+    @Request() req,
     @Res() res: Response,
   ) {
     try {
@@ -138,7 +143,7 @@ export class MockGamesController {
         throw new BadRequestException({ code: 'INVALID_LIMIT', message: 'limit 必須是 1-2000 之間的數字' });
       }
 
-      const result = await this.svc.getBetHistory(playerId?.trim() || null, limitNum, gameId, status, dateFrom, dateTo);
+      const result = await this.svc.getBetHistory(playerId?.trim() || null, limitNum, gameId, status, dateFrom, dateTo, req.user.companyId);
       console.log('[MOCK-GAMES] getBetHistory result:', { total: result.total, itemsLength: result.items?.length });
       return res.status(HttpStatus.OK).json(result);
     } catch (error) {
@@ -147,6 +152,7 @@ export class MockGamesController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('history/rounds')
   async getRoundHistory(
     @Query('playerId') playerId: string,
@@ -155,6 +161,7 @@ export class MockGamesController {
     @Query('finished') finished: string,
     @Query('dateFrom') dateFrom: string,
     @Query('dateTo') dateTo: string,
+    @Request() req,
     @Res() res: Response,
   ) {
     try {
@@ -171,7 +178,7 @@ export class MockGamesController {
         throw new BadRequestException({ code: 'INVALID_LIMIT', message: 'limit 必須是 1-2000 之間的數字' });
       }
 
-      const result = await this.svc.getRoundHistory(playerId?.trim() || null, limitNum, gameId, finished, dateFrom, dateTo);
+      const result = await this.svc.getRoundHistory(playerId?.trim() || null, limitNum, gameId, finished, dateFrom, dateTo, req.user.companyId);
       console.log('[MOCK-GAMES] getRoundHistory result:', { total: result.total, itemsLength: result.items?.length });
       return res.status(HttpStatus.OK).json(result);
     } catch (error) {

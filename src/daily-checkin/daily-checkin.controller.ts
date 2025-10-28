@@ -29,7 +29,7 @@ export class DailyCheckinController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async createConfig(@Body() createDto: CreateCheckinConfigDto) {
@@ -42,7 +42,7 @@ export class DailyCheckinController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getConfigs(@Query('company_id') companyId: number) {
@@ -55,7 +55,7 @@ export class DailyCheckinController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getAllConfigs(@Query('company_id') companyId: number) {
@@ -68,7 +68,7 @@ export class DailyCheckinController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async updateConfig(
@@ -81,7 +81,7 @@ export class DailyCheckinController {
   // 管理員功能：刪除簽到配置
   @Delete('config/:id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   async deleteConfig(@Param('id') id: number) {
     await this.dailyCheckinService.deleteConfig(id);
     return { message: '配置已刪除' };
@@ -93,7 +93,7 @@ export class DailyCheckinController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getActivities(@Query('company_id') companyId: number) {
@@ -103,7 +103,7 @@ export class DailyCheckinController {
   // 管理員功能：關閉活動
   @Post('activities/close')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   async closeActivity(
     @Body('company_id') companyId: number,
     @Body('activity_name') activityName?: string
@@ -114,7 +114,7 @@ export class DailyCheckinController {
   // 管理員功能：刪除活動
   @Delete('activities/:activityName')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
   async deleteActivity(
     @Param('activityName') activityName: string,
     @Query('company_id') companyId: number
@@ -128,7 +128,7 @@ export class DailyCheckinController {
   @Roles(
     UserRole.SUPER_ADMIN,
     UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_OWNER,
+    UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4,
     UserRole.AGENT_SUPPORT
   )
   async getStats(@Query('company_id') companyId: number) {
