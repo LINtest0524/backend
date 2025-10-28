@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { PortalAuthController } from './portal-auth.controller';
 import { LoginAttemptService } from '../common/login-attempt.service';
-import { SessionService } from '../common/session.service';
+// SessionService 從 AuthModule 中導入，無需直接導入
 import { PortalBannerController } from './portal-banner.controller';
 import { PortalModuleController } from './portal-module.controller'; //   正確
 import { PortalFloatingAdController } from './portal-floating-ad.controller';
@@ -101,7 +101,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
   ],
   providers: [
     LoginAttemptService,
-    SessionService,
+    // SessionService 已在 AuthModule 中註冊並導出，無需重複註冊
   ],
 })
 export class PortalModule {}

@@ -18,6 +18,7 @@ export class OrderService {
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId?: number): Promise<Order> {
+    
     // 生成訂單編號
     const orderNumber = await this.generateOrderNumber()
 

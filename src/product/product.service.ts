@@ -249,8 +249,11 @@ export class ProductService {
   }
 
   async update(id: number, dto: UpdateProductDto, user: User, ip: string, platform: string): Promise<Product> {
-    const product = await this.findOneSecured(id, user);
-    const { variants, clearVariants, ...productData } = dto;
+    try {
+      const product = await this.findOneSecured(id, user);
+      
+      
+      const { variants, clearVariants, ...productData } = dto;
 
     // 檢查 SKU 是否重複（排除自己）
     if (productData.sku && productData.sku !== product.sku) {
@@ -289,32 +292,89 @@ export class ProductService {
     Object.assign(product, productData);
     const updatedProduct = await this.productRepository.save(product);
 
-    // 處理變體更新
-    if (clearVariants || (variants && variants.length === 0)) {
-      // 清除所有變體
-      await this.productVariantRepository.delete({ product_id: id });
-    } else if (variants && variants.length > 0) {
-      // 刪除現有變體
-      await this.productVariantRepository.delete({ product_id: id });
+    // 處理變體更新 - 避免刪除已被訂單使用的變體
+    if (variants && variants.length > 0) {
+      // 獲取現有變體
+      const existingVariants = await this.productVariantRepository.find({
+        where: { product_id: id }
+      });
       
-      // 創建新變體
-      const productVariants = variants.map((variant, index) => 
-        this.productVariantRepository.create({
-          ...variant,
-          product_id: id,
-          is_default: index === 0 || variant.is_default, // 第一個變體或明確指定的為預設
-        })
-      );
-
-      // 確保只有一個預設變體
-      const defaultCount = productVariants.filter(v => v.is_default).length;
-      if (defaultCount > 1) {
-        productVariants.forEach((v, i) => {
-          v.is_default = i === 0;
-        });
+      // 獲取已被訂單使用的變體ID
+      const usedVariantIds = await this.productVariantRepository
+        .createQueryBuilder('variant')
+        .leftJoin('order_items', 'order_item', 'order_item.product_variant_id = variant.id')
+        .where('variant.product_id = :productId', { productId: id })
+        .andWhere('order_item.id IS NOT NULL')
+        .select('variant.id')
+        .getRawMany();
+      
+      const usedIds = usedVariantIds.map(item => item.variant_id);
+      
+      // 分離需要保留和可以刪除的變體
+      const variantsToKeep = existingVariants.filter(v => usedIds.includes(v.id));
+      const variantsToDelete = existingVariants.filter(v => !usedIds.includes(v.id));
+      
+      // 刪除未被使用的變體
+      if (variantsToDelete.length > 0) {
+        await this.productVariantRepository.remove(variantsToDelete);
       }
-
-      await this.productVariantRepository.save(productVariants);
+      
+      // 處理新變體：更新現有的或創建新的
+      const processedVariants: ProductVariant[] = [];
+      
+      for (let i = 0; i < variants.length; i++) {
+        const variantData = variants[i] as any; // 暫時使用 any 來處理類型問題
+        const isDefault = i === 0 || variantData.is_default;
+        
+        if (variantData.id) {
+          // 更新現有變體
+          const existingVariant = await this.productVariantRepository.findOne({
+            where: { id: variantData.id, product_id: id }
+          });
+          
+          if (existingVariant) {
+            Object.assign(existingVariant, {
+              ...variantData,
+              product_id: id,
+              is_default: isDefault
+            });
+            const updatedVariant = await this.productVariantRepository.save(existingVariant);
+            processedVariants.push(updatedVariant);
+          }
+        } else {
+          // 創建新變體
+          const newVariant = this.productVariantRepository.create({
+            ...variantData,
+            product_id: id,
+            is_default: isDefault
+          });
+          const savedVariant = await this.productVariantRepository.save(newVariant);
+          if (Array.isArray(savedVariant)) {
+            processedVariants.push(...savedVariant);
+          } else {
+            processedVariants.push(savedVariant);
+          }
+        }
+      }
+      
+      // 確保只有一個預設變體
+      const defaultCount = processedVariants.filter(v => v.is_default).length;
+      if (defaultCount !== 1) {
+        for (let i = 0; i < processedVariants.length; i++) {
+          processedVariants[i].is_default = (i === 0);
+          await this.productVariantRepository.save(processedVariants[i]);
+        }
+      }
+    } else if (clearVariants) {
+      // 只有明確要求清除時才嘗試刪除（但仍要檢查外鍵約束）
+      try {
+        await this.productVariantRepository.delete({ product_id: id });
+      } catch (error) {
+        if (error.code === '23503') {
+          throw new BadRequestException('無法刪除商品變體，因為已有訂單使用此變體');
+        }
+        throw error;
+      }
     }
 
     // 記錄審計日誌 - 暫時註解，等待實現
@@ -329,6 +389,9 @@ export class ProductService {
     // });
 
     return updatedProduct;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async remove(id: number, user: User, ip: string, platform: string): Promise<void> {

@@ -95,6 +95,7 @@ export class PortalArticleController {
     const companyMap: { [key: string]: number } = {
       'a': 1,
       'b': 2,
+      'test': 1, // test 公司使用與 a 公司相同的 company_id
     };
     
     const companyId = companyMap[companyCode];

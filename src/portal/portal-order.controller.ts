@@ -30,4 +30,17 @@ export class PortalOrderController {
     const orders = await this.orderService.findByUser(req.user.id, company)
     return orders.find(order => order.id === +req.params.id)
   }
+
+  @Get(':id/company')
+  async getOrderCompany(@Request() req) {
+    // 這個 API 專門用於綠界回傳時查詢訂單的公司代碼，不需要認證
+    const orderId = +req.params.id
+    const order = await this.orderService.findOne(orderId)
+    
+    if (!order) {
+      throw new Error('訂單不存在')
+    }
+    
+    return { company: order.company }
+  }
 }

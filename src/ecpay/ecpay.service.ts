@@ -35,7 +35,7 @@ export class EcpayService {
       hashKey: 'spPjZn66i0OhqJsQ',
       hashIV: 'hT5OJckN45isQTTs',
       returnUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/ecpay/return`,
-      clientBackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/a/orders`,
+      clientBackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders`, // 移除寫死的 'a'
       orderResultUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/ecpay/result`,
       isProduction: false
     }
@@ -120,6 +120,7 @@ export class EcpayService {
     totalAmount: number
     itemNames: string[]
     paymentMethod?: string
+    companyCode?: string
   }): { action: string; params: Record<string, any> } {
     const merchantTradeNo = this.generateMerchantTradeNo()
     const merchantTradeDate = this.formatTradeDate()
@@ -140,7 +141,9 @@ export class EcpayService {
       TradeDesc: `訂單編號: ${orderData.orderId}`,
       ItemName: itemName,
       ReturnURL: this.config.returnUrl,
-      ClientBackURL: this.config.clientBackUrl,
+      ClientBackURL: orderData.companyCode 
+        ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${orderData.companyCode}/orders`
+        : this.config.clientBackUrl,
       OrderResultURL: this.config.orderResultUrl,
       ChoosePayment: 'ALL', // 預設顯示所有付款方式
       EncryptType: 1,
@@ -172,6 +175,7 @@ export class EcpayService {
         params.ChoosePayment = 'ALL'
     }
 
+    
     // 產生檢查碼
     params.CheckMacValue = this.generateCheckMacValue(params)
 

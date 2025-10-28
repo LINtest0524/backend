@@ -17,8 +17,10 @@ export class EcpayController {
   async createPayment(@Body() body: {
     orderId: number
     paymentMethod?: string
+    company?: string
   }) {
     try {
+      
       // 取得訂單資訊
       const order = await this.orderService.findOne(body.orderId)
       if (!order) {
@@ -38,8 +40,16 @@ export class EcpayController {
         orderId: order.id.toString(),
         totalAmount: order.total_amount,
         itemNames,
-        paymentMethod: body.paymentMethod
+        paymentMethod: body.paymentMethod,
+        companyCode: order.company || body.company  // 優先使用訂單中的公司代碼
       })
+
+      // 立即將綠界訂單編號儲存到訂單中
+      await this.orderService.updateEcpayInfo(order.id, {
+        merchantTradeNo: paymentForm.params.MerchantTradeNo
+      })
+
+      console.log(`訂單 ${order.id} 建立綠界付款，MerchantTradeNo: ${paymentForm.params.MerchantTradeNo}`)
 
       return {
         success: true,

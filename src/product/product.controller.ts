@@ -41,7 +41,7 @@ export class ProductController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async create(@Body() dto: CreateProductDto, @Request() req): Promise<Product> {
     const fullUser = await this.userService.findById(req.user.id);
     const { ip, platform } = this.extractClientInfo(req);
@@ -50,7 +50,7 @@ export class ProductController {
 
   @Post('upload-images')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   @UseInterceptors(FilesInterceptor('images', 10, {
     storage: diskStorage({
       destination: './public/uploads/products',
@@ -90,7 +90,7 @@ export class ProductController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async update(@Param('id') id: number, @Body() dto: UpdateProductDto, @Request() req) {
     const { user } = req;
     const { ip, platform } = this.extractClientInfo(req);
@@ -99,7 +99,7 @@ export class ProductController {
 
   @Patch(':id/stock')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async updateStock(
     @Param('id') id: number, 
     @Body('quantity') quantity: number, 
@@ -134,7 +134,7 @@ export class ProductController {
 
   @Post(':productId/variants')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async createVariant(
     @Param('productId') productId: number,
     @Body() dto: Omit<CreateProductVariantDto, 'product_id'>
@@ -151,7 +151,7 @@ export class ProductController {
 
   @Patch('variants/:variantId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async updateVariant(
     @Param('variantId') variantId: number,
     @Body() dto: UpdateProductVariantDto
@@ -161,14 +161,14 @@ export class ProductController {
 
   @Delete('variants/:variantId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async removeVariant(@Param('variantId') variantId: number) {
     return this.productVariantService.remove(variantId);
   }
 
   @Patch('variants/:variantId/stock')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async updateVariantStock(
     @Param('variantId') variantId: number,
     @Body('quantity') quantity: number

@@ -1,12 +1,19 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Request } from '@nestjs/common'
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Request, Inject } from '@nestjs/common'
 import { OrderService } from './order.service'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { Company } from '../company/company.entity'
 
 @Controller('admin/orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(
+    private readonly orderService: OrderService,
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>
+  ) {}
 
   @Get()
   async findAll(
@@ -21,22 +28,68 @@ export class OrderController {
     @Query('end_date') endDate?: string,
     @Query('product_name') productName?: string
   ) {
-    // 權限檢查：代理商只能查看自己公司的訂單
-    const userCompanyId = req.user.companyId || req.user.company_id;
-    
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      // 代理商只能查看自己公司的訂單，忽略前端傳來的 company 參數
-      company = userCompanyId.toString();
-    }
-    
-    return this.orderService.findAll(company, page, limit, {
+    console.log('=== 訂單查詢開始 ===');
+    console.log('請求用戶資訊:', {
+      username: req.user?.username,
+      role: req.user?.role,
+      companyId: req.user?.companyId,
+      company_id: req.user?.company_id,
+      userId: req.user?.id
+    });
+    console.log('請求參數:', {
+      company,
+      page,
+      limit,
       status,
       search,
       paymentMethod,
       startDate,
       endDate,
       productName
-    })
+    });
+
+    // 權限檢查：代理商只能查看自己公司的訂單
+    const userCompanyId = req.user.companyId || req.user.company_id;
+    const originalCompany = company;
+    
+    // 超級管理員和全域管理員可以查看所有公司訂單
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
+      // 代理商（一級到四級）和客服只能查看自己公司的訂單，忽略前端傳來的 company 參數
+      if (userCompanyId) {
+        // 動態查詢公司代碼
+        const userCompany = await this.companyRepository.findOne({
+          where: { id: userCompanyId }
+        });
+        if (userCompany) {
+          company = userCompany.code;
+          console.log(`用戶 company_id: ${userCompanyId} -> 動態公司代碼: ${company}`);
+        } else {
+          console.log(`警告：找不到 company_id ${userCompanyId} 對應的公司，使用預設值`);
+          company = 'default';
+        }
+      } else {
+        console.log(`警告：用戶沒有 company_id，無法查詢訂單`);
+        return { data: [], total: 0 }; // 沒有公司ID就不能查詢訂單
+      }
+    } else {
+      console.log(`管理員用戶，使用原始公司參數: ${company}`);
+    }
+    
+    console.log(`最終查詢公司: ${originalCompany} -> ${company}`);
+    
+    const result = await this.orderService.findAll(company, page, limit, {
+      status,
+      search,
+      paymentMethod,
+      startDate,
+      endDate,
+      productName
+    });
+    
+    console.log(`查詢結果: 找到 ${result.total} 筆訂單，返回 ${result.data.length} 筆`);
+    console.log('=== 訂單查詢結束 ===');
+    
+    return result;
   }
 
   @Get(':id')
@@ -46,7 +99,15 @@ export class OrderController {
     
     // 權限檢查：代理商只能查看自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      if (order.company !== userCompanyId.toString()) {
+      let allowedCompany: string | null = null;
+      if (userCompanyId) {
+        const userCompany = await this.companyRepository.findOne({
+          where: { id: userCompanyId }
+        });
+        allowedCompany = userCompany?.code || null;
+      }
+      
+      if (!allowedCompany || order.company !== allowedCompany) {
         throw new Error('無權限訪問此訂單');
       }
     }
@@ -65,7 +126,10 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      if (order.company !== userCompanyId.toString()) {
+      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
+        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      
+      if (order.company !== allowedCompany) {
         throw new Error('無權限修改此訂單');
       }
     }
@@ -84,7 +148,10 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      if (order.company !== userCompanyId.toString()) {
+      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
+        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      
+      if (order.company !== allowedCompany) {
         throw new Error('無權限修改此訂單');
       }
     }
@@ -103,7 +170,10 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      if (order.company !== userCompanyId.toString()) {
+      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
+        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      
+      if (order.company !== allowedCompany) {
         throw new Error('無權限修改此訂單');
       }
     }
@@ -122,7 +192,10 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      if (order.company !== userCompanyId.toString()) {
+      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
+        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      
+      if (order.company !== allowedCompany) {
         throw new Error('無權限修改此訂單');
       }
     }

@@ -21,12 +21,15 @@ export class SessionService {
   private hasChanges = false;
   
   constructor() {
+    console.log('🚀 SessionService starting up...');
+    
     // 服務啟動時從持久化存儲加載會話（如果存在）
     this.loadSessionsFromStorage();
     
     // 定期保存會話到持久化存儲（僅當有變更時）
     setInterval(() => {
       if (this.hasChanges) {
+        console.log('💾 Saving sessions to storage due to changes...');
         this.saveSessionsToStorage();
         this.hasChanges = false;
       }
@@ -38,11 +41,14 @@ export class SessionService {
     const tokenPrefix = token.substring(0, 6);
     const tokenSuffix = token.substring(token.length - 6);
     
+    console.log(`🔄 Creating session for user ${userId} (${username}), token: ${tokenPrefix}...${tokenSuffix}`);
+    
     // 檢查是否有現有會話
     const existingSession = this.activeSessions.get(userId);
     if (existingSession) {
       // 移除舊 token 映射
       this.tokenToUser.delete(existingSession.token);
+      console.log(`🗑️ Removed old token mapping for user ${userId}`);
     }
     
     // 創建新會話
@@ -60,6 +66,8 @@ export class SessionService {
     this.activeSessions.set(userId, newSession);
     this.tokenToUser.set(token, userId);
     this.hasChanges = true;
+    
+    console.log(`✅ Session created successfully. Total mappings: ${this.tokenToUser.size}, User ${userId} mapped to token ${tokenPrefix}...${tokenSuffix}`);
   }
   
   // 驗證 token 是否有效
@@ -70,6 +78,13 @@ export class SessionService {
     
     if (!userId) {
       console.log(`❌ Token not found in mapping: ${tokenPrefix}...${tokenSuffix}, total mappings: ${this.tokenToUser.size}`);
+      console.log(`🔍 Current token mappings:`);
+      Array.from(this.tokenToUser.entries()).forEach(([tok, uid], index) => {
+        const tokPrefix = tok.substring(0, 6);
+        const tokSuffix = tok.substring(tok.length - 6);
+        console.log(`   ${index + 1}. User ${uid}: ${tokPrefix}...${tokSuffix}`);
+      });
+      console.log(`💡 請重新登入以創建新的會話映射`);
       return null;
     }
     
@@ -179,6 +194,7 @@ export class SessionService {
       const filePath = path.join(process.cwd(), 'sessions-backup.json');
       
       if (!fs.existsSync(filePath)) {
+        console.log('📂 No session backup file found, starting with empty sessions');
         return; // 文件不存在，跳過
       }
       
@@ -188,6 +204,7 @@ export class SessionService {
       // 檢查數據是否太舊（超過7天）
       const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
       if (Date.now() - sessionsData.timestamp > SEVEN_DAYS) {
+        console.log('🗑️ Session backup is older than 7 days, deleting...');
         fs.unlinkSync(filePath); // 刪除過期文件
         return;
       }
@@ -196,11 +213,17 @@ export class SessionService {
       this.activeSessions = new Map(sessionsData.activeSessions);
       this.tokenToUser = new Map(sessionsData.tokenToUser);
       
-      console.log(`Restored ${this.activeSessions.size} sessions from backup`);
+      console.log(`📥 Restored ${this.activeSessions.size} sessions from backup`);
+      console.log(`🔍 Restored token mappings:`);
+      Array.from(this.tokenToUser.entries()).forEach(([tok, uid], index) => {
+        const tokPrefix = tok.substring(0, 6);
+        const tokSuffix = tok.substring(tok.length - 6);
+        console.log(`   ${index + 1}. User ${uid}: ${tokPrefix}...${tokSuffix}`);
+      });
       
     } catch (error) {
       // 靜默處理載入錯誤，不影響主要功能
-      console.warn('Failed to load sessions from storage:', error.message);
+      console.warn('❌ Failed to load sessions from storage:', error.message);
     }
   }
 }
