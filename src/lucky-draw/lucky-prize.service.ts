@@ -78,11 +78,6 @@ export class LuckyPrizeService {
   }
 
   async drawPrize(userId?: number, companyId?: number, userIp?: string, userAgent?: string) {
-    console.log('=== 抽獎服務調試 ===');
-    console.log('userId:', userId);
-    console.log('companyId:', companyId);
-    console.log('userIp:', userIp);
-    
     // 檢查用戶是否存在
     if (!userId) {
       throw new BadRequestException('用戶ID不能為空');
@@ -94,13 +89,9 @@ export class LuckyPrizeService {
       whereCondition.companyId = companyId;
     }
     
-    console.log('查詢活動條件:', whereCondition);
-    
     const activeEvent = await this.eventRepo.findOne({
       where: whereCondition
     });
-
-    console.log('找到的active活動:', activeEvent);
 
     if (!activeEvent) {
       throw new NotFoundException('目前沒有進行中的抽獎活動');
@@ -165,11 +156,7 @@ export class LuckyPrizeService {
       eventId: activeEvent.id, // 記錄活動ID
     });
     
-    console.log('準備記錄抽獎:', drawRecord);
-    
     const savedRecord = await this.recordRepo.save(drawRecord);
-    
-    console.log('已保存抽獎記錄:', savedRecord);
 
     // 計算中獎獎品在輪盤上的位置索引（使用原始獎品列表）
     const winningIndex = prizes.findIndex(p => p.id === winningPrize.id);

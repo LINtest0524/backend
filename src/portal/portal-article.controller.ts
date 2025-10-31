@@ -93,9 +93,9 @@ export class PortalArticleController {
     // TODO: 實作根據 companyCode 獲取 companyId 的邏輯
     // 這裡暫時返回固定值，實際應該查詢 company 表
     const companyMap: { [key: string]: number } = {
-      'a': 1,
+      'a': 3,
       'b': 2,
-      'test': 1, // test 公司使用與 a 公司相同的 company_id
+      'test': 3, // test 公司使用與 a 公司相同的 company_id
     };
     
     const companyId = companyMap[companyCode];

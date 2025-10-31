@@ -24,9 +24,9 @@ export class ArticleCategoryController {
   constructor(private readonly categoryService: ArticleCategoryService) {}
 
   @Post()
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   create(@Body() createCategoryDto: CreateArticleCategoryDto, @Request() req) {
-    // 如果不是SUPER_ADMIN，只能管理自己公司的分類
+    // 如果不是SUPER_ADMIN或GLOBAL_ADMIN，只能管理自己公司的分類
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       createCategoryDto.companyId = req.user.companyId;
     }
@@ -34,12 +34,12 @@ export class ArticleCategoryController {
   }
 
   @Get('company/:companyId')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findByCompany(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Request() req,
   ) {
-    // Permission檢查
+    // Permission檢查：非超級管理員和全域管理員只能查看自己公司的分類
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       if (req.user.companyId !== companyId) {
         throw new UnauthorizedException('您只能查看自己公司的分類');
@@ -49,13 +49,13 @@ export class ArticleCategoryController {
   }
 
   @Get(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCategoryDto: UpdateArticleCategoryDto,
@@ -66,7 +66,7 @@ export class ArticleCategoryController {
   }
 
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     // TODO: 添加權限檢查，確保只能刪除自己公司的分類
     return this.categoryService.remove(id);

@@ -10,16 +10,25 @@ export class AdminShippingController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Get('shipping-rules')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async getShippingRules(@Request() req) {
     try {
       const user = req.user;
-      let companyId = user.company_id;
+      let companyId = user.companyId || user.company_id; // 支援兩種欄位名稱
 
       // 如果是超級管理員或全域管理員，可能需要指定公司ID
       if (['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role) && req.query.company_id) {
         companyId = parseInt(req.query.company_id);
       }
+      
+      // 如果還是沒有 companyId，嘗試從 URL 參數獲取
+      if (!companyId && req.query.company_code) {
+        const company = await this.companyService.findByCode(req.query.company_code);
+        if (company) {
+          companyId = company.id;
+        }
+      }
+      
 
       if (!companyId) {
         return {
@@ -39,6 +48,7 @@ export class AdminShippingController {
         };
       }
 
+
       return {
         success: true,
         data: company.shipping_rules || []
@@ -54,16 +64,25 @@ export class AdminShippingController {
   }
 
   @Put('shipping-rules')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
-  async updateShippingRules(@Request() req, @Body() body: { shipping_rules: any[]; company_id?: number }) {
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
+  async updateShippingRules(@Request() req, @Body() body: { shipping_rules: any[]; company_id?: number; company_code?: string }) {
     try {
       const user = req.user;
-      let companyId = user.company_id;
+      let companyId = user.companyId || user.company_id; // 支援兩種欄位名稱
 
       // 如果是超級管理員或全域管理員，可能需要指定公司ID
       if (['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role) && body.company_id) {
         companyId = body.company_id;
       }
+      
+      // 如果還是沒有 companyId，嘗試從 body 中的 company_code 獲取
+      if (!companyId && body.company_code) {
+        const company = await this.companyService.findByCode(body.company_code);
+        if (company) {
+          companyId = company.id;
+        }
+      }
+      
 
       if (!companyId) {
         return {

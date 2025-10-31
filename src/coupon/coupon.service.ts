@@ -375,6 +375,11 @@ export class CouponService {
       setImmediate(() => {
         this.sendCouponNotification(companyId, adminUserId, template, tagIds);
       });
+    } else if (targetType === 'ALL_USERS' || targetType === 'SPECIFIC_USERS') {
+      // 為所有用戶或指定用戶發送通知
+      setImmediate(() => {
+        this.sendAllUsersNotification(companyId, adminUserId, template);
+      });
     }
 
 
@@ -468,7 +473,6 @@ export class CouponService {
   // 發送公共優惠碼通知
   private async sendPublicCouponNotification(companyId: number, adminUserId: number, template: any, couponCode: string) {
     try {
-      
       // 創建系統廣播訊息給所有用戶（使用正確的字段）
       const broadcastData = {
         companyId,
@@ -481,12 +485,65 @@ export class CouponService {
         targetTagNames: null,
         isActive: true,
         expiresAt: null,
-        sendToNewMembers: false
+        sendToNewMembers: true   // ✅ 修復：讓新會員也能收到公共優惠碼通知
+      };
+
+      const result = await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
+    } catch (error) {
+      console.error('❌ 發送公共優惠碼通知失敗:', error);
+      // 不要讓通知失敗影響優惠券發放
+    }
+  }
+
+  // 發送批量優惠券通知給所有用戶
+  private async sendAllUsersNotification(companyId: number, adminUserId: number, template: any) {
+    try {
+      
+      // 創建系統廣播訊息給所有用戶
+      const broadcastData = {
+        companyId,
+        senderId: adminUserId,
+        title: `${template.name} 優惠券已發放`,
+        content: `恭喜您獲得專屬優惠券！請至「我的優惠券」頁面查看詳情。`,
+        broadcastType: 'GENERAL',  // 發送給所有用戶
+        targetAudience: 'ALL',     // 所有用戶
+        targetTagIds: null,
+        targetTagNames: null,
+        isActive: true,
+        expiresAt: null,
+        sendToNewMembers: true
       };
 
       await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
     } catch (error) {
-      console.error('❌ 發送公共優惠碼通知失敗:', error);
+      console.error('❌ 發送批量優惠券通知失敗:', error);
+      console.error('❌ 錯誤詳情:', error.message);
+      // 不要讓通知失敗影響優惠券發放
+    }
+  }
+
+  // 發送現金優惠券通知給所有用戶
+  private async sendCashCouponNotification(companyId: number, template: any, couponCode: string) {
+    try {
+      
+      // 創建系統廣播訊息給所有用戶
+      const broadcastData = {
+        companyId,
+        senderId: 1, // 系統發送
+        title: `💰 新的現金優惠券：${couponCode}`,
+        content: `🎉 ${template.name} 已發放！優惠碼：${couponCode}，立即兌換可獲得現金！`,
+        broadcastType: 'GENERAL',  // 發送給所有用戶
+        targetAudience: 'ALL',     // 所有用戶
+        targetTagIds: null,
+        targetTagNames: null,
+        isActive: true,
+        expiresAt: null,
+        sendToNewMembers: true
+      };
+
+      await this.dataSource.getRepository('SystemBroadcast').save(broadcastData);
+    } catch (error) {
+      console.error('❌ 發送現金優惠券通知失敗:', error);
       console.error('❌ 錯誤詳情:', error.message);
       // 不要讓通知失敗影響優惠券發放
     }
@@ -942,9 +999,14 @@ export class CouponService {
         createdAt: new Date()
       });
 
-      await this.couponRepository.save(coupon);
+      const savedCoupon = await this.couponRepository.save(coupon);
 
-      return { success: true, message: '現金優惠券創建成功', coupon };
+      // 發送現金優惠券通知給所有用戶
+      setImmediate(() => {
+        this.sendCashCouponNotification(companyId, template, code);
+      });
+
+      return { success: true, message: '現金優惠券創建成功', coupon: savedCoupon };
 
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {

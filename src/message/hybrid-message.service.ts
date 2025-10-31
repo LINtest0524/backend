@@ -254,8 +254,11 @@ export class HybridMessageService {
         '(broadcast.validDays IS NULL OR EXTRACT(DAY FROM (NOW() - broadcast.createdAt)) <= broadcast.validDays)'
       );
     } else {
-      // 舊會員邏輯：顯示所有廣播（除了新會員專屬廣播），包含標籤群組廣播
-      queryBuilder = queryBuilder.andWhere('broadcast.broadcastType != :newMemberType', { newMemberType: 'NEW_MEMBER' });
+      // 舊會員邏輯：顯示所有廣播（除了新會員專屬廣播），包含一般廣播和標籤群組廣播
+      queryBuilder = queryBuilder.andWhere(
+        '(broadcast.broadcastType != :newMemberType OR broadcast.broadcastType IS NULL)',
+        { newMemberType: 'NEW_MEMBER' }
+      );
     }
     
     // 排除已刪除的廣播
@@ -272,14 +275,19 @@ export class HybridMessageService {
       .orderBy('broadcast.createdAt', 'DESC')
       .getMany();
     
-    // 過濾標籤群組廣播 - 只顯示用戶擁有對應標籤的廣播
+    // 過濾標籤群組廣播 - 只顯示用戶擁有對應標籤的廣播（限制最近7天內）
     const filteredBroadcasts: SystemBroadcast[] = [];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
     for (const broadcast of candidateBroadcasts) {
       if (broadcast.broadcastType === 'TAG_GROUP' && broadcast.targetTagIds) {
         try {
           const targetTagIds = JSON.parse(broadcast.targetTagIds);
           const hasTargetTags = await this.userHasTags(userId, companyId, targetTagIds);
-          if (hasTargetTags) {
+          
+          // ✅ 修復：只顯示最近7天內的標籤群組廣播，避免歷史通知轟炸
+          if (hasTargetTags && broadcast.createdAt >= sevenDaysAgo) {
             filteredBroadcasts.push(broadcast);
           }
         } catch (error) {
@@ -393,16 +401,21 @@ export class HybridMessageService {
       .orderBy('broadcast.createdAt', 'DESC')
       .getManyAndCount();
 
-    // 如果有userId，需要過濾標籤群組廣播
+    // 如果有userId，需要過濾標籤群組廣播（限制最近7天內）
     let filteredBroadcasts = candidateBroadcasts;
     if (userId) {
       filteredBroadcasts = [] as SystemBroadcast[];
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
       for (const broadcast of candidateBroadcasts) {
         if (broadcast.broadcastType === 'TAG_GROUP' && broadcast.targetTagIds) {
           try {
             const targetTagIds = JSON.parse(broadcast.targetTagIds);
             const hasTargetTags = await this.userHasTags(userId, companyId, targetTagIds);
-            if (hasTargetTags) {
+            
+            // ✅ 修復：只顯示最近7天內的標籤群組廣播，避免歷史通知轟炸
+            if (hasTargetTags && broadcast.createdAt >= sevenDaysAgo) {
               filteredBroadcasts.push(broadcast);
             }
           } catch (error) {

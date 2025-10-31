@@ -209,7 +209,6 @@ export class EcpayService {
     rtnCode: number
     rtnMsg: string
   } {
-    console.log('解析綠界回傳參數:', params)
     
     const result = {
       isSuccess: params.RtnCode === '1',
@@ -223,7 +222,6 @@ export class EcpayService {
       rtnMsg: params.RtnMsg || ''
     }
     
-    console.log('解析後的結果:', result)
     
     // 檢查關鍵欄位
     if (!result.orderId) {

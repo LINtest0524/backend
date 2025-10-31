@@ -9,7 +9,12 @@ export class PortalShippingController {
   async getShippingMethods(@Query('company') companySlug: string) {
     try {
       // 根據公司代碼獲取公司資訊
-      const company = await this.companyService.findByCode(companySlug);
+      let company = await this.companyService.findByCode(companySlug);
+      
+      // 如果找不到公司，嘗試直接用 ID 查找（向後兼容）
+      if (!company && companySlug === 'a') {
+        company = await this.companyService.findById(3);
+      }
       
       if (!company) {
         return {
@@ -19,15 +24,17 @@ export class PortalShippingController {
         };
       }
 
+      // 檢查運送規則是否為有效陣列
+      const shippingRules = Array.isArray(company.shipping_rules) ? company.shipping_rules : [];
+
       // 返回啟用的運送方式
-      const enabledShippingMethods = company.shipping_rules?.filter(rule => rule.enabled) || [];
+      const enabledShippingMethods = shippingRules.filter(rule => rule && rule.enabled === true);
       
       return {
         success: true,
         data: enabledShippingMethods
       };
     } catch (error) {
-      console.error('獲取運送方式失敗:', error);
       return {
         success: false,
         message: '獲取運送方式失敗',

@@ -35,7 +35,7 @@ export class ProductCategoryController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async create(@Body() dto: CreateProductCategoryDto, @Request() req): Promise<ProductCategory> {
     const fullUser = await this.userService.findById(req.user.id);
     const { ip, platform } = this.extractClientInfo(req);
@@ -44,7 +44,7 @@ export class ProductCategoryController {
 
   @Post('upload-image')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   @UseInterceptors(FileInterceptor('image', {
     storage: diskStorage({
       destination: './public/uploads/categories',
@@ -69,7 +69,7 @@ export class ProductCategoryController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async findAll(@Request() req) {
     const { query, user } = req;
     return this.categoryService.findAllWithFilters(user, query);
@@ -77,7 +77,7 @@ export class ProductCategoryController {
 
   @Get('tree')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async findTree(@Request() req) {
     return this.categoryService.findTree(req.user);
   }
@@ -90,7 +90,7 @@ export class ProductCategoryController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async update(@Param('id') id: number, @Body() dto: UpdateProductCategoryDto, @Request() req) {
     const { user } = req;
     const { ip, platform } = this.extractClientInfo(req);
@@ -108,7 +108,7 @@ export class ProductCategoryController {
 
   @Get('company/:companyId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async findByCompany(@Param('companyId') companyId: number, @Request() req) {
     return this.categoryService.findByCompany(companyId, req.user);
   }

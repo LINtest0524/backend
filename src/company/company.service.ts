@@ -14,13 +14,15 @@ export class CompanyService {
 
   async findByCode(code: string): Promise<Company | null> {
     return this.companyRepository.findOne({
-      where: { code }
+      where: { code },
+      select: ['id', 'code', 'name', 'status', 'shipping_rules', 'settings', 'created_at', 'updated_at']
     });
   }
 
   async findById(id: number): Promise<Company | null> {
     return this.companyRepository.findOne({
-      where: { id }
+      where: { id },
+      select: ['id', 'code', 'name', 'status', 'shipping_rules', 'settings', 'created_at', 'updated_at']
     });
   }
 

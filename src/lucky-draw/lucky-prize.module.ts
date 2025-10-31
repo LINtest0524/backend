@@ -12,5 +12,6 @@ import { LuckyDrawEventService } from './lucky-draw-event.service';
   imports: [TypeOrmModule.forFeature([LuckyPrize, LuckyDrawRecord, LuckyDrawEvent])],
   controllers: [LuckyPrizeController, LuckyDrawEventController],
   providers: [LuckyPrizeService, LuckyDrawEventService],
+  exports: [LuckyPrizeService, LuckyDrawEventService], // 導出服務供其他模組使用
 })
 export class LuckyPrizeModule {}

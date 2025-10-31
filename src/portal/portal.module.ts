@@ -19,6 +19,7 @@ import { PortalOrderController } from './portal-order.controller';
 import { PortalShippingController } from './portal-shipping.controller';
 import { PortalPromotionController } from './portal-promotion.controller';
 import { PortalMessageController } from './portal-message.controller';
+import { PortalLuckyDrawController } from './portal-lucky-draw.controller';
 
 
 import { UserModule } from '../user/user.module';
@@ -40,6 +41,7 @@ import { CompanyModule } from '../company/company.module';
 import { MessageModule } from '../message/message.module';
 import { PromotionModule } from '../promotion/promotion.module';
 import { PromotionCategoryModule } from '../promotion-category/promotion-category.module';
+import { LuckyPrizeModule } from '../lucky-draw/lucky-prize.module';
 
 import { Banner } from '../banner/banner.entity';
 import { Company } from '../company/company.entity';
@@ -67,6 +69,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     MessageModule,
     PromotionModule,
     PromotionCategoryModule,
+    LuckyPrizeModule,
     OrderModule,
     TypeOrmModule.forFeature([
       Banner,
@@ -98,6 +101,7 @@ import { FloatingAd } from '../floating-ad/floating-ad.entity';
     PortalShippingController,
     PortalPromotionController,
     PortalMessageController,
+    PortalLuckyDrawController,
   ],
   providers: [
     LoginAttemptService,

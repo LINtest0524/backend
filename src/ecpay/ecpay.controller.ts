@@ -49,7 +49,6 @@ export class EcpayController {
         merchantTradeNo: paymentForm.params.MerchantTradeNo
       })
 
-      console.log(`訂單 ${order.id} 建立綠界付款，MerchantTradeNo: ${paymentForm.params.MerchantTradeNo}`)
 
       return {
         success: true,
@@ -70,7 +69,6 @@ export class EcpayController {
   @Post('return')
   async handleReturn(@Body() body: any, @Res() res: Response) {
     try {
-      console.log('綠界付款結果通知:', body)
 
       // 驗證檢查碼
       if (!this.ecpayService.verifyCheckMacValue(body)) {
@@ -103,7 +101,6 @@ export class EcpayController {
           returnData: body
         })
 
-        console.log(`訂單 ${result.orderId} 付款成功`)
         return res.send('1|OK')
       } else {
         console.log(`訂單 ${result.orderId} 付款失敗: ${result.rtnMsg}`)
@@ -134,7 +131,6 @@ export class EcpayController {
   @Post('result')
   async handleResult(@Body() body: any, @Res() res: Response) {
     try {
-      console.log('綠界付款結果頁面 (後端處理):', body)
 
       // 驗證檢查碼
       if (!this.ecpayService.verifyCheckMacValue(body)) {
@@ -147,7 +143,6 @@ export class EcpayController {
 
       // 解析回傳資料
       const result = this.ecpayService.parseReturnData(body)
-      console.log('解析結果:', result)
       
       if (result.isSuccess) {
         // 檢查 orderId 是否存在
@@ -180,7 +175,6 @@ export class EcpayController {
           returnData: body
         })
 
-        console.log(`訂單 ${result.orderId} 付款成功，狀態已更新`)
         return res.json({
           success: true,
           message: '付款成功，訂單狀態已更新',

@@ -1,12 +1,17 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UploadedFile, UseInterceptors, ParseIntPipe, Req, Res, Query } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, UploadedFile, UseInterceptors, ParseIntPipe, Req, Res, Query, UseGuards } from "@nestjs/common";
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { v4 as uuid } from 'uuid';
 import { Express, Request, Response } from 'express';
 import { LuckyPrizeService } from "./lucky-prize.service";
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller("lucky-prize")
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
 export class LuckyPrizeController {
   constructor(private readonly service: LuckyPrizeService) {}
 
@@ -76,17 +81,38 @@ export class LuckyPrizeController {
   }
 
   @Post()
-  create(@Body() body) {
+  create(@Body() body, @Req() req: Request) {
+    const user = req.user as any;
+    const userCompanyId = user.companyId || user.company_id;
+    
+    // 權限檢查：代理商只能在自己的公司創建獎品
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
+      if (!body.eventId) {
+        throw new Error('必須指定抽獎活動');
+      }
+      // TODO: 在 service 層檢查 eventId 是否屬於用戶的公司
+    }
+    
     return this.service.create(body);
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() body, @Req() req: Request) {
+    const user = req.user as any;
+    const userCompanyId = user.companyId || user.company_id;
+    
+    // 權限檢查：代理商只能修改自己公司的獎品
+    // TODO: 在 service 層檢查獎品是否屬於用戶的公司
     return this.service.update(id, body);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+    const user = req.user as any;
+    const userCompanyId = user.companyId || user.company_id;
+    
+    // 權限檢查：代理商只能刪除自己公司的獎品
+    // TODO: 在 service 層檢查獎品是否屬於用戶的公司
     return this.service.remove(id);
   }
 

@@ -5,6 +5,7 @@ import { Order } from './order.entity'
 import { OrderItem } from './order-item.entity'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { Product } from '../product/product.entity'
+import { Company } from '../company/company.entity'
 
 @Injectable()
 export class OrderService {
@@ -15,6 +16,8 @@ export class OrderService {
     private orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId?: number): Promise<Order> {
@@ -173,6 +176,17 @@ export class OrderService {
     }
     if (filters?.endDate) {
       queryBuilder.andWhere('order.created_at <= :endDate', { endDate: filters.endDate })
+    }
+    
+    // ✅ 修復：如果沒有指定日期範圍，預設只顯示最近3天的訂單
+    if (!filters?.startDate && !filters?.endDate) {
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      threeDaysAgo.setHours(0, 0, 0, 0); // 設定為當天開始時間
+      
+      queryBuilder.andWhere('order.created_at >= :defaultStartDate', { 
+        defaultStartDate: threeDaysAgo.toISOString() 
+      });
     }
 
     // 商品名稱篩選
@@ -410,5 +424,18 @@ export class OrderService {
     }
 
     return `${datePrefix}${String(sequence).padStart(3, '0')}`
+  }
+
+  /**
+   * 根據公司ID獲取公司信息
+   */
+  async getUserCompany(companyId: number): Promise<Company | null> {
+    if (!companyId) {
+      return null;
+    }
+    
+    return await this.companyRepository.findOne({
+      where: { id: companyId }
+    });
   }
 }

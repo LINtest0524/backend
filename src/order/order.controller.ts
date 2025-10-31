@@ -126,10 +126,10 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
-        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      // 動態路由：檢查用戶的公司ID與訂單的公司是否匹配
+      const userCompany = await this.orderService.getUserCompany(userCompanyId);
       
-      if (order.company !== allowedCompany) {
+      if (!userCompany || order.company !== userCompany.code) {
         throw new Error('無權限修改此訂單');
       }
     }
@@ -148,10 +148,10 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
-        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      // 動態路由：檢查用戶的公司ID與訂單的公司是否匹配
+      const userCompany = await this.orderService.getUserCompany(userCompanyId);
       
-      if (order.company !== allowedCompany) {
+      if (!userCompany || order.company !== userCompany.code) {
         throw new Error('無權限修改此訂單');
       }
     }
@@ -170,10 +170,11 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
-        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      // 動態路由：檢查用戶的公司ID與訂單的公司是否匹配
+      // 需要查詢company表來確定公司ID對應的公司代碼
+      const userCompany = await this.orderService.getUserCompany(userCompanyId);
       
-      if (order.company !== allowedCompany) {
+      if (!userCompany || order.company !== userCompany.code) {
         throw new Error('無權限修改此訂單');
       }
     }
@@ -192,10 +193,11 @@ export class OrderController {
     
     // 權限檢查：代理商只能修改自己公司的訂單
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
-      const allowedCompany = userCompanyId ? userCompanyId.toString() : 
-        ({ 'AGENT_LEVEL_1': 'a', 'AGENT_LEVEL_2': 'b', 'AGENT_LEVEL_3': 'c', 'AGENT_LEVEL_4': 'd' }[req.user.role] || 'a');
+      // 動態路由：檢查用戶的公司ID與訂單的公司是否匹配
+      // 需要查詢company表來確定公司ID對應的公司代碼
+      const userCompany = await this.orderService.getUserCompany(userCompanyId);
       
-      if (order.company !== allowedCompany) {
+      if (!userCompany || order.company !== userCompany.code) {
         throw new Error('無權限修改此訂單');
       }
     }

@@ -32,9 +32,9 @@ export class ArticleController {
   constructor(private readonly articleService: ArticleService) {}
 
   @Post()
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   create(@Body() createArticleDto: CreateArticleDto, @Request() req) {
-    // 如果不是SUPER_ADMIN，只能管理自己公司的文章
+    // 如果不是SUPER_ADMIN或GLOBAL_ADMIN，只能管理自己公司的文章
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       createArticleDto.companyId = req.user.companyId;
     }
@@ -42,13 +42,13 @@ export class ArticleController {
   }
 
   @Get('admin/company/:companyId')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findByCompany(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Query() query: ArticleQueryDto,
     @Request() req,
   ) {
-    // Permission檢查
+    // Permission檢查：非超級管理員和全域管理員只能查看自己公司的文章
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       if (req.user.companyId !== companyId) {
         throw new UnauthorizedException('您只能查看自己公司的文章');
@@ -58,13 +58,13 @@ export class ArticleController {
   }
 
   @Get(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.articleService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateArticleDto: UpdateArticleDto,
@@ -75,14 +75,14 @@ export class ArticleController {
   }
 
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     // TODO: 添加權限檢查，確保只能刪除自己公司的文章
     return this.articleService.remove(id);
   }
 
   @Post('upload')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
