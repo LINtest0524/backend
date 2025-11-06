@@ -10,7 +10,7 @@ export class MaintenanceController {
 
   // 管理員：獲取維護設定
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Get('admin/:companyId')
   async getMaintenanceStatus(@Param('companyId') companyId: number) {
     const maintenance = await this.maintenanceService.getMaintenanceStatus(companyId);
@@ -26,7 +26,7 @@ export class MaintenanceController {
 
   // 管理員：更新維護設定
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Put('admin/:companyId')
   async updateMaintenanceStatus(
     @Param('companyId') companyId: number,
@@ -42,7 +42,7 @@ export class MaintenanceController {
 
   // 管理員：快速切換維護模式
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
+  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   @Post('admin/:companyId/toggle')
   async toggleMaintenance(
     @Param('companyId') companyId: number,

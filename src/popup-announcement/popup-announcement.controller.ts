@@ -104,6 +104,9 @@ export class PopupAnnouncementController {
     
     // 權限檢查：代理商只能修改自己公司的彈窗公告
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
+      if (!userCompanyCode) {
+        throw new NotFoundException('用戶權限不足')
+      }
       if (result.company_code !== userCompanyCode) {
         throw new NotFoundException('彈窗公告不存在')
       }

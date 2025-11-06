@@ -40,6 +40,9 @@ import { CheckinModule } from './checkin/checkin.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { ContactInfoModule } from './contact-info/contact-info.module';
 import { MockGamesModule } from './modules/mock-games/mock-games.module';
+import { AgentModule } from './agent/agent.module';
+import { CommissionConditionModule } from './commission-condition/commission-condition.module';
+import { DictionaryModule } from './dictionary/dictionary.module';
 
 
 @Module({
@@ -95,6 +98,9 @@ import { MockGamesModule } from './modules/mock-games/mock-games.module';
     MaintenanceModule,
     ContactInfoModule,
     MockGamesModule,
+    AgentModule,
+    CommissionConditionModule,
+    DictionaryModule,
 
   ],
   controllers: [],

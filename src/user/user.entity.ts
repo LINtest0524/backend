@@ -57,6 +57,19 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   email: string | null;
 
+  // 社交媒體聯絡方式
+  @Column({ type: 'varchar', nullable: true })
+  telegram: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  line: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  qq: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  note: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   facebook_id: string | null;
 
@@ -132,6 +145,10 @@ export class User {
 
   @Column({ type: 'integer', nullable: true })
   parent_agent_id: number | null;
+
+  // 占成條件關聯
+  @Column({ type: 'varchar', nullable: true })
+  commission_condition_id: string | null;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
