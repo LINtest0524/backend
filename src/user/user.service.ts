@@ -485,6 +485,7 @@ async findAll(
     createdTo,
     loginFrom,
     loginTo,
+    role,
     limit = 20,
     page = 1,
   } = query;
@@ -519,6 +520,10 @@ async findAll(
 
   if (status) {
     qb.andWhere('user.status = :status', { status });
+  }
+
+  if (role) {
+    qb.andWhere('user.role = :role', { role });
   }
 
   if (blacklist === 'true') {
