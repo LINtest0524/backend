@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '../company/company.entity';
 import { User } from '../user/user.entity';
+import { GameProviderService } from '../game-provider/game-provider.service';
 
 // 平台字典介面
 export interface PlatformDictionary {
@@ -28,6 +29,7 @@ export class DictionaryService {
     private companyRepository: Repository<Company>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private gameProviderService: GameProviderService,
   ) {}
 
   /**
@@ -43,34 +45,16 @@ export class DictionaryService {
       throw new NotFoundException(`找不到公司: ${companySlug}`);
     }
 
-    // 根據不同公司返回不同的平台清單
-    const platformMappings = {
-      'a': [
-        { code: 'AFB88', name: 'AFB體育', category: 'sports', isActive: true },
-        { code: 'DBG', name: 'DBG電子', category: 'slot', isActive: true },
-        { code: 'MT', name: 'MT棋牌', category: 'card', isActive: true },
-        { code: 'SUPER', name: 'SUPER彩票', category: 'lottery', isActive: true },
-      ],
-      'b': [
-        { code: 'DB539', name: 'DB539彩票', category: 'lottery', isActive: true },
-        { code: 'R10', name: 'R10電子', category: 'slot', isActive: true },
-        { code: 'wgwin', name: 'WG真人', category: 'live', isActive: true },
-      ],
-      'default': [
-        { code: 'AFB88', name: 'AFB體育', category: 'sports', isActive: true },
-        { code: 'DBG', name: 'DBG電子', category: 'slot', isActive: true },
-        { code: 'MT', name: 'MT棋牌', category: 'card', isActive: true },
-        { code: 'SUPER', name: 'SUPER彩票', category: 'lottery', isActive: true },
-        { code: 'DB539', name: 'DB539彩票', category: 'lottery', isActive: true },
-        { code: 'R10', name: 'R10電子', category: 'slot', isActive: true },
-        { code: 'wgwin', name: 'WG真人', category: 'live', isActive: true },
-        { code: 'wgwin539', name: 'WG539', category: 'lottery', isActive: true },
-      ]
-    };
-
-    const platforms = platformMappings[companySlug] || platformMappings['default'];
+    // 從資料庫取得所有啟用的遊戲提供商
+    const providers = await this.gameProviderService.getActiveProviders();
     
-    return platforms;
+    // 轉換為平台字典格式
+    return providers.map(provider => ({
+      code: provider.code,
+      name: provider.name,
+      category: provider.category,
+      isActive: provider.isActive,
+    }));
   }
 
   /**

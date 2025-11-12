@@ -43,6 +43,7 @@ import { MockGamesModule } from './modules/mock-games/mock-games.module';
 import { AgentModule } from './agent/agent.module';
 import { CommissionConditionModule } from './commission-condition/commission-condition.module';
 import { DictionaryModule } from './dictionary/dictionary.module';
+import { GameProviderModule } from './game-provider/game-provider.module';
 
 
 @Module({
@@ -101,6 +102,7 @@ import { DictionaryModule } from './dictionary/dictionary.module';
     AgentModule,
     CommissionConditionModule,
     DictionaryModule,
+    GameProviderModule,
 
   ],
   controllers: [],

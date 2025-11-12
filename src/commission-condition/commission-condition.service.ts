@@ -154,8 +154,6 @@ export class CommissionConditionService {
     
     // 記錄查詢參數和用戶資訊（僅開發環境）
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 Query parameters received:', { page, limit, agentId, keyword, isActive, isActiveType: typeof isActive });
-      console.log('👤 Current user:', { userId: user?.id, role: user?.role, username: user?.username });
     }
     
     const skip = (page - 1) * limit;
@@ -175,12 +173,10 @@ export class CommissionConditionService {
       if (userRole === 'SUPER_ADMIN' || userRole === 'GLOBAL_ADMIN') {
         // 超級管理員和全域管理員可以看到所有資料，不需要額外過濾
         if (process.env.NODE_ENV === 'development') {
-          console.log('🔓 Admin user - no filtering applied');
         }
       } else if (userRole === 'AGENT_LEVEL_1' || userRole === 'AGENT_LEVEL_2' || userRole === 'AGENT_LEVEL_3' || userRole === 'AGENT_LEVEL_4') {
         // 代理商可以看到自己和下級代理商的佣金條件
         if (process.env.NODE_ENV === 'development') {
-          console.log('🔒 Agent user - filtering by agent hierarchy for user ID:', userId);
         }
         
         try {
@@ -199,8 +195,6 @@ export class CommissionConditionService {
             });
             
             if (process.env.NODE_ENV === 'development') {
-              console.log('🌳 Agent hierarchy IDs:', agentIds);
-              console.log('🎯 Current agent commission condition ID:', currentUser?.commission_condition_id);
             }
             
             // 構建查詢條件
@@ -278,7 +272,6 @@ export class CommissionConditionService {
       }
       
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🎯 Adding isActive filter: ${isActiveBool} (original: ${isActive})`);
       }
       queryBuilder.andWhere('cc.isActive = :isActive', { isActive: isActiveBool });
     }
@@ -301,7 +294,6 @@ export class CommissionConditionService {
     }));
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📊 Filtered results: ${formattedItems.length} items of ${total} total`);
     }
 
     return {
