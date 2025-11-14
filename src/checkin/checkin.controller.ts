@@ -21,14 +21,14 @@ import { SimulateDto } from './dto/simulate.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RequirePermission } from '../auth/permission.decorator';
 
 @Controller('api/checkin')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class CheckinController {
   constructor(private readonly checkinService: CheckinService) {}
 
+  @RequirePermission('checkin.view')
   @Get('activities')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async findActivities(
     @Request() req,
     @Query('activityType') activityType?: string,
@@ -57,8 +57,8 @@ export class CheckinController {
     });
   }
 
+  @RequirePermission('checkin.view')
   @Get('activities/:id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async findActivity(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const activity = await this.checkinService.findActivityById(id);
     const user = req.user;
@@ -74,14 +74,13 @@ export class CheckinController {
     return activity;
   }
 
+  @RequirePermission('checkin.manage')
   @Post('activities')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async createActivity(@Request() req, @Body() createActivityDto: CreateActivityDto) {
     const user = req.user;
     
     // 代理商只能為自己的公司建立活動
-    if (user.role === 'AGENT_OWNER' || 
-        user.role === 'AGENT_LEVEL_1' || 
+    if (user.role === 'AGENT_LEVEL_1' || 
         user.role === 'AGENT_LEVEL_2' || 
         user.role === 'AGENT_LEVEL_3' || 
         user.role === 'AGENT_LEVEL_4') {
@@ -91,50 +90,38 @@ export class CheckinController {
     return this.checkinService.createActivity(createActivityDto);
   }
 
+  @RequirePermission('checkin.manage')
   @Put('activities/:id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async updateActivity(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body() updateActivityDto: UpdateActivityDto,
   ) {
-    const activity = await this.checkinService.findActivityById(id);
-    const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
-    
-    // 權限檢查：代理商只能修改自己公司的活動
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      if (activity.companyId !== userCompanyId) {
-        throw new Error('無權限修改此活動');
-      }
+    try {
+      const result = await this.checkinService.updateActivity(id, updateActivityDto);
+      return result;
+    } catch (error) {
+      throw error;
     }
-    
-    return this.checkinService.updateActivity(id, updateActivityDto);
   }
 
+  @RequirePermission('checkin.manage')
   @Patch('activities/:id/status')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async updateActivityStatus(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body() statusDto: { isEnabled?: boolean; publishAt?: string },
   ) {
-    const activity = await this.checkinService.findActivityById(id);
-    const user = req.user;
-    const userCompanyId = user.companyId || user.company_id;
-    
-    // 權限檢查：代理商只能修改自己公司的活動狀態
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'GLOBAL_ADMIN') {
-      if (activity.companyId !== userCompanyId) {
-        throw new Error('無權限修改此活動狀態');
-      }
+    try {
+      const result = await this.checkinService.updateActivityStatus(id, statusDto);
+      return result;
+    } catch (error) {
+      throw error;
     }
-    
-    return this.checkinService.updateActivityStatus(id, statusDto);
   }
 
+  @RequirePermission('checkin.manage')
   @Delete('activities/:id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async deleteActivity(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const activity = await this.checkinService.findActivityById(id);
     const user = req.user;
@@ -150,8 +137,8 @@ export class CheckinController {
     return this.checkinService.deleteActivity(id, user);
   }
 
+  @RequirePermission('checkin.view')
   @Get('activities/:id/day-rewards')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async getDayRewards(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const activity = await this.checkinService.findActivityById(id);
     const user = req.user;
@@ -167,8 +154,8 @@ export class CheckinController {
     return this.checkinService.getDayRewards(id);
   }
 
+  @RequirePermission('checkin.manage')
   @Put('activities/:id/day-rewards')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async putDayRewards(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -188,8 +175,8 @@ export class CheckinController {
     return this.checkinService.putDayRewards(id, putDayRewardsDto);
   }
 
+  @RequirePermission('checkin.manage')
   @Put('activities/:id/thresholds')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async putThresholds(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -209,8 +196,8 @@ export class CheckinController {
     return this.checkinService.putThresholds(id, putThresholdsDto);
   }
 
+  @RequirePermission('checkin.view')
   @Post('activities/:id/simulate/next-step')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async simulateNextStep(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -230,8 +217,8 @@ export class CheckinController {
     return this.checkinService.simulateNextStep(id, simulateDto);
   }
 
+  @RequirePermission('checkin.view')
   @Get('activities/:id/progress/:userId')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   async getUserProgress(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,

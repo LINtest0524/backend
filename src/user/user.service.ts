@@ -1584,6 +1584,102 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     });
   }
 
+  // 簽到專用餘額更新方法 - 用於系統自動發放簽到獎勵
+  async updateBalanceForCheckin(
+    userId: number,
+    amount: number,
+    description: string,
+    userInfo: any,
+    clientIp: string
+  ): Promise<{ success: boolean; newBalance: number; oldBalance: number }> {
+    // 用於簽到系統的餘額更新，不需要嚴格的權限檢查
+    // 但仍需要基本的安全驗證
+    if (!amount || amount <= 0 || !Number.isInteger(amount)) {
+      throw new BadRequestException('簽到獎勵金額必須為正整數');
+    }
+
+    if (amount > 100000) {
+      throw new BadRequestException('單次簽到獎勵不能超過 100,000');
+    }
+
+    const user = await this.userRepository.findOne({ 
+      where: { id: userId },
+      relations: ['company']
+    });
+    
+    if (!user) {
+      throw new BadRequestException('用戶不存在');
+    }
+
+    // 使用 transaction 確保資料一致性
+    return await this.userRepository.manager.transaction(async manager => {
+      // 重新查詢最新資料，避免併發問題
+      const latestUser = await manager.findOne(User, { 
+        where: { id: userId },
+        relations: ['company']
+      });
+      
+      if (!latestUser) {
+        throw new BadRequestException('用戶不存在');
+      }
+
+      const oldBalance = latestUser.balance || 0;
+      const newBalance = oldBalance + amount;
+
+      // 檢查餘額範圍
+      if (newBalance > 10000000) {
+        throw new BadRequestException('餘額不能超過 10,000,000');
+      }
+
+      latestUser.balance = newBalance;
+      await manager.save(latestUser);
+
+      // 記錄錢包交易
+      if (this.walletTransactionService) {
+        const transaction = manager.create(WalletTransaction, {
+          userId: latestUser.id,
+          companyId: latestUser.company_id,
+          transactionType: 'checkin_reward',
+          amount: amount,
+          balanceBefore: oldBalance,
+          balanceAfter: newBalance,
+          description: description,
+          referenceId: undefined,
+          referenceType: 'checkin_system',
+          ipAddress: this.normalizeIP(clientIp || '127.0.0.1'),
+          createdBy: userId, // 簽到是用戶自己操作
+        });
+
+        await manager.save(WalletTransaction, transaction);
+      }
+
+      // 記錄審計日誌
+      if (this.auditLogService) {
+        await this.auditLogService.record({
+          user: { id: userId },
+          action: `🎯 簽到獎勵 - ${latestUser.username || `用戶${latestUser.id}`}（金額：${amount}，餘額：${oldBalance} → ${newBalance}）`,
+          ip: this.normalizeIP(clientIp || '127.0.0.1'),
+          platform: 'Frontend',
+          target: `checkin:${latestUser.id}`,
+          before: { 
+            balance: oldBalance,
+            description: description
+          },
+          after: { 
+            balance: newBalance,
+            description: description
+          },
+        });
+      }
+
+      return {
+        success: true,
+        newBalance,
+        oldBalance
+      };
+    });
+  }
+
   // 檢查自動標籤狀態
   async checkAutoTagStatus(userId: number, currentUser: JwtUser): Promise<any> {
     const user = await this.findOneSecured(userId, currentUser);
@@ -1668,110 +1764,6 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
     }
   }
 
-  // 簽到系統專用的餘額更新方法 - 不需要權限檢查
-  async updateBalanceForCheckin(
-    userId: number, 
-    amount: number, 
-    description: string,
-    systemUserInfo: any,
-    ip?: string
-  ): Promise<{ message: string; newBalance: number; oldBalance: number }> {
-
-    // 基本輸入驗證
-    if (!amount || amount === 0 || !Number.isInteger(amount)) {
-      throw new BadRequestException('金額必須為非零整數');
-    }
-
-    if (amount < 0) {
-      throw new BadRequestException('簽到獎勵金額不能為負數');
-    }
-
-    if (amount > 100000) {
-      throw new BadRequestException('單次簽到獎勵不能超過 100,000');
-    }
-
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['company']
-    });
-
-    if (!user) {
-      throw new NotFoundException('用戶不存在');
-    }
-    
-    // 使用 transaction 確保資料一致性
-    return await this.userRepository.manager.transaction(async manager => {
-      // 重新查詢最新資料，避免併發問題
-      const latestUser = await manager.findOne(User, { 
-        where: { id: userId },
-        relations: ['company']
-      });
-      if (!latestUser) {
-        throw new BadRequestException('用戶不存在');
-      }
-      
-      const displayUsername = latestUser.username || `用戶${latestUser.id}`;
-      const oldBalance = latestUser.balance || 0;
-      const newBalance = oldBalance + amount;
-
-      // 檢查餘額範圍
-      if (newBalance > 10000000) {
-        throw new BadRequestException('餘額不能超過 10,000,000');
-      }
-
-      latestUser.balance = newBalance;
-      await manager.save(latestUser);
-
-      // 記錄錢包交易
-      if (this.walletTransactionService) {
-        const transaction = manager.create(WalletTransaction, {
-          userId: latestUser.id,
-          companyId: latestUser.company_id,
-          transactionType: 'checkin_reward',
-          amount: amount,
-          balanceBefore: oldBalance,
-          balanceAfter: newBalance,
-          description: description,
-          referenceId: undefined,
-          referenceType: 'checkin_system',
-          ipAddress: ip,
-          createdBy: systemUserInfo?.id || 1,
-        });
-
-        await manager.save(WalletTransaction, transaction);
-      }
-
-      // 記錄審計日誌
-      if (this.auditLogService && ip) {
-        await this.auditLogService.record({
-          user: { id: systemUserInfo?.id || 1 },
-          action: `🎁 簽到獎勵 - ${displayUsername}（金額：${amount}，餘額：${oldBalance} → ${newBalance}）`,
-          ip: this.normalizeIP(ip || '127.0.0.1'),
-          platform: 'Checkin System',
-          target: `checkin-reward:${latestUser.id}`,
-          before: { 
-            balance: oldBalance,
-            username: displayUsername,
-            userId: latestUser.id,
-            description: description
-          },
-          after: { 
-            balance: newBalance,
-            username: displayUsername,
-            userId: latestUser.id,
-            description: description
-          },
-        });
-      }
-
-
-      return {
-        message: '簽到獎勵發放成功',
-        newBalance,
-        oldBalance
-      };
-    });
-  }
 
 
 }

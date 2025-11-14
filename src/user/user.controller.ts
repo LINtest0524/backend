@@ -20,6 +20,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RequirePermission } from '../auth/permission.decorator';
 import { User } from './user.entity';
 import * as UAParser from 'ua-parser-js';
 
@@ -44,8 +45,7 @@ export class UserController {
 
 
   
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.view')
   @Get('export')
   async exportUsers(
     @Request() req,
@@ -69,8 +69,7 @@ export class UserController {
 
 
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @RequirePermission('system.maintenance')
   @Get('admin-only')
   getAdminOnlyRoute() {
     return { message: '你是管理員，歡迎進入此路由！' };
@@ -91,9 +90,8 @@ export class UserController {
 
 
 
+  @RequirePermission('users.create')
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async create(@Body() createUserDto: CreateUserDto, @Request() req): Promise<User> {
     const userId = req.user.id || req.user.userId;
     const fullUser = await this.userService.findById(userId);
@@ -120,8 +118,7 @@ export class UserController {
   }
 
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.view')
   @Get()
   async findAll(@Request() req, @Query() query: any) {
     const user = req.user;
@@ -159,6 +156,14 @@ export class UserController {
     }
 
     const user = req.user;
+    
+    // 權限檢查：用戶可以編輯自己的資料，管理員可以編輯任何用戶
+    const isOwnProfile = user.id === numericId || user.userId === numericId;
+    const isAdmin = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT'].includes(user.role);
+    
+    if (!isOwnProfile && !isAdmin) {
+      throw new ForbiddenException('您只能編輯自己的資料');
+    }
     const ip = req.ip;
 
     //   平台格式化：裝置 / 作業系統 / 瀏覽器
@@ -209,7 +214,7 @@ export class UserController {
   }
 
 
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('users.delete')
   @Delete(':id')
   async remove(@Param('id') id: number, @Request() req) {
     const user = req.user;
@@ -241,8 +246,7 @@ export class UserController {
   }
 
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @RequirePermission('system.maintenance')
   @Patch(':id/unblacklist')
   async removeFromBlacklist(@Param('id') id: number, @Request() req) {
     return this.userService.updateSecured(id, { is_blacklisted: false }, req.user);
@@ -268,32 +272,28 @@ export class UserController {
   }
 
   // 身分證驗證 API
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.edit')
   @Patch(':id/id-verification')
   async updateIdVerification(@Param('id') id: number, @Body('verified') verified: boolean, @Request() req) {
     return this.userService.updateIdVerification(id, verified, req.user);
   }
 
   // 銀行驗證 API
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.edit')
   @Patch(':id/bank-verification')
   async updateBankVerification(@Param('id') id: number, @Body('verified') verified: boolean, @Request() req) {
     return this.userService.updateBankVerification(id, verified, req.user);
   }
 
   // VIP等級 API
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.edit')
   @Patch(':id/vip-level')
   async updateVipLevel(@Param('id') id: number, @Body('level') level: number, @Request() req) {
     return this.userService.updateVipLevel(id, level, req.user);
   }
 
   // 批量應用自動化標籤
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
+  @RequirePermission('users.edit')
   @Post('apply-auto-tags')
   async applyAutoTagsToAllUsers(@Request() req) {
     const companyId = req.user.role === 'SUPER_ADMIN' ? undefined : req.user.company_id;
@@ -301,24 +301,21 @@ export class UserController {
   }
 
   // 為特定使用者應用自動化標籤
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.edit')
   @Post(':id/apply-auto-tags')
   async applyAutoTagsToUser(@Param('id') id: number, @Request() req) {
     return this.userService.applyAutoTagsToUser(id, req.user);
   }
 
   // 檢查自動標籤狀態
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('users.view')
   @Get(':id/auto-tag-status')
   async checkAutoTagStatus(@Param('id') id: number, @Request() req) {
     return this.userService.checkAutoTagStatus(id, req.user);
   }
 
   // 餘額管理 API
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
+  @RequirePermission('finance.balance')
   @Patch(':id/balance')
   async updateBalance(
     @Param('id') id: number,

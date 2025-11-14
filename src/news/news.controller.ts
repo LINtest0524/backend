@@ -25,14 +25,14 @@ import { NewsQueryDto } from './dto/news-query.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RequirePermission } from '../auth/permission.decorator';
 
 @Controller('news')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class NewsController {
   constructor(private readonly newsService: NewsService) {}
 
+  @RequirePermission('news.create')
   @Post()
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   create(@Body() createNewsDto: CreateNewsDto, @Request() req) {
     // 如果不是SUPER_ADMIN，只能管理自己公司的新聞
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
@@ -41,38 +41,30 @@ export class NewsController {
     return this.newsService.create(createNewsDto);
   }
 
+  @RequirePermission('news.view')
   @Get('admin/company/:companyId')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findByCompany(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Query() query: NewsQueryDto,
     @Request() req,
   ) {
-    console.log('findByCompany - 用戶資訊:', {
-      userId: req.user.id,
-      userRole: req.user.role,
-      userCompanyId: req.user.companyId,
-      requestedCompanyId: companyId
-    });
-    
     // Permission檢查
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'GLOBAL_ADMIN') {
       if (req.user.companyId !== companyId) {
-        console.log('權限檢查失敗: 用戶公司ID與請求公司ID不匹配');
         throw new UnauthorizedException('您只能查看自己公司的新聞');
       }
     }
     return this.newsService.findByCompany(companyId, query);
   }
 
+  @RequirePermission('news.view')
   @Get(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_SUPPORT')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.newsService.findOne(id);
   }
 
+  @RequirePermission('news.edit')
   @Patch(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateNewsDto: UpdateNewsDto,
@@ -82,15 +74,15 @@ export class NewsController {
     return this.newsService.update(id, updateNewsDto);
   }
 
+  @RequirePermission('news.delete')
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     // TODO: 添加權限檢查，確保只能刪除自己公司的新聞
     return this.newsService.remove(id);
   }
 
+  @RequirePermission('news.create')
   @Post('upload')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

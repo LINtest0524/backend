@@ -16,8 +16,8 @@ export class AgentOptionsService {
   ) {}
 
   async levels() {
-    // 先固定 1~3；未來可讀設定表
-    return [1,2,3];
+    // 支援 1~12 級代理商
+    return [1,2,3,4,5,6,7,8,9,10,11,12];
   }
 
   async statuses() {
@@ -56,7 +56,7 @@ export class AgentOptionsService {
           u.role
         FROM "user" u
         WHERE u.company_id = $1 
-          AND u.role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
+          AND u.role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_LEVEL_5', 'AGENT_LEVEL_6', 'AGENT_LEVEL_7', 'AGENT_LEVEL_8', 'AGENT_LEVEL_9', 'AGENT_LEVEL_10', 'AGENT_LEVEL_11', 'AGENT_LEVEL_12')
           AND u.deleted_at IS NULL
         ORDER BY u.agent_level ASC, u.id ASC
       `, [companyId]);

@@ -24,6 +24,7 @@ import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RequirePermission } from '../auth/permission.decorator';
 import { Product } from './product.entity';
 import { UserService } from '../user/user.service';
 import * as UAParser from 'ua-parser-js';
@@ -39,18 +40,16 @@ export class ProductController {
     private readonly userService: UserService,
   ) {}
 
+  @RequirePermission('products.create')
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async create(@Body() dto: CreateProductDto, @Request() req): Promise<Product> {
     const fullUser = await this.userService.findById(req.user.id);
     const { ip, platform } = this.extractClientInfo(req);
     return this.productService.create(dto, fullUser, ip, platform);
   }
 
+  @RequirePermission('products.create')
   @Post('upload-images')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   @UseInterceptors(FilesInterceptor('images', 10, {
     storage: diskStorage({
       destination: './public/uploads/products',
@@ -74,32 +73,29 @@ export class ProductController {
     return { images: imageUrls };
   }
 
+  @RequirePermission('products.view')
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async findAll(@Request() req, @Query() query: ProductQueryDto) {
     const user = req.user;
     return this.productService.findAll(user, query);
   }
 
+  @RequirePermission('products.view')
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   async findOne(@Param('id') id: number, @Request() req) {
     return this.productService.findOneSecured(id, req.user);
   }
 
+  @RequirePermission('products.edit')
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async update(@Param('id') id: number, @Body() dto: UpdateProductDto, @Request() req) {
     const { user } = req;
     const { ip, platform } = this.extractClientInfo(req);
     return this.productService.update(id, dto, user, ip, platform);
   }
 
+  @RequirePermission('products.edit')
   @Patch(':id/stock')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async updateStock(
     @Param('id') id: number, 
     @Body('quantity') quantity: number, 
@@ -108,33 +104,30 @@ export class ProductController {
     return this.productService.updateStock(id, quantity, req.user);
   }
 
+  @RequirePermission('products.delete')
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async remove(@Param('id') id: number, @Request() req) {
     const { user } = req;
     const { ip, platform } = this.extractClientInfo(req);
     return this.productService.remove(id, user, ip, platform);
   }
 
+  @RequirePermission('products.view')
   @Get('company/:companyId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async findByCompany(@Param('companyId') companyId: number, @Request() req) {
     return this.productService.findByCompany(companyId, req.user);
   }
 
   // === 產品變體相關 API ===
   
+  @RequirePermission('products.view')
   @Get(':productId/variants')
-  @UseGuards(JwtAuthGuard)
   async getProductVariants(@Param('productId') productId: number) {
     return this.productVariantService.findByProductId(productId);
   }
 
+  @RequirePermission('products.create')
   @Post(':productId/variants')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async createVariant(
     @Param('productId') productId: number,
     @Body() dto: Omit<CreateProductVariantDto, 'product_id'>
@@ -143,15 +136,14 @@ export class ProductController {
     return this.productVariantService.create(createDto);
   }
 
+  @RequirePermission('products.view')
   @Get('variants/:variantId')
-  @UseGuards(JwtAuthGuard)
   async getVariant(@Param('variantId') variantId: number) {
     return this.productVariantService.findOne(variantId);
   }
 
+  @RequirePermission('products.edit')
   @Patch('variants/:variantId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async updateVariant(
     @Param('variantId') variantId: number,
     @Body() dto: UpdateProductVariantDto
@@ -159,16 +151,14 @@ export class ProductController {
     return this.productVariantService.update(variantId, dto);
   }
 
+  @RequirePermission('products.delete')
   @Delete('variants/:variantId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async removeVariant(@Param('variantId') variantId: number) {
     return this.productVariantService.remove(variantId);
   }
 
+  @RequirePermission('products.edit')
   @Patch('variants/:variantId/stock')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_LEVEL_1')
   async updateVariantStock(
     @Param('variantId') variantId: number,
     @Body('quantity') quantity: number

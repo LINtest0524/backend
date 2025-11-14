@@ -9,6 +9,9 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { FacebookStrategy } from './facebook.strategy';
 import { AuthController } from './auth.controller';
+import { PermissionConfigService } from './permission-config.service';
+import { PermissionGuard } from './permission.guard';
+import { PermissionTestController } from './permission-test.controller';
 
 import { UserModule } from '../user/user.module';
 import { User } from '../user/user.entity';
@@ -34,16 +37,18 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
     UserModule,
     TypeOrmModule.forFeature([CompanyModuleEntity, User, Blacklist]), //   用改名後的 Entity
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, PermissionTestController],
   providers: [
     AuthService,
     JwtStrategy,
     SessionService,
+    PermissionConfigService,
+    PermissionGuard,
     {
       provide: FacebookStrategy,
       useClass: FacebookStrategy,
     },
   ],
-  exports: [AuthService, SessionService],
+  exports: [AuthService, SessionService, PermissionConfigService, PermissionGuard],
 })
 export class AuthModule {}

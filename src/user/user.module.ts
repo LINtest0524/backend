@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user.entity';
 import { UserTag } from './user-tag.entity';
@@ -13,7 +13,8 @@ import { MarqueeTag } from '../marquee-tag/marquee-tag.entity';
 import { AutoTagRule } from '../auto-tag-rule/auto-tag-rule.entity';
 import { AutoTagRuleService } from '../auto-tag-rule/auto-tag-rule.service';
 import { AuditLogModule } from '../audit-log/audit-log.module';
-import { WalletTransactionModule } from '../wallet-transaction/wallet-transaction.module'; 
+import { WalletTransactionModule } from '../wallet-transaction/wallet-transaction.module';
+import { AuthModule } from '../auth/auth.module'; 
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WalletTransactionModule } from '../wallet-transaction/wallet-transactio
     CompanyModule, //   import CompanyModule 以支援依賴注入
     AuditLogModule,
     WalletTransactionModule,
+    forwardRef(() => AuthModule),
   ],
   providers: [UserService, AutoTagRuleService],
   controllers: [UserController, BalanceOperationsController],

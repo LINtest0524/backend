@@ -52,18 +52,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     
     if (!token) {
-      throw new Error('Token not found');
+      throw new UnauthorizedException('Token not found');
     }
 
     // 2. 檢查會話是否有效（實現踢出機制）
     // 判斷是否為後台管理員（根據角色判斷）
-    const isBackendAdmin = ['SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT'].includes(payload.role);
+    const isBackendAdmin = [
+      'SUPER_ADMIN', 
+      'GLOBAL_ADMIN', 
+      'AGENT_OWNER', 
+      'AGENT_LEVEL_1',
+      'AGENT_LEVEL_2', 
+      'AGENT_LEVEL_3', 
+      'AGENT_LEVEL_4', 
+      'AGENT_SUPPORT'
+    ].includes(payload.role);
     
     if (!isBackendAdmin) {
       // 前台用戶需要檢查會話
       const session = this.sessionService.validateToken(token);
       if (!session) {
-        // 使用更簡潔的錯誤處理，避免刷屏
         throw new UnauthorizedException('Session expired or invalid');
       }
     }
@@ -73,8 +81,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!isBackendAdmin) {
       const session = this.sessionService.validateToken(token);
       if (session && session.userId !== payload.userId) {
-        console.log(`用戶ID不匹配 - Payload: ${payload.userId}, Session: ${session.userId}`);
-        throw new Error('Session user mismatch');
+        throw new UnauthorizedException('Session user mismatch');
       }
     }
 
@@ -85,13 +92,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new UnauthorizedException('User not found');
     }
 
     // 確保 companyId 屬性直接可用
-    return {
+    const result = {
       ...user,
       companyId: user.company?.id,
     };
+    
+    return result;
   }
 }

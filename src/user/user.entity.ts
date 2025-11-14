@@ -18,6 +18,14 @@ export enum UserRole {
   AGENT_LEVEL_2 = 'AGENT_LEVEL_2', //   二級代理商
   AGENT_LEVEL_3 = 'AGENT_LEVEL_3', //   三級代理商
   AGENT_LEVEL_4 = 'AGENT_LEVEL_4', //   四級代理商
+  AGENT_LEVEL_5 = 'AGENT_LEVEL_5', //   五級代理商
+  AGENT_LEVEL_6 = 'AGENT_LEVEL_6', //   六級代理商
+  AGENT_LEVEL_7 = 'AGENT_LEVEL_7', //   七級代理商
+  AGENT_LEVEL_8 = 'AGENT_LEVEL_8', //   八級代理商
+  AGENT_LEVEL_9 = 'AGENT_LEVEL_9', //   九級代理商
+  AGENT_LEVEL_10 = 'AGENT_LEVEL_10', //   十級代理商
+  AGENT_LEVEL_11 = 'AGENT_LEVEL_11', //   十一級代理商
+  AGENT_LEVEL_12 = 'AGENT_LEVEL_12', //   十二級代理商
   AGENT_SUPPORT = 'AGENT_SUPPORT', //   客服人員
   USER = 'USER',                   //   一般會員
 }
@@ -134,7 +142,7 @@ export class User {
 
   // 代理商層級相關欄位
   @Column({ type: 'integer', nullable: true })
-  agent_level: number | null; // 1=一級, 2=二級, 3=三級, 4=四級, null=會員/客服
+  agent_level: number | null; // 1=一級, 2=二級, 3=三級, 4=四級...12=十二級, null=會員/客服
 
   @Column({ type: 'varchar', length: 50, nullable: true, unique: true })
   agent_code: string | null; // 代理商推廣代碼

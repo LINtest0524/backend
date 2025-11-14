@@ -24,35 +24,29 @@ import { UpdateBannerDto } from './dto/update-banner.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RequirePermission } from '../auth/permission.decorator';
 import { UserRole } from '../user/user.entity';
 import { Express } from 'express';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('banners')
 export class BannerController {
   constructor(private readonly bannerService: BannerService) {}
 
+  @RequirePermission('banners.view')
   @Get()
   findAll(@Req() req: any) {
     const companyId = req.user.company?.id;
     return this.bannerService.findAll(companyId);
   }
 
+  @RequirePermission('banners.view')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     const companyId = req.user.company?.id;
     return this.bannerService.findOne(id, companyId);
   }
 
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_LEVEL_1,
-    UserRole.AGENT_LEVEL_2,
-    UserRole.AGENT_LEVEL_3,
-    UserRole.AGENT_LEVEL_4,
-    UserRole.AGENT_SUPPORT
-  )
+  @RequirePermission('banners.create')
   @Post()
   async create(@Body() dto: CreateBannerDto, @Req() req: any) {
     const user = req.user;
@@ -80,15 +74,7 @@ export class BannerController {
 
 
 
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_LEVEL_1,
-    UserRole.AGENT_LEVEL_2,
-    UserRole.AGENT_LEVEL_3,
-    UserRole.AGENT_LEVEL_4,
-    UserRole.AGENT_SUPPORT
-  )
+  @RequirePermission('banners.edit')
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -122,7 +108,7 @@ export class BannerController {
 
 
 
-  @Roles(UserRole.SUPER_ADMIN, UserRole.GLOBAL_ADMIN, UserRole.AGENT_LEVEL_1, UserRole.AGENT_LEVEL_2, UserRole.AGENT_LEVEL_3, UserRole.AGENT_LEVEL_4)
+  @RequirePermission('banners.delete')
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     const user = req.user;
@@ -145,15 +131,7 @@ export class BannerController {
   }
 
 
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.GLOBAL_ADMIN,
-    UserRole.AGENT_LEVEL_1,
-    UserRole.AGENT_LEVEL_2,
-    UserRole.AGENT_LEVEL_3,
-    UserRole.AGENT_LEVEL_4,
-    UserRole.AGENT_SUPPORT
-  )
+  @RequirePermission('banners.create')
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {

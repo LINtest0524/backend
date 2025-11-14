@@ -28,14 +28,22 @@ export class RolesGuard implements CanActivate {
     }
 
     const roleHierarchy: Record<UserRole, number> = {
-      [UserRole.SUPER_ADMIN]: 9,     // 超級管理員(系統開發者)
-      [UserRole.GLOBAL_ADMIN]: 8,    // 全域管理者(大老闆)
-      [UserRole.AGENT_LEVEL_1]: 7,   // 一級代理商
-      [UserRole.AGENT_LEVEL_2]: 6,   // 二級代理商
-      [UserRole.AGENT_LEVEL_3]: 5,   // 三級代理商
-      [UserRole.AGENT_LEVEL_4]: 4,   // 四級代理商
-      [UserRole.AGENT_SUPPORT]: 3,   // 客服人員
-      [UserRole.USER]: 1,            // 一般會員
+      [UserRole.SUPER_ADMIN]: 15,      // 超級管理員(系統開發者)
+      [UserRole.GLOBAL_ADMIN]: 14,     // 全域管理者(大老闆)
+      [UserRole.AGENT_LEVEL_1]: 13,    // 一級代理商
+      [UserRole.AGENT_LEVEL_2]: 12,    // 二級代理商
+      [UserRole.AGENT_LEVEL_3]: 11,    // 三級代理商
+      [UserRole.AGENT_LEVEL_4]: 10,    // 四級代理商
+      [UserRole.AGENT_LEVEL_5]: 9,     // 五級代理商
+      [UserRole.AGENT_LEVEL_6]: 8,     // 六級代理商
+      [UserRole.AGENT_LEVEL_7]: 7,     // 七級代理商
+      [UserRole.AGENT_LEVEL_8]: 6,     // 八級代理商
+      [UserRole.AGENT_LEVEL_9]: 5,     // 九級代理商
+      [UserRole.AGENT_LEVEL_10]: 4,    // 十級代理商
+      [UserRole.AGENT_LEVEL_11]: 3,    // 十一級代理商
+      [UserRole.AGENT_LEVEL_12]: 2,    // 十二級代理商
+      [UserRole.AGENT_SUPPORT]: 1,     // 客服人員
+      [UserRole.USER]: 0,              // 一般會員
     };
 
     const userLevel = roleHierarchy[user.role];

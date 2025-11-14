@@ -5,17 +5,17 @@ import { AgentOptionsService } from './agent.options';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { RequirePermission } from '../auth/permission.decorator';
 
 @Controller('agents')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class AgentController {
   constructor(
     private readonly service: AgentService,
     private readonly options: AgentOptionsService,
   ) {}
 
+  @RequirePermission('agents.create')
   @Post()
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1')
   async create(@Body() dto: CreateAgentDto, @Request() req: any) {
     const user = req.user;
     console.log(`🔍 Create agent called by user: ${user.username} (${user.role})`);
@@ -30,8 +30,8 @@ export class AgentController {
     }
   }
 
+  @RequirePermission('agents.view')
   @Get()
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3')
   async findAll(@Request() req: any, @Query('companyId') companyId?: string) {
     const user = req.user;
     
@@ -61,16 +61,16 @@ export class AgentController {
     return this.service.findAgentHierarchy(currentAgent.id, userCompanyId);
   }
 
+  @RequirePermission('agents.view')
   @Get('options/levels')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3')
   async levels() { return this.options.levels(); }
 
+  @RequirePermission('agents.view')
   @Get('options/statuses')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3')
   async statuses() { return this.options.statuses(); }
 
+  @RequirePermission('agents.view')
   @Get('options/companies')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3')
   async companies(@Request() req: any) { 
     const user = req.user;
     
@@ -97,8 +97,8 @@ export class AgentController {
     }
   }
 
+  @RequirePermission('agents.view')
   @Get('options/parents')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3')
   async parents(@Query('companyId') companyId: string, @Request() req: any) {
     const companyIdNum = Number(companyId);
     if (!companyId || isNaN(companyIdNum)) {
@@ -159,8 +159,8 @@ export class AgentController {
     }
   }
 
+  @RequirePermission('agents.manage')
   @Put(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async update(@Param('id') id: string, @Body() dto: any, @Request() req: any) {
     const user = req.user;
     const agentId = Number(id);
@@ -219,8 +219,8 @@ export class AgentController {
     }
   }
 
+  @RequirePermission('agents.create')
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2')
   async delete(@Param('id') id: string, @Request() req: any) {
     const user = req.user;
     const agentId = Number(id);
@@ -237,8 +237,8 @@ export class AgentController {
     }
   }
 
+  @RequirePermission('agents.view')
   @Get(':id')
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3')
   async findOne(@Param('id') id: string, @Request() req: any) {
     const user = req.user;
     const agentId = Number(id);

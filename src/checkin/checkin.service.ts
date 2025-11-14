@@ -133,9 +133,20 @@ export class CheckinService {
     if (updateActivityDto.publishAt && new Date(updateActivityDto.publishAt) > new Date(endDate)) {
       throw new BadRequestException('預約上架時間不能晚於結束日期');
     }
-
-    await this.activityRepository.update(id, updateActivityDto);
-    return this.findActivityById(id);
+    
+    try {
+      // 使用 save 方法避免 trigger 問題
+      const existingActivity = await this.findActivityById(id);
+      
+      Object.assign(existingActivity, updateActivityDto);
+      existingActivity.updatedAt = new Date();
+      
+      await this.activityRepository.save(existingActivity);
+      
+      return existingActivity;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async updateActivityStatus(id: number, statusDto: { isEnabled?: boolean; publishAt?: string }) {
@@ -144,9 +155,20 @@ export class CheckinService {
     if (statusDto.publishAt && new Date(statusDto.publishAt) > new Date(activity.endDate)) {
       throw new BadRequestException('預約上架時間不能晚於結束日期');
     }
-
-    await this.activityRepository.update(id, statusDto);
-    return this.findActivityById(id);
+    
+    try {
+      // 使用 save 方法避免 trigger 問題
+      const targetActivity = await this.findActivityById(id);
+      
+      Object.assign(targetActivity, statusDto);
+      targetActivity.updatedAt = new Date();
+      
+      await this.activityRepository.save(targetActivity);
+      
+      return targetActivity;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async deleteActivity(id: number, user: any) {
@@ -561,19 +583,30 @@ export class CheckinService {
 
       // 記錄簽到日誌
       if (result.reward) {
-        const ledger = transactionalEntityManager.create(CheckinLedger, {
-          activityId,
-          userId,
-          rewardType: result.reward.rewardType,
-          amount: result.reward.amount,
-          dayIndex: result.dayIndex,
-          tierDaysRequired: result.totalChecked,
-          metaJson: {
-            checkinDate: todayStr,
-            activityTitle: activity.title
+        // 額外檢查是否已存在相同的簽到記錄，防止重複插入
+        const existingLedger = await transactionalEntityManager.findOne(CheckinLedger, {
+          where: {
+            activityId,
+            userId,
+            dayIndex: result.dayIndex
           }
         });
-        await transactionalEntityManager.save(CheckinLedger, ledger);
+
+        if (!existingLedger) {
+          const ledger = transactionalEntityManager.create(CheckinLedger, {
+            activityId,
+            userId,
+            rewardType: result.reward.rewardType,
+            amount: result.reward.amount,
+            dayIndex: result.dayIndex,
+            tierDaysRequired: result.totalChecked,
+            metaJson: {
+              checkinDate: todayStr,
+              activityTitle: activity.title
+            }
+          });
+          await transactionalEntityManager.save(CheckinLedger, ledger);
+        }
       }
 
       return {

@@ -6,6 +6,7 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { RequirePermission } from '../auth/permission.decorator';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Controller('company')
@@ -16,25 +17,22 @@ export class CompanyController {
   ) {}
 
   // 獲取所有公司列表（管理員專用）
+  @RequirePermission('companies.view')
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN')
   async getAllCompanies() {
     return await this.companyService.findAll();
   }
 
   // 獲取啟用的公司列表
+  @RequirePermission('companies.view')
   @Get('active')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async getActiveCompanies() {
     return await this.companyService.getActiveCompanies();
   }
 
   // 新增公司（僅超級管理員）
+  @RequirePermission('companies.manage')
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
   async createCompany(@Body() createCompanyDto: CreateCompanyDto, @Req() req: any) {
     const company = await this.companyService.create(createCompanyDto);
 
@@ -63,9 +61,8 @@ export class CompanyController {
   }
 
   // 獲取單個公司詳情 (根據 CODE) - 前台使用
+  @RequirePermission('companies.view')
   @Get('code/:code')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN')
   async getCompanyByCode(@Param('code') code: string) {
     const company = await this.companyService.findByCode(code);
     if (!company) {
@@ -75,17 +72,15 @@ export class CompanyController {
   }
 
   // 獲取單個公司詳情 (根據 ID) - 後台使用
+  @RequirePermission('companies.view')
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN')
   async getCompanyById(@Param('id') id: number) {
     return await this.companyService.findById(id);
   }
 
   // 更新公司資料 (根據 CODE) - 推薦使用
+  @RequirePermission('companies.manage')
   @Put('code/:code')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
   async updateCompanyByCode(
     @Param('code') code: string, 
     @Body() updateCompanyDto: UpdateCompanyDto, 
@@ -192,9 +187,8 @@ export class CompanyController {
   }
 
   // 更新公司資料（僅超級管理員）
+  @RequirePermission('companies.manage')
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
   async updateCompany(
     @Param('id') id: number, 
     @Body() updateCompanyDto: UpdateCompanyDto, 
@@ -232,9 +226,8 @@ export class CompanyController {
   }
 
   // 刪除公司（僅超級管理員）
+  @RequirePermission('companies.manage')
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteCompany(@Param('id') id: number, @Req() req: any) {
     const company = await this.companyService.findById(id);
@@ -264,9 +257,8 @@ export class CompanyController {
   }
 
   // 更新公司狀態
+  @RequirePermission('companies.manage')
   @Put(':id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
   async updateCompanyStatus(
     @Param('id') id: number, 
     @Body() body: { status: 'active' | 'inactive' }, 
@@ -315,9 +307,8 @@ export class CompanyController {
   }
 
   // 更新公司登入方式
+  @RequirePermission('companies.manage')
   @Put(':id/login-methods')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
   async updateCompanyLoginMethods(
     @Param('id') id: number,
     @Body() body: { loginMethods: string[] },

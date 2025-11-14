@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
@@ -7,12 +7,14 @@ import { Product } from './product.entity';
 import { ProductVariant } from './product-variant.entity';
 import { UserModule } from '../user/user.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, ProductVariant]),
     UserModule,
     AuditLogModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [ProductController],
   providers: [ProductService, ProductVariantService],

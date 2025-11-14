@@ -2,16 +2,17 @@ import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RequirePermission } from '../auth/permission.decorator';
 import { WalletTransactionService } from './wallet-transaction.service';
 
 @Controller('wallet-transactions')
-@UseGuards(JwtAuthGuard)
 export class WalletTransactionController {
   constructor(private walletTransactionService: WalletTransactionService) {}
 
   /**
    * 獲取當前用戶的錢包交易記錄
    */
+  @UseGuards(JwtAuthGuard)
   @Get('my-transactions')
   async getMyTransactions(
     @Req() req: any,
@@ -45,6 +46,7 @@ export class WalletTransactionController {
   /**
    * 獲取當前用戶的錢包交易統計
    */
+  @UseGuards(JwtAuthGuard)
   @Get('my-stats')
   async getMyStats(
     @Req() req: any,
@@ -71,9 +73,8 @@ export class WalletTransactionController {
   /**
    * 獲取所有用戶的錢包交易記錄（管理員用）
    */
+  @RequirePermission('finance.admin')
   @Get('admin/all')
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER')
   async getAllTransactions(
     @Req() req: any,
     @Query('page') page?: string,
@@ -136,9 +137,8 @@ export class WalletTransactionController {
   /**
    * 獲取管理員存扣款操作記錄
    */
+  @RequirePermission('finance.admin')
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_OWNER', 'AGENT_SUPPORT')
   async getBalanceOperations(
     @Req() req: any,
     @Query('page') page?: string,
