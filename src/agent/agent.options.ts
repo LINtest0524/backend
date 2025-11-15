@@ -44,7 +44,6 @@ export class AgentOptionsService {
 
   async parentAgents(companyId: number) {
     try {
-      console.log(`🔍 Loading all agents for company ${companyId}`);
       
       // 使用原生 SQL 查詢，確保正確篩選代理商角色
       const agents = await this.ds.query(`
@@ -61,7 +60,6 @@ export class AgentOptionsService {
         ORDER BY u.agent_level ASC, u.id ASC
       `, [companyId]);
       
-      console.log(`📊 Found ${agents.length} agents in database for company ${companyId}`);
       
       // 格式化回應，包含任意代理商選項
       const agentList = [
@@ -79,8 +77,6 @@ export class AgentOptionsService {
         }))
       ];
       
-      console.log(`✅ Returning ${agentList.length} agents (including "任意代理商")`);
-      console.log(`📋 Agent list:`, agentList.map(a => `${a.displayName} (Level ${a.agentLevel})`));
       
       return agentList;
     } catch (error) {

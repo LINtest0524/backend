@@ -26,6 +26,17 @@ interface FindFilteredParams {
   limit: number;
 }
 
+interface FindCommissionConditionLogsParams {
+  currentUser: any;
+  targetId?: string;
+  startDate?: string;
+  endDate?: string;
+  action?: string;
+  operator?: string;
+  page: number;
+  limit: number;
+}
+
 @Injectable()
 export class AuditLogService {
   constructor(
@@ -207,5 +218,230 @@ export class AuditLogService {
         userId: targetUser.id,
       },
     });
+  }
+
+  // 分潤管理操作記錄查詢
+  async findCommissionConditionLogs(params: FindCommissionConditionLogsParams) {
+    const {
+      currentUser,
+      targetId,
+      startDate,
+      endDate,
+      action,
+      operator,
+      page,
+      limit,
+    } = params;
+
+    const qb = this.logRepo.createQueryBuilder('log')
+      .leftJoinAndSelect('log.user', 'user')
+      .where('log.target LIKE :target', { target: '%CommissionCondition%' })
+      .orderBy('log.created_at', 'DESC');
+
+    // 特定分潤方案的記錄篩選
+    if (targetId) {
+      qb.andWhere('log.target = :specificTarget', { specificTarget: `CommissionCondition:${targetId}` });
+    }
+
+    // 權限檢查：代理商只能查看自己公司的審計日誌
+    if (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'GLOBAL_ADMIN') {
+      qb.andWhere('user.company_id = :companyId', { companyId: currentUser.company_id });
+    }
+
+    // 時間範圍篩選
+    if (startDate) {
+      qb.andWhere('log.created_at >= :startDate', { startDate: new Date(startDate) });
+    }
+
+    if (endDate) {
+      qb.andWhere('log.created_at <= :endDate', { endDate: new Date(endDate) });
+    }
+
+    // 操作類型篩選
+    if (action) {
+      qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
+    }
+
+    // 經手人篩選
+    if (operator) {
+      qb.andWhere('user.username LIKE :operator', { operator: `%${operator}%` });
+    }
+
+    const totalCount = await qb.getCount();
+
+    const logs = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // 格式化返回數據
+    const items = logs.map(log => ({
+      id: log.id.toString(),
+      createdAt: log.created_at.toISOString(),
+      operator: log.user?.username || 'Unknown',
+      operatorRole: this.getUserRoleDisplayName(log.user?.role || ''),
+      action: this.extractActionType(log.action),
+      targetName: this.extractTargetName(log.action, log.after),
+      changes: this.formatChanges(log.before, log.after),
+      metadata: {
+        ip: log.ip,
+        platform: log.platform,
+        target: log.target
+      }
+    }));
+
+    return {
+      items,
+      total: totalCount,
+      page,
+      limit,
+      totalPages
+    };
+  }
+
+  // 提取操作類型
+  private extractActionType(action: string): 'CREATE' | 'UPDATE' | 'DELETE' {
+    if (action.includes('新增') || action.includes('建立') || action.includes('CREATE')) {
+      return 'CREATE';
+    } else if (action.includes('刪除') || action.includes('DELETE')) {
+      return 'DELETE';
+    } else {
+      return 'UPDATE';
+    }
+  }
+
+  // 提取目標名稱
+  private extractTargetName(action: string, afterData: any): string {
+    if (afterData && afterData.name) {
+      return afterData.name;
+    }
+    
+    // 從操作描述中嘗試提取名稱
+    const match = action.match(/「(.+?)」/);
+    if (match) {
+      return match[1];
+    }
+    
+    return '分潤方案';
+  }
+
+  // 格式化變更內容
+  private formatChanges(before: any, after: any): Record<string, any> {
+    const changes: Record<string, any> = {};
+    
+    if (!before && after) {
+      // 新增操作
+      return {
+        name: after.name,
+        agentId: after.agentId,
+        commissionPercent: after.commissionPercent,
+        systemType: after.systemType,
+        settlementCycle: after.settlementCycle,
+        gameRebateRates: after.gameRebateRates
+      };
+    }
+    
+    if (before && after) {
+      // 更新操作 - 比較前後差異
+      const fieldsToCheck = ['name', 'commissionPercent', 'systemType', 'agentLevel', 'settlementCycle', 'isActive', 'method'];
+      
+      // 檢查一般欄位
+      fieldsToCheck.forEach(field => {
+        const beforeValue = before[field];
+        const afterValue = after[field];
+        
+        // 跳過沒有實際變更的欄位（包括 null/undefined/0 之間的轉換）
+        if (this.hasActualChange(beforeValue, afterValue)) {
+          changes[field] = {
+            from: beforeValue,
+            to: afterValue
+          };
+        }
+      });
+
+      // 特別處理 gameRebateRates（遊戲返水比例）
+      if (before.gameRebateRates || after.gameRebateRates) {
+        const beforeRates = before.gameRebateRates || {};
+        const afterRates = after.gameRebateRates || {};
+        
+        const gameTypes = ['live', 'slot', 'sport', 'lottery', 'card', 'fishing'];
+        const rateChanges: Record<string, any> = {};
+        
+        gameTypes.forEach(gameType => {
+          const beforeValue = beforeRates[gameType] || 0;
+          const afterValue = afterRates[gameType] || 0;
+          
+          if (beforeValue !== afterValue) {
+            rateChanges[gameType] = {
+              from: beforeValue,
+              to: afterValue
+            };
+          }
+        });
+        
+        if (Object.keys(rateChanges).length > 0) {
+          changes.gameRebateRates = rateChanges;
+        }
+      }
+    }
+    
+    return changes;
+  }
+
+  // 獲取角色顯示名稱
+  private getUserRoleDisplayName(role: string): string {
+    const roleMap: Record<string, string> = {
+      'SUPER_ADMIN': '超級管理員',
+      'GLOBAL_ADMIN': '全域管理員',
+      'COMPANY_ADMIN': '公司管理員',
+      'AGENT_OWNER': '代理商負責人',
+      'AGENT_LEVEL_1': '一級代理',
+      'AGENT_LEVEL_2': '二級代理',
+      'AGENT_LEVEL_3': '三級代理',
+      'AGENT_LEVEL_4': '四級代理',
+      'AGENT_LEVEL_5': '五級代理',
+      'AGENT_LEVEL_6': '六級代理',
+      'AGENT_LEVEL_7': '七級代理',
+      'AGENT_LEVEL_8': '八級代理',
+      'AGENT_LEVEL_9': '九級代理',
+      'AGENT_LEVEL_10': '十級代理',
+      'AGENT_LEVEL_11': '十一級代理',
+      'AGENT_LEVEL_12': '十二級代理',
+      'AGENT_SUPPORT': '代理客服'
+    };
+    
+    return roleMap[role] || role;
+  }
+
+  // 檢查是否有實際變更
+  private hasActualChange(beforeValue: any, afterValue: any): boolean {
+    // 如果完全相同，沒有變更
+    if (beforeValue === afterValue) {
+      return false;
+    }
+    
+    // 處理數字類型的比較（包括字串數字）
+    if ((typeof beforeValue === 'number' || typeof beforeValue === 'string') &&
+        (typeof afterValue === 'number' || typeof afterValue === 'string')) {
+      const beforeNum = parseFloat(beforeValue?.toString() || '0');
+      const afterNum = parseFloat(afterValue?.toString() || '0');
+      
+      // 如果兩個數字相等，視為沒有變更
+      if (!isNaN(beforeNum) && !isNaN(afterNum) && beforeNum === afterNum) {
+        return false;
+      }
+    }
+    
+    // 處理空值的比較
+    const isBeforeEmpty = beforeValue === null || beforeValue === undefined || beforeValue === '';
+    const isAfterEmpty = afterValue === null || afterValue === undefined || afterValue === '';
+    
+    if (isBeforeEmpty && isAfterEmpty) {
+      return false;
+    }
+    
+    return true;
   }
 }

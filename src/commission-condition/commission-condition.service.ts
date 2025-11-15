@@ -21,6 +21,7 @@ import { DateOverlapUtil } from './utils/date-overlap.util';
 import { User } from '../user/user.entity';
 import { Company } from '../company/company.entity';
 import { AgentService } from '../agent/agent.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class CommissionConditionService {
@@ -38,9 +39,10 @@ export class CommissionConditionService {
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
     private agentService: AgentService,
+    private auditLogService: AuditLogService,
   ) {}
 
-  async create(companyCode: string, dto: CreateCommissionConditionDto) {
+  async create(companyCode: string, dto: CreateCommissionConditionDto, user?: any) {
     // 1. 驗證公司存在
     const company = await this.companyRepository.findOne({
       where: { code: companyCode },
@@ -87,6 +89,11 @@ export class CommissionConditionService {
       name: dto.name,
       method: dto.method,
       isActive: dto.isActive ?? true,
+      systemType: dto.systemType,
+      agentLevel: dto.agentLevel,
+      commissionPercent: dto.commissionPercent,
+      gameRebateRates: dto.gameRebateRates,
+      settlementCycle: dto.settlementCycle,
       effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : null,
       effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
       companyId: company.id,
@@ -138,6 +145,34 @@ export class CommissionConditionService {
       }
     }
 
+    // 記錄審計日誌
+    if (user) {
+      try {
+        await this.auditLogService.record({
+          user: user,
+          action: `新增分潤方案「${dto.name}」`,
+          ip: user.ip || 'Unknown',
+          platform: user.platform || 'Web',
+          target: `CommissionCondition:${savedCondition.id}`,
+          before: null,
+          after: {
+            id: savedCondition.id,
+            name: dto.name,
+            agentId: dto.agentId,
+            method: dto.method,
+            systemType: dto.systemType,
+            agentLevel: dto.agentLevel,
+            commissionPercent: dto.commissionPercent,
+            gameRebateRates: dto.gameRebateRates,
+            settlementCycle: dto.settlementCycle,
+            isActive: dto.isActive ?? true
+          },
+        });
+      } catch (auditError) {
+        console.error('記錄審計日誌失敗:', auditError);
+      }
+    }
+
     return this.findOne(companyCode, savedCondition.id);
   }
 
@@ -150,7 +185,7 @@ export class CommissionConditionService {
       throw new NotFoundException(`Company with code ${companyCode} not found`);
     }
 
-    const { page = 1, limit = 50, agentId, keyword, isActive } = query;
+    const { page = 1, limit = 50, commissionPercentMin, commissionPercentMax, settlementCycle, systemType } = query;
     
     // 記錄查詢參數和用戶資訊（僅開發環境）
     if (process.env.NODE_ENV === 'development') {
@@ -174,7 +209,7 @@ export class CommissionConditionService {
         // 超級管理員和全域管理員可以看到所有資料，不需要額外過濾
         if (process.env.NODE_ENV === 'development') {
         }
-      } else if (userRole === 'AGENT_LEVEL_1' || userRole === 'AGENT_LEVEL_2' || userRole === 'AGENT_LEVEL_3' || userRole === 'AGENT_LEVEL_4') {
+      } else if (userRole.startsWith('AGENT_LEVEL_') || userRole === 'AGENT_OWNER') {
         // 代理商可以看到自己和下級代理商的佣金條件
         if (process.env.NODE_ENV === 'development') {
         }
@@ -248,32 +283,25 @@ export class CommissionConditionService {
       }
     }
 
-    // 原有的篩選邏輯
-    if (agentId) {
-      queryBuilder.andWhere('cc.agentId = :agentId', { agentId });
+    // 新的篩選邏輯
+    
+    // 1. 分潤比例範圍篩選
+    if (commissionPercentMin !== undefined && commissionPercentMin !== null) {
+      queryBuilder.andWhere('cc.commissionPercent >= :commissionPercentMin', { commissionPercentMin });
     }
-
-    if (keyword) {
-      queryBuilder.andWhere('cc.name ILIKE :keyword', { keyword: `%${keyword}%` });
+    
+    if (commissionPercentMax !== undefined && commissionPercentMax !== null) {
+      queryBuilder.andWhere('cc.commissionPercent <= :commissionPercentMax', { commissionPercentMax });
     }
-
-    // 處理 isActive 參數 (可能是字串或布林值)
-    if (isActive !== undefined && isActive !== null) {
-      let isActiveBool: boolean;
-      
-      if (typeof isActive === 'boolean') {
-        isActiveBool = isActive;
-      } else if (typeof isActive === 'string' && isActive !== '') {
-        // 字串轉布林值
-        isActiveBool = isActive === 'true';
-      } else {
-        // 無效值，跳過篩選
-        return;
-      }
-      
-      if (process.env.NODE_ENV === 'development') {
-      }
-      queryBuilder.andWhere('cc.isActive = :isActive', { isActive: isActiveBool });
+    
+    // 2. 代理分潤結算篩選
+    if (settlementCycle) {
+      queryBuilder.andWhere('cc.settlementCycle = :settlementCycle', { settlementCycle });
+    }
+    
+    // 3. 分潤制度篩選
+    if (systemType) {
+      queryBuilder.andWhere('cc.systemType = :systemType', { systemType });
     }
 
     const [items, total] = await queryBuilder
@@ -289,6 +317,11 @@ export class CommissionConditionService {
       agentName: item.agentId === 0 ? '任意代理商' : (item.agent?.agent_name || item.agent?.username || 'Unknown'),
       method: item.method,
       isActive: item.isActive,
+      systemType: item.systemType,
+      agentLevel: item.agentLevel,
+      commissionPercent: item.commissionPercent,
+      gameRebateRates: item.gameRebateRates,
+      settlementCycle: item.settlementCycle,
       groupCount: item.groups?.length || 0,
       updatedAt: item.updatedAt.toISOString(),
     }));
@@ -385,6 +418,20 @@ export class CommissionConditionService {
   async update(companyCode: string, id: string, dto: UpdateCommissionConditionDto, user?: any) {
     const existing = await this.findOne(companyCode, id, user);
     
+    // 記錄更新前的資料（用於審計日誌）
+    const beforeData = {
+      id: existing.id,
+      name: existing.name,
+      agentId: existing.agentId,
+      method: existing.method,
+      systemType: existing.systemType,
+      agentLevel: existing.agentLevel,
+      commissionPercent: existing.commissionPercent,
+      gameRebateRates: existing.gameRebateRates,
+      settlementCycle: existing.settlementCycle,
+      isActive: existing.isActive
+    };
+    
     // 佣金條件是方案池概念，不需要重疊檢查
     
     // 先刪除所有子表資料（簡單重建方式）
@@ -396,6 +443,11 @@ export class CommissionConditionService {
       method: dto.method,
       isActive: dto.isActive,
       agentId: dto.agentId, // 修正：添加 agentId 更新
+      systemType: dto.systemType,
+      agentLevel: dto.agentLevel,
+      commissionPercent: dto.commissionPercent,
+      gameRebateRates: dto.gameRebateRates,
+      settlementCycle: dto.settlementCycle,
       effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : null,
       effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
     });
@@ -445,6 +497,36 @@ export class CommissionConditionService {
       }
     }
 
+    // 記錄審計日誌
+    if (user) {
+      try {
+        const afterData = {
+          id: id,
+          name: dto.name,
+          agentId: dto.agentId,
+          method: dto.method,
+          systemType: dto.systemType,
+          agentLevel: dto.agentLevel,
+          commissionPercent: dto.commissionPercent,
+          gameRebateRates: dto.gameRebateRates,
+          settlementCycle: dto.settlementCycle,
+          isActive: dto.isActive
+        };
+
+        await this.auditLogService.record({
+          user: user,
+          action: `編輯分潤方案「${dto.name || existing.name}」`,
+          ip: user.ip || 'Unknown',
+          platform: user.platform || 'Web',
+          target: `CommissionCondition:${id}`,
+          before: beforeData,
+          after: afterData,
+        });
+      } catch (auditError) {
+        console.error('記錄審計日誌失敗:', auditError);
+      }
+    }
+
     return this.findOne(companyCode, id, user);
   }
 
@@ -458,9 +540,40 @@ export class CommissionConditionService {
   async remove(companyCode: string, id: string, user?: any) {
     const condition = await this.findOne(companyCode, id, user);
     
+    // 記錄刪除前的資料（用於審計日誌）
+    const beforeData = {
+      id: condition.id,
+      name: condition.name,
+      agentId: condition.agentId,
+      method: condition.method,
+      systemType: condition.systemType,
+      agentLevel: condition.agentLevel,
+      commissionPercent: condition.commissionPercent,
+      gameRebateRates: condition.gameRebateRates,
+      settlementCycle: condition.settlementCycle,
+      isActive: condition.isActive
+    };
+    
     // 真正刪除記錄（硬刪除）
     // 由於設定了 CASCADE，相關的 condition_groups, platform_refund_rates, fixed_costs 也會被自動刪除
     await this.commissionConditionRepository.delete(id);
+    
+    // 記錄審計日誌
+    if (user) {
+      try {
+        await this.auditLogService.record({
+          user: user,
+          action: `刪除分潤方案「${condition.name}」`,
+          ip: user.ip || 'Unknown',
+          platform: user.platform || 'Web',
+          target: `CommissionCondition:${id}`,
+          before: beforeData,
+          after: null,
+        });
+      } catch (auditError) {
+        console.error('記錄審計日誌失敗:', auditError);
+      }
+    }
     
     return { message: 'Commission condition deleted successfully' };
   }

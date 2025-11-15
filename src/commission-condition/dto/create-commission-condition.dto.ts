@@ -135,6 +135,36 @@ export class CreateCommissionConditionDto {
   @IsBoolean()
   isActive?: boolean = true;
 
+  // 新增欄位：代理制度類型
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  systemType?: string;
+
+  // 新增欄位：代理級別
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  agentLevel?: string;
+
+  // 新增欄位：代理占成比例
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @Transform(({ value }) => parseFloat(value))
+  commissionPercent?: number;
+
+  // 新增欄位：遊戲返水比例
+  @IsOptional()
+  gameRebateRates?: Record<string, number>;
+
+  // 新增欄位：結算週期
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  settlementCycle?: string;
+
   @IsOptional()
   @IsDateString()
   effectiveFrom?: string;

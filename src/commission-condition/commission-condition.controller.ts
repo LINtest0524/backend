@@ -36,11 +36,13 @@ export class CommissionConditionController {
   create(
     @Param('companyCode') companyCode: string,
     @Body() createCommissionConditionDto: CreateCommissionConditionDto,
+    @Request() req: any,
   ) {
     this.validateCompanyAccess(companyCode);
     return this.commissionConditionService.create(
       companyCode,
       createCommissionConditionDto,
+      req.user,
     );
   }
 
@@ -126,7 +128,7 @@ export class CommissionConditionController {
   }
 
   /**
-   * 試算佣金條件 (針對現有條件)
+   * 試算分潤方案 (針對現有條件)
    * POST /companies/:companyCode/commission-conditions/:id/preview
    */
   @Post(':id/preview')
@@ -152,7 +154,7 @@ export class CommissionConditionController {
   }
 
   /**
-   * 試算佣金條件 (針對表單數據)
+   * 試算分潤方案 (針對表單數據)
    * POST /companies/:companyCode/commission-conditions/preview
    */
   @Post('preview')

@@ -77,7 +77,6 @@ export class AgentController {
     try {
       // 如果是 SUPER_ADMIN 或 GLOBAL_ADMIN，可以查看所有公司
       if (['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role)) {
-        console.log(`✅ Admin user - fetching all companies`);
         const result = await this.options.companies();
         console.log(`✅ Found ${result.length} companies`);
         return result;
@@ -107,13 +106,10 @@ export class AgentController {
     
     try {
       const user = req.user;
-      console.log(`👥 Loading parent agents for user: ${user.username} (${user.role})`);
       
       // 如果是 SUPER_ADMIN 或 GLOBAL_ADMIN，可以看到所有代理商
       if (['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role)) {
-        console.log('🔓 Admin user - fetching all parent agents');
         const result = await this.options.parentAgents(companyIdNum);
-        console.log(`✅ Found ${result.length} parent agents for admin`);
         return result;
       }
       

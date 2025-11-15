@@ -9,6 +9,7 @@ import { FixedCost } from './entities/fixed-cost.entity';
 import { User } from '../user/user.entity';
 import { Company } from '../company/company.entity';
 import { AgentModule } from '../agent/agent.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AgentModule } from '../agent/agent.module';
       Company,
     ]),
     AgentModule,
+    AuditLogModule,
   ],
   controllers: [CommissionConditionController],
   providers: [CommissionConditionService],

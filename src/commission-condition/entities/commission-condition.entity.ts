@@ -27,6 +27,26 @@ export class CommissionCondition {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  // 新增欄位：代理制度類型
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  systemType: string;
+
+  // 新增欄位：代理級別
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  agentLevel: string;
+
+  // 新增欄位：代理占成比例
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  commissionPercent: number;
+
+  // 新增欄位：遊戲返水比例 (JSON格式)
+  @Column({ type: 'json', nullable: true })
+  gameRebateRates: Record<string, number>;
+
+  // 新增欄位：結算週期
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  settlementCycle: string;
+
   @Column({ type: 'date', nullable: true })
   effectiveFrom: Date | null;
 
