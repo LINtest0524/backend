@@ -40,3 +40,9 @@ export const RequireAllPermissions = (permissions: string[]) => {
     UseGuards(JwtAuthGuard, PermissionGuard)(target, propertyName, descriptor);
   };
 };
+
+/**
+ * 公開端點裝飾器 (不需要身份驗證)
+ */
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);

@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSION_KEY, PERMISSIONS_KEY } from './permission.decorator';
+import { PERMISSION_KEY, PERMISSIONS_KEY, IS_PUBLIC_KEY } from './permission.decorator';
 import { PermissionConfigService } from './permission-config.service';
 import { UserRole } from '../user/user.entity';
 
@@ -21,6 +21,15 @@ export class PermissionGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // 檢查是否為公開端點
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
+    }
+
     // 檢查單一權限
     const requiredPermission = this.reflector.get<string>(PERMISSION_KEY, context.getHandler());
     

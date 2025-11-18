@@ -17,6 +17,30 @@ export class AgentService {
     const exists = await this.userRepo.findOne({ where: { username: dto.loginAccount } });
     if (exists) throw new ConflictException('LOGIN_ACCOUNT_EXISTS');
 
+    // frontendUrl 格式和唯一性檢查
+    if (dto.frontendUrl) {
+      // 格式檢查：只允許英文、數字、連字符、底線
+      const urlPattern = /^[a-zA-Z0-9_-]+$/;
+      if (!urlPattern.test(dto.frontendUrl)) {
+        throw new BadRequestException('FRONTEND_URL_INVALID_FORMAT');
+      }
+
+      // 長度檢查
+      if (dto.frontendUrl.length > 50) {
+        throw new BadRequestException('FRONTEND_URL_TOO_LONG');
+      }
+
+      // 同公司內唯一性檢查
+      const urlExists = await this.ds.query(`
+        SELECT id FROM "user" 
+        WHERE company_id = $1 AND frontend_url = $2
+      `, [dto.companyId, dto.frontendUrl]);
+      
+      if (urlExists.length > 0) {
+        throw new ConflictException('FRONTEND_URL_EXISTS');
+      }
+    }
+
     // 父層檢查（同公司 & 層級小於子層）
     if (dto.parentAgentId) {
       const parent = await this.userRepo.findOne({ 
@@ -40,7 +64,7 @@ export class AgentService {
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'user' 
-      AND column_name IN ('phone', 'email', 'telegram', 'line', 'qq', 'note')
+      AND column_name IN ('phone', 'email', 'telegram', 'line', 'qq', 'note', 'frontend_url')
       ORDER BY column_name
     `);
     const existingFields = contactFields.map(f => f.column_name);
@@ -68,6 +92,7 @@ export class AgentService {
       if (existingFields.includes('line')) userData.line = dto.line ?? null;
       if (existingFields.includes('qq')) userData.qq = dto.qq ?? null;
       if (existingFields.includes('note')) userData.note = dto.note ?? null;
+      if (existingFields.includes('frontend_url')) userData.frontend_url = dto.frontendUrl ?? null;
 
       
       const user = tm.create(User, userData);
@@ -420,5 +445,74 @@ export class AgentService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async findBySubdomain(companyCode: string, subdomain: string) {
+    console.log(`[AgentService] Finding subdomain: companyCode=${companyCode}, subdomain=${subdomain}`);
+    
+    // 首先根據 companyCode 找到公司 ID
+    const companyQuery = `
+      SELECT id FROM "company" 
+      WHERE LOWER(code) = LOWER($1)
+    `;
+    console.log(`[AgentService] Company query:`, companyQuery, [companyCode]);
+    const companyResult = await this.ds.query(companyQuery, [companyCode]);
+    console.log(`[AgentService] Company result:`, companyResult);
+    
+    if (companyResult.length === 0) {
+      console.log(`[AgentService] No company found for code: ${companyCode}`);
+      throw new BadRequestException('Company not found');
+    }
+    
+    const companyId = companyResult[0].id;
+    console.log(`[AgentService] Found company ID: ${companyId}`);
+    
+    console.log(`[AgentService] About to execute debug query...`);
+
+    try {
+      // 先執行調試查詢看看實際資料，不包含可能不存在的欄位
+      const debugQuery = `
+        SELECT id, username, frontend_url, status, role, agent_name, deleted_at
+        FROM "user" 
+        WHERE company_id = $1 
+        ORDER BY id DESC
+        LIMIT 5
+      `;
+      console.log(`[AgentService] Executing debug query:`, debugQuery, [companyId]);
+      const debugResult = await this.ds.query(debugQuery, [companyId]);
+      console.log(`[AgentService] Debug - Recent users in company ${companyId}:`, JSON.stringify(debugResult, null, 2));
+    } catch (debugError) {
+      console.error(`[AgentService] Debug query error:`, debugError);
+    }
+
+    // 根據公司 ID 和前端 URL 查找代理商
+    const agentQuery = `
+      SELECT 
+        id,
+        agent_name,
+        agent_level,
+        status,
+        frontend_url,
+        company_id,
+        username
+      FROM "user" 
+      WHERE company_id = $1 
+        AND frontend_url = $2 
+        AND status = 'ACTIVE'
+        AND role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
+        AND deleted_at IS NULL
+    `;
+    
+    console.log(`[AgentService] Agent query:`, agentQuery, [companyId, subdomain]);
+    const agentResult = await this.ds.query(agentQuery, [companyId, subdomain]);
+    console.log(`[AgentService] Agent result:`, agentResult);
+    
+    if (agentResult.length === 0) {
+      console.log(`[AgentService] No agent found for subdomain: ${subdomain} in company: ${companyId}`);
+      return null;
+    }
+    
+    console.log(`[AgentService] Found agent:`, agentResult[0]);
+    return agentResult[0];
   }
 }

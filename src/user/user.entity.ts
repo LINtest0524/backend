@@ -78,6 +78,10 @@ export class User {
   @Column({ type: 'text', nullable: true })
   note: string | null;
 
+  // 代理前台子域名
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  frontend_url: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   facebook_id: string | null;
 

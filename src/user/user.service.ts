@@ -603,6 +603,7 @@ async findAll(
         ? { 
             id: user.parent_agent.id, 
             username: user.parent_agent.username,
+            agent_name: user.parent_agent.agent_name,
             agent_code: user.parent_agent.agent_code 
           } 
         : null,
@@ -1020,12 +1021,24 @@ if (format === 'xlsx') {
     
     if (agent_code && agent_code.trim()) {
       // 如果有填寫代理商代碼，查找對應的代理商
+      // 先嘗試用 agent_code 欄位查找
       parentAgent = await this.userRepository.findOne({ 
         where: { 
           agent_code: agent_code.trim(),
           company: { id: company.id } // 確保代理商屬於同一公司
         } 
       });
+      
+      // 如果找不到，再嘗試用 username 查找（因為推廣代碼可能就是登入帳號）
+      if (!parentAgent) {
+        parentAgent = await this.userRepository.findOne({ 
+          where: { 
+            username: agent_code.trim(),
+            company: { id: company.id },
+            role: In(['AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_LEVEL_5', 'AGENT_LEVEL_6', 'AGENT_LEVEL_7', 'AGENT_LEVEL_8', 'AGENT_LEVEL_9', 'AGENT_LEVEL_10', 'AGENT_LEVEL_11', 'AGENT_LEVEL_12'])
+          } 
+        });
+      }
       
       if (!parentAgent) {
         throw new NotFoundException('代理商代碼無效');

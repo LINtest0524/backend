@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Put, Delete, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Delete, Param, Query, UseGuards, Request, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Public } from '../auth/permission.decorator';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { AgentService } from './agent.service';
 import { AgentOptionsService } from './agent.options';
@@ -248,6 +249,37 @@ export class AgentController {
       return result;
     } catch (error) {
       throw error;
+    }
+  }
+
+  @Get('verify-subdomain')
+  async verifySubdomain(
+    @Query('companyCode') companyCode: string,
+    @Query('subdomain') subdomain: string
+  ) {
+    if (!companyCode || !subdomain) {
+      throw new BadRequestException('Missing companyCode or subdomain');
+    }
+
+    try {
+      const agent = await this.service.findBySubdomain(companyCode, subdomain);
+      if (!agent) {
+        throw new NotFoundException('Agent subdomain not found');
+      }
+
+      return {
+        id: agent.id,
+        agent_name: agent.agent_name,
+        agent_level: agent.agent_level,
+        status: agent.status,
+        frontend_url: agent.frontend_url,
+        company_id: agent.company_id
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Error verifying subdomain');
     }
   }
 }

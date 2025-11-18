@@ -3,7 +3,7 @@ import { IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } fr
 export class CreateAgentDto {
   @IsInt() companyId: number;
 
-  @IsInt() @Min(1) @Max(9) agentLevel: number;
+  @IsInt() @Min(1) @Max(12) agentLevel: number;
 
   @IsOptional() @IsInt() parentAgentId?: number | null;
 
@@ -25,6 +25,9 @@ export class CreateAgentDto {
   @IsString() @IsNotEmpty() password: string;
 
   @IsOptional() @IsString() note?: string;
+
+  // 代理前台子域名
+  @IsOptional() @IsString() frontendUrl?: string;
 
   // 預留（不要求）
   @IsOptional() @IsString() revenueShare?: string;

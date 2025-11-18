@@ -67,6 +67,10 @@ export class Agent {
   @Column({ name: 'note', type: 'text', nullable: true })
   note?: string | null;
 
+  // 代理前台子域名（如：seo01），與company組合成完整URL
+  @Column({ name: 'frontend_url', type: 'varchar', length: 50, nullable: true })
+  frontendUrl?: string | null;
+
   // 預留：占成、返水（UI 先不啟用）
   @Column({ name: 'revenue_share', type: 'decimal', precision: 5, scale: 2, nullable: true })
   revenueShare?: string | null;
