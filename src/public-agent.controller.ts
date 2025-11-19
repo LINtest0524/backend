@@ -9,7 +9,6 @@ export class PublicAgentController {
   @Get('test')
   @Public()
   async test() {
-    console.log('[PublicAgent] Test endpoint called');
     return { message: 'PublicAgentController is working!', timestamp: new Date() };
   }
 
@@ -19,19 +18,15 @@ export class PublicAgentController {
     @Query('companyCode') companyCode: string,
     @Query('subdomain') subdomain: string
   ) {
-    console.log(`[PublicAgent] Verifying subdomain: companyCode=${companyCode}, subdomain=${subdomain}`);
     
     if (!companyCode || !subdomain) {
       throw new BadRequestException('Missing companyCode or subdomain');
     }
 
     try {
-      console.log(`[PublicAgent] Calling agentService.findBySubdomain...`);
       const agent = await this.agentService.findBySubdomain(companyCode, subdomain);
-      console.log(`[PublicAgent] Agent query result:`, agent);
       
       if (!agent) {
-        console.log(`[PublicAgent] No agent found for subdomain: ${subdomain}`);
         throw new NotFoundException('Agent subdomain not found');
       }
 

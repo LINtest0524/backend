@@ -448,26 +448,20 @@ export class AgentService {
   }
 
   async findBySubdomain(companyCode: string, subdomain: string) {
-    console.log(`[AgentService] Finding subdomain: companyCode=${companyCode}, subdomain=${subdomain}`);
     
     // 首先根據 companyCode 找到公司 ID
     const companyQuery = `
       SELECT id FROM "company" 
       WHERE LOWER(code) = LOWER($1)
     `;
-    console.log(`[AgentService] Company query:`, companyQuery, [companyCode]);
     const companyResult = await this.ds.query(companyQuery, [companyCode]);
-    console.log(`[AgentService] Company result:`, companyResult);
     
     if (companyResult.length === 0) {
-      console.log(`[AgentService] No company found for code: ${companyCode}`);
       throw new BadRequestException('Company not found');
     }
     
     const companyId = companyResult[0].id;
-    console.log(`[AgentService] Found company ID: ${companyId}`);
     
-    console.log(`[AgentService] About to execute debug query...`);
 
     try {
       // 先執行調試查詢看看實際資料，不包含可能不存在的欄位
@@ -478,11 +472,8 @@ export class AgentService {
         ORDER BY id DESC
         LIMIT 5
       `;
-      console.log(`[AgentService] Executing debug query:`, debugQuery, [companyId]);
       const debugResult = await this.ds.query(debugQuery, [companyId]);
-      console.log(`[AgentService] Debug - Recent users in company ${companyId}:`, JSON.stringify(debugResult, null, 2));
     } catch (debugError) {
-      console.error(`[AgentService] Debug query error:`, debugError);
     }
 
     // 根據公司 ID 和前端 URL 查找代理商
@@ -503,16 +494,12 @@ export class AgentService {
         AND deleted_at IS NULL
     `;
     
-    console.log(`[AgentService] Agent query:`, agentQuery, [companyId, subdomain]);
     const agentResult = await this.ds.query(agentQuery, [companyId, subdomain]);
-    console.log(`[AgentService] Agent result:`, agentResult);
     
     if (agentResult.length === 0) {
-      console.log(`[AgentService] No agent found for subdomain: ${subdomain} in company: ${companyId}`);
       return null;
     }
     
-    console.log(`[AgentService] Found agent:`, agentResult[0]);
     return agentResult[0];
   }
 }
