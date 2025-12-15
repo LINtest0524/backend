@@ -162,6 +162,35 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   commission_condition_id: string | null;
 
+  // 代理商擴展欄位
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  gender: string | null; // MALE 或 FEMALE
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  id_number: string | null; // 身分證字號
+
+  // 預設設定
+  @Column({ type: 'varchar', length: 20, nullable: true, default: 'VIP0' })
+  default_vip_level: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true, default: 'daily' })
+  default_rebate_settlement: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true, default: 'regular' })
+  default_payment_group: string | null;
+
+  // 帳號狀態（JSON 陣列）
+  @Column({ type: 'jsonb', nullable: true, default: '["normal"]' })
+  account_status: string[] | null;
+
+  // 銀行卡資料（JSON）
+  @Column({ type: 'jsonb', nullable: true, default: '[]' })
+  bank_cards: any[] | null;
+
+  // 禁止遊戲廠商（JSON）
+  @Column({ type: 'jsonb', nullable: true })
+  banned_game_providers: any | null;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
   created_by?: User;

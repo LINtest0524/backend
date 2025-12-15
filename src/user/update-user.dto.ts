@@ -27,4 +27,46 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   agent_code?: string; //   代理商推廣代碼欄位
+
+  // 代理商擴展欄位
+  @IsOptional()
+  @IsString()
+  agentName?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  idNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  frontendUrl?: string;
+
+  // 預設設定
+  @IsOptional()
+  @IsString()
+  defaultVipLevel?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultRebateSettlement?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultPaymentGroup?: string;
+
+  // 帳號狀態
+  @IsOptional()
+  @IsArray()
+  accountStatus?: string[];
+
+  // 銀行卡和遊戲廠商
+  @IsOptional()
+  bankCards?: any[];
+
+  @IsOptional()
+  bannedGameProviders?: any;
 }

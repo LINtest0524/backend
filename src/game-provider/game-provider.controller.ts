@@ -16,10 +16,8 @@ export class GameProviderController {
   @Get()
   @Roles('SUPER_ADMIN', 'GLOBAL_ADMIN', 'AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
   async getProviders() {
-    console.log('🎮 GameProvider Controller: GET /admin/game-providers 被呼叫了！');
     try {
       const providers = await this.gameProviderService.getActiveProviders();
-      console.log(`✅ 成功取得 ${providers.length} 個遊戲提供商:`, providers);
       return providers;
     } catch (error) {
       console.error('❌ 取得遊戲提供商失敗:', error);

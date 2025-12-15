@@ -82,7 +82,6 @@ export class AgentController {
       // 如果是 SUPER_ADMIN 或 GLOBAL_ADMIN，可以查看所有公司
       if (['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role)) {
         const result = await this.options.companies();
-        console.log(`✅ Found ${result.length} companies`);
         return result;
       }
       

@@ -59,12 +59,14 @@ export class AgentService {
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
-    // 檢查聯絡資訊欄位是否存在
+    // 檢查欄位是否存在
     const contactFields = await this.ds.query(`
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'user' 
-      AND column_name IN ('phone', 'email', 'telegram', 'line', 'qq', 'note', 'frontend_url')
+      AND column_name IN ('phone', 'email', 'telegram', 'line', 'qq', 'note', 'frontend_url',
+                           'gender', 'id_number', 'default_vip_level', 'default_rebate_settlement',
+                           'default_payment_group', 'account_status', 'bank_cards', 'banned_game_providers')
       ORDER BY column_name
     `);
     const existingFields = contactFields.map(f => f.column_name);
@@ -85,7 +87,7 @@ export class AgentService {
               UserRole.AGENT_LEVEL_4,
       };
 
-      // 只添加存在的欄位
+      // 只添加存在的欄位 - 聯絡資訊
       if (existingFields.includes('phone')) userData.phone = dto.phone ?? null;
       if (existingFields.includes('email')) userData.email = dto.email ?? null;
       if (existingFields.includes('telegram')) userData.telegram = dto.telegram ?? null;
@@ -93,6 +95,20 @@ export class AgentService {
       if (existingFields.includes('qq')) userData.qq = dto.qq ?? null;
       if (existingFields.includes('note')) userData.note = dto.note ?? null;
       if (existingFields.includes('frontend_url')) userData.frontend_url = dto.frontendUrl ?? null;
+      
+      // 代理資料
+      if (existingFields.includes('gender')) userData.gender = dto.gender ?? null;
+      if (existingFields.includes('id_number')) userData.id_number = dto.idNumber ?? null;
+      
+      // 預設設定
+      if (existingFields.includes('default_vip_level')) userData.default_vip_level = dto.defaultVipLevel ?? 'VIP0';
+      if (existingFields.includes('default_rebate_settlement')) userData.default_rebate_settlement = dto.defaultRebateSettlement ?? 'daily';
+      if (existingFields.includes('default_payment_group')) userData.default_payment_group = dto.defaultPaymentGroup ?? 'regular';
+      
+      // JSON 欄位
+      if (existingFields.includes('account_status')) userData.account_status = dto.accountStatus ?? ['normal'];
+      if (existingFields.includes('bank_cards')) userData.bank_cards = dto.bankCards ?? [];
+      if (existingFields.includes('banned_game_providers')) userData.banned_game_providers = dto.bannedGameProviders ?? null;
 
       
       const user = tm.create(User, userData);
@@ -281,11 +297,32 @@ export class AgentService {
         status: agentData.status,
         phone: agentData.phone || '',
         email: agentData.email || '',
-        // 社交媒體和備註欄位（資料庫已支援）
+        // 社交媒體和備註欄位
         telegram: agentData.telegram || '',
         line: agentData.line || '',
         qq: agentData.qq || '',
         note: agentData.note || '',
+        // 代理前台網址
+        frontend_url: agentData.frontend_url || '',
+        frontendUrl: agentData.frontend_url || '',
+        // 代理資料
+        gender: agentData.gender || null,
+        id_number: agentData.id_number || '',
+        idNumber: agentData.id_number || '',
+        // 預設設定
+        default_vip_level: agentData.default_vip_level || 'VIP0',
+        defaultVipLevel: agentData.default_vip_level || 'VIP0',
+        default_rebate_settlement: agentData.default_rebate_settlement || 'daily',
+        defaultRebateSettlement: agentData.default_rebate_settlement || 'daily',
+        default_payment_group: agentData.default_payment_group || 'regular',
+        defaultPaymentGroup: agentData.default_payment_group || 'regular',
+        // JSON 欄位
+        account_status: agentData.account_status || ['normal'],
+        accountStatus: agentData.account_status || ['normal'],
+        bank_cards: agentData.bank_cards || [],
+        bankCards: agentData.bank_cards || [],
+        banned_game_providers: agentData.banned_game_providers || null,
+        bannedGameProviders: agentData.banned_game_providers || null,
         company_id: agentData.company_id,
         created_at: agentData.created_at,
         agent_code: agentData.agent_code || '',
@@ -373,6 +410,44 @@ export class AgentService {
       // note 欄位更新（資料庫已支援）
       if (updateData.note !== undefined) {
         updateFields.note = updateData.note;
+      }
+      
+      // frontendUrl 欄位更新
+      if (updateData.frontendUrl !== undefined) {
+        updateFields.frontend_url = updateData.frontendUrl;
+      }
+      
+      // 代理資料欄位
+      if (updateData.agentName !== undefined) {
+        updateFields.agent_name = updateData.agentName;
+      }
+      if (updateData.gender !== undefined) {
+        updateFields.gender = updateData.gender;
+      }
+      if (updateData.idNumber !== undefined) {
+        updateFields.id_number = updateData.idNumber;
+      }
+      
+      // 預設設定欄位
+      if (updateData.defaultVipLevel !== undefined) {
+        updateFields.default_vip_level = updateData.defaultVipLevel;
+      }
+      if (updateData.defaultRebateSettlement !== undefined) {
+        updateFields.default_rebate_settlement = updateData.defaultRebateSettlement;
+      }
+      if (updateData.defaultPaymentGroup !== undefined) {
+        updateFields.default_payment_group = updateData.defaultPaymentGroup;
+      }
+      
+      // JSON 欄位
+      if (updateData.accountStatus !== undefined) {
+        updateFields.account_status = updateData.accountStatus;
+      }
+      if (updateData.bankCards !== undefined) {
+        updateFields.bank_cards = updateData.bankCards;
+      }
+      if (updateData.bannedGameProviders !== undefined) {
+        updateFields.banned_game_providers = updateData.bannedGameProviders;
       }
 
       // 父層檢查（如果有更新父層或層級）

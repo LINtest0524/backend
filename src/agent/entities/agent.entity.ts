@@ -71,6 +71,38 @@ export class Agent {
   @Column({ name: 'frontend_url', type: 'varchar', length: 50, nullable: true })
   frontendUrl?: string | null;
 
+  // 代理資料
+  @Column({ name: 'agent_name', type: 'varchar', length: 100, nullable: true })
+  agentName?: string | null;
+
+  @Column({ name: 'gender', type: 'varchar', length: 10, nullable: true })
+  gender?: string | null;
+
+  @Column({ name: 'id_number', type: 'varchar', length: 20, nullable: true })
+  idNumber?: string | null;
+
+  // 預設設定
+  @Column({ name: 'default_vip_level', type: 'varchar', length: 20, nullable: true, default: 'VIP0' })
+  defaultVipLevel?: string | null;
+
+  @Column({ name: 'default_rebate_settlement', type: 'varchar', length: 20, nullable: true, default: 'daily' })
+  defaultRebateSettlement?: string | null;
+
+  @Column({ name: 'default_payment_group', type: 'varchar', length: 50, nullable: true, default: 'regular' })
+  defaultPaymentGroup?: string | null;
+
+  // 帳號狀態（JSON 陣列）
+  @Column({ name: 'account_status', type: 'jsonb', nullable: true, default: '["normal"]' })
+  accountStatus?: string[] | null;
+
+  // 銀行卡資料（JSON）
+  @Column({ name: 'bank_cards', type: 'jsonb', nullable: true, default: '[]' })
+  bankCards?: any[] | null;
+
+  // 禁止遊戲廠商（JSON）
+  @Column({ name: 'banned_game_providers', type: 'jsonb', nullable: true })
+  bannedGameProviders?: any | null;
+
   // 預留：占成、返水（UI 先不啟用）
   @Column({ name: 'revenue_share', type: 'decimal', precision: 5, scale: 2, nullable: true })
   revenueShare?: string | null;
