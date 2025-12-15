@@ -47,6 +47,9 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   agent_name: string | null;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  display_name: string | null;
+
   @Column({ type: 'varchar', unique: true, nullable: true })
   user_code: string | null;
 

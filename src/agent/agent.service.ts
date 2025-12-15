@@ -76,7 +76,8 @@ export class AgentService {
         company_id: dto.companyId,
         agent_level: dto.agentLevel,
         parent_agent_id: dto.parentAgentId ?? null,
-        agent_name: dto.displayName,
+        display_name: dto.displayName,
+        agent_name: dto.agentName ?? null,
         commission_condition_id: dto.commissionConditionId ?? null,
         status: dto.status === 'active' ? 'ACTIVE' : 'INACTIVE',
         username: dto.loginAccount,
@@ -135,6 +136,7 @@ export class AgentService {
         SELECT 
           u.id,
           u.agent_name,
+          u.display_name,
           u.username,
           u.agent_level,
           u.parent_agent_id,
@@ -142,11 +144,24 @@ export class AgentService {
           u.phone,
           u.email,
           u.created_at,
+          u.last_login_at,
           u.agent_code,
+          u.commission_condition_id,
+          u.default_payment_group,
+          u.default_rebate_settlement,
           c.name as company_name,
-          c.code as company_code
+          c.code as company_code,
+          cc.id as condition_id,
+          cc.name as condition_name,
+          cc."systemType" as condition_system_type,
+          cc."commissionPercent" as condition_commission_percent,
+          cc."gameRebateRates" as condition_game_rebate_rates,
+          (SELECT COUNT(*) FROM "user" m WHERE m.parent_agent_id = u.id AND m.role = 'USER' AND m.deleted_at IS NULL) as member_count,
+          (SELECT MAX(agent_level) FROM "user" WHERE role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_LEVEL_5', 'AGENT_LEVEL_6', 'AGENT_LEVEL_7', 'AGENT_LEVEL_8', 'AGENT_LEVEL_9', 'AGENT_LEVEL_10', 'AGENT_LEVEL_11', 'AGENT_LEVEL_12') AND deleted_at IS NULL ${companyId ? 'AND company_id = ' + companyId : ''}) as max_agent_level,
+          (SELECT COUNT(*) FROM "user" WHERE parent_agent_id = u.id AND role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_LEVEL_5', 'AGENT_LEVEL_6', 'AGENT_LEVEL_7', 'AGENT_LEVEL_8', 'AGENT_LEVEL_9', 'AGENT_LEVEL_10', 'AGENT_LEVEL_11', 'AGENT_LEVEL_12') AND deleted_at IS NULL) as next_level_count
         FROM "user" u
         LEFT JOIN company c ON u.company_id = c.id
+        LEFT JOIN commission_conditions cc ON u.commission_condition_id::uuid = cc.id
         WHERE ${whereCondition}
         ORDER BY u.created_at DESC
       `, params);
@@ -155,6 +170,7 @@ export class AgentService {
       return agents.map(agent => ({
         id: agent.id,
         agent_name: agent.agent_name,
+        display_name: agent.display_name,
         username: agent.username,
         agent_level: agent.agent_level,
         parent_agent_id: agent.parent_agent_id,
@@ -162,11 +178,24 @@ export class AgentService {
         phone: agent.phone,
         email: agent.email,
         created_at: agent.created_at,
+        last_login_at: agent.last_login_at,
         agent_code: agent.agent_code,
+        member_count: parseInt(agent.member_count) || 0,
+        max_agent_level: parseInt(agent.max_agent_level) || 0,
+        next_level_count: parseInt(agent.next_level_count) || 0,
+        default_payment_group: agent.default_payment_group,
+        default_rebate_settlement: agent.default_rebate_settlement,
         company: {
           name: agent.company_name,
           code: agent.company_code
-        }
+        },
+        commission_condition: agent.condition_id ? {
+          id: agent.condition_id,
+          name: agent.condition_name,
+          systemType: agent.condition_system_type,
+          commissionPercent: agent.condition_commission_percent,
+          gameRebateRates: agent.condition_game_rebate_rates
+        } : null
       }));
     } catch (error) {
       throw error;
@@ -219,6 +248,7 @@ export class AgentService {
         SELECT 
           u.id,
           u.agent_name,
+          u.display_name,
           u.username,
           u.agent_level,
           u.parent_agent_id,
@@ -226,14 +256,27 @@ export class AgentService {
           u.phone,
           u.email,
           u.created_at,
+          u.last_login_at,
           u.agent_code,
+          u.commission_condition_id,
+          u.default_payment_group,
+          u.default_rebate_settlement,
           c.name as company_name,
           c.code as company_code,
+          cc.id as condition_id,
+          cc.name as condition_name,
+          cc."systemType" as condition_system_type,
+          cc."commissionPercent" as condition_commission_percent,
+          cc."gameRebateRates" as condition_game_rebate_rates,
           p.id as parent_id,
           p.agent_name as parent_agent_name,
-          p.username as parent_username
+          p.username as parent_username,
+          (SELECT COUNT(*) FROM "user" m WHERE m.parent_agent_id = u.id AND m.role = 'USER' AND m.deleted_at IS NULL) as member_count,
+          (SELECT MAX(agent_level) FROM "user" WHERE role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_LEVEL_5', 'AGENT_LEVEL_6', 'AGENT_LEVEL_7', 'AGENT_LEVEL_8', 'AGENT_LEVEL_9', 'AGENT_LEVEL_10', 'AGENT_LEVEL_11', 'AGENT_LEVEL_12') AND deleted_at IS NULL AND company_id = $2) as max_agent_level,
+          (SELECT COUNT(*) FROM "user" WHERE parent_agent_id = u.id AND role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4', 'AGENT_LEVEL_5', 'AGENT_LEVEL_6', 'AGENT_LEVEL_7', 'AGENT_LEVEL_8', 'AGENT_LEVEL_9', 'AGENT_LEVEL_10', 'AGENT_LEVEL_11', 'AGENT_LEVEL_12') AND deleted_at IS NULL) as next_level_count
         FROM "user" u
         LEFT JOIN company c ON u.company_id = c.id
+        LEFT JOIN commission_conditions cc ON u.commission_condition_id::uuid = cc.id
         LEFT JOIN "user" p ON u.parent_agent_id = p.id
         WHERE u.role IN ('AGENT_LEVEL_1', 'AGENT_LEVEL_2', 'AGENT_LEVEL_3', 'AGENT_LEVEL_4')
           AND u.id = ANY($1::int[])
@@ -247,6 +290,7 @@ export class AgentService {
       return agents.map(agent => ({
         id: agent.id,
         agent_name: agent.agent_name,
+        display_name: agent.display_name,
         username: agent.username,
         agent_level: agent.agent_level,
         parent_agent_id: agent.parent_agent_id,
@@ -254,11 +298,24 @@ export class AgentService {
         phone: agent.phone,
         email: agent.email,
         created_at: agent.created_at,
+        last_login_at: agent.last_login_at,
         agent_code: agent.agent_code,
+        member_count: parseInt(agent.member_count) || 0,
+        max_agent_level: parseInt(agent.max_agent_level) || 0,
+        next_level_count: parseInt(agent.next_level_count) || 0,
+        default_payment_group: agent.default_payment_group,
+        default_rebate_settlement: agent.default_rebate_settlement,
         company: {
           name: agent.company_name,
           code: agent.company_code
         },
+        commission_condition: agent.condition_id ? {
+          id: agent.condition_id,
+          name: agent.condition_name,
+          systemType: agent.condition_system_type,
+          commissionPercent: agent.condition_commission_percent,
+          gameRebateRates: agent.condition_game_rebate_rates
+        } : null,
         parent_agent: agent.parent_id ? {
           id: agent.parent_id,
           agent_name: agent.parent_agent_name,
@@ -288,7 +345,7 @@ export class AgentService {
       const result = {
         id: agentData.id,
         agent_name: agentData.agent_name,
-        display_name: agentData.agent_name,
+        display_name: agentData.display_name,
         username: agentData.username,
         login_account: agentData.username,
         agent_level: agentData.agent_level,
@@ -368,7 +425,7 @@ export class AgentService {
         updateFields.parent_agent_id = updateData.parentAgentId;
       }
       if (updateData.displayName !== undefined) {
-        updateFields.agent_name = updateData.displayName;
+        updateFields.display_name = updateData.displayName;
       }
       if (updateData.commissionConditionId !== undefined) {
         updateFields.commission_condition_id = updateData.commissionConditionId;
