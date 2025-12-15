@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Post, Put, Delete, Param, Query, UseGuards, Request, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Delete, Param, Query, UseGuards, Request, BadRequestException, NotFoundException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as path from 'path';
 import { Public } from '../auth/permission.decorator';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { AgentService } from './agent.service';
@@ -281,5 +284,40 @@ export class AgentController {
       }
       throw new BadRequestException('Error verifying subdomain');
     }
+  }
+
+  @Post('upload/bankcard')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './public/uploads/agents',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `bankcard-${uniqueSuffix}${ext}`);
+      }
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+        cb(new BadRequestException('Only image files are allowed!'), false);
+        return;
+      }
+      cb(null, true);
+    },
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB
+    }
+  }))
+  uploadBankCardImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    
+    const url = `/uploads/agents/${file.filename}`;
+    return {
+      url,
+      filename: file.filename,
+      originalName: file.originalname,
+      size: file.size
+    };
   }
 }

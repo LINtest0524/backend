@@ -20,7 +20,8 @@ CREATE INDEX IF NOT EXISTS idx_game_providers_sort_order ON game_providers(sort_
 -- 插入您的真實遊戲提供商
 INSERT INTO game_providers (code, name, category, is_active, sort_order) VALUES
 ('WM', 'WM真人', 'live', true, 1),
-('RG', 'RG電子', 'slot', true, 2)
+('RG', 'RG電子', 'slot', true, 2),
+('DG', 'DG真人', 'live', true, 3)
 ON CONFLICT (code) DO NOTHING;
 
 -- 顯示結果
