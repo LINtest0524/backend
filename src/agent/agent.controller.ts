@@ -25,7 +25,7 @@ export class AgentController {
     console.log(`🔍 Create agent called by user: ${user.username} (${user.role})`);
     
     try {
-      const result = await this.service.create(dto);
+      const result = await this.service.create(dto, user, req.ip || 'unknown');
       console.log(`✅ Agent created successfully:`, result);
       return result;
     } catch (error) {
@@ -172,7 +172,7 @@ export class AgentController {
     try {
       // 如果是超級管理員或全域管理員，可以編輯所有欄位
       if (['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(user.role)) {
-        const result = await this.service.update(agentId, dto);
+        const result = await this.service.update(agentId, dto, user, req.ip || 'unknown');
         return result;
       }
       
@@ -210,7 +210,7 @@ export class AgentController {
       const providedFields = Object.keys(dto);
       const unauthorizedFields = providedFields.filter(field => !allowedFields.includes(field));
       
-      const result = await this.service.update(agentId, filteredDto);
+      const result = await this.service.update(agentId, filteredDto, user, req.ip || 'unknown');
       return result;
       
     } catch (error) {
@@ -229,7 +229,7 @@ export class AgentController {
     }
     
     try {
-      const result = await this.service.delete(agentId);
+      const result = await this.service.delete(agentId, user, req.ip || 'unknown');
       return result;
     } catch (error) {
       throw error;

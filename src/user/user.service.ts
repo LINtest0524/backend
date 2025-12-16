@@ -1284,7 +1284,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       user: currentUser,
       action: 'USER_TAG_ADD',
       ip: '127.0.0.1',
-      platform: 'Backend',
+      platform: '後台管理',
       target: `使用者 ${user.email} 添加標籤 ${tag.name}`,
     });
 
@@ -1326,7 +1326,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       user: currentUser,
       action: 'USER_TAG_REMOVE',
       ip: '127.0.0.1',
-      platform: 'Backend',
+      platform: '後台管理',
       target: `使用者 ${userTag.user.email} 移除標籤 ${userTag.tag.name}`,
     });
 
@@ -1351,7 +1351,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       user: currentUser,
       action: `身分證驗證${verified ? '通過' : '取消'}`,
       ip: '127.0.0.1',
-      platform: 'Backend',
+      platform: '後台管理',
       target: `使用者 ${user.username} 身分證驗證狀態變更`,
       before,
       after: { id_verified: user.id_verified }
@@ -1378,7 +1378,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       user: currentUser,
       action: `銀行驗證${verified ? '通過' : '取消'}`,
       ip: '127.0.0.1',
-      platform: 'Backend',
+      platform: '後台管理',
       target: `使用者 ${user.username} 銀行驗證狀態變更`,
       before,
       after: { bank_verified: user.bank_verified }
@@ -1404,7 +1404,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       user: currentUser,
       action: `VIP等級變更`,
       ip: '127.0.0.1',
-      platform: 'Backend',
+      platform: '後台管理',
       target: `使用者 ${user.username} VIP等級: ${before.vip_level} → ${level}`,
       before,
       after: { vip_level: user.vip_level }
@@ -1672,7 +1672,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
           user: { id: userId },
           action: `🎯 簽到獎勵 - ${latestUser.username || `用戶${latestUser.id}`}（金額：${amount}，餘額：${oldBalance} → ${newBalance}）`,
           ip: this.normalizeIP(clientIp || '127.0.0.1'),
-          platform: 'Frontend',
+          platform: '前台會員',
           target: `checkin:${latestUser.id}`,
           before: { 
             balance: oldBalance,

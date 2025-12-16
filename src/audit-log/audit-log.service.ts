@@ -104,6 +104,9 @@ export class AuditLogService {
       .leftJoinAndSelect('log.user', 'user')
       .orderBy('log.created_at', 'DESC');
 
+    // 🔒 過濾掉前台會員的操作記錄（只顯示後台管理員/代理商的操作）
+    qb.andWhere('user.role != :userRole', { userRole: 'USER' });
+
     // 權限檢查：代理商只能查看自己公司的審計日誌
     if (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'GLOBAL_ADMIN') {
       qb.andWhere('user.company_id = :companyId', { companyId: currentUser.company_id });

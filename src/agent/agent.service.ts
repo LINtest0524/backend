@@ -4,15 +4,17 @@ import { Repository, DataSource, IsNull } from 'typeorm';
 import { User, UserRole } from '../user/user.entity';
 import * as bcrypt from 'bcrypt';
 import { CreateAgentDto } from './dto/create-agent.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class AgentService {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectDataSource() private readonly ds: DataSource,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
-  async create(dto: CreateAgentDto) {
+  async create(dto: CreateAgentDto, currentUser?: User, ip: string = 'unknown') {
     // 帳號重複檢查
     const exists = await this.userRepo.findOne({ where: { username: dto.loginAccount } });
     if (exists) throw new ConflictException('LOGIN_ACCOUNT_EXISTS');
@@ -114,6 +116,29 @@ export class AgentService {
       
       const user = tm.create(User, userData);
       const saved = await tm.save(user) as User;
+      
+      // 記錄操作日誌
+      if (currentUser) {
+        await this.auditLogService.record({
+          user: currentUser,
+          action: '新增代理商',
+          ip: ip,
+          platform: '後台管理',
+          target: `Agent:${saved.id}`,
+          after: {
+            id: saved.id,
+            username: saved.username,
+            agent_level: saved.agent_level,
+            display_name: saved.display_name,
+            agent_name: saved.agent_name,
+            parent_agent_id: saved.parent_agent_id,
+            company_id: saved.company_id,
+            status: saved.status,
+            commission_condition_id: saved.commission_condition_id,
+          }
+        });
+      }
+      
       return { 
         id: saved.id, 
         loginAccount: saved.username, 
@@ -396,7 +421,7 @@ export class AgentService {
     }
   }
 
-  async update(id: number, updateData: any) {
+  async update(id: number, updateData: any, currentUser?: User, ip: string = 'unknown') {
     try {
       const existingAgent = await this.userRepo.findOne({ 
         where: { id },
@@ -406,6 +431,19 @@ export class AgentService {
       if (!existingAgent) {
         throw new Error('Agent not found');
       }
+      
+      // 保存修改前的資料（用於記錄）
+      const beforeData = {
+        agent_level: existingAgent.agent_level,
+        display_name: existingAgent.display_name,
+        agent_name: existingAgent.agent_name,
+        parent_agent_id: existingAgent.parent_agent_id,
+        status: existingAgent.status,
+        commission_condition_id: existingAgent.commission_condition_id,
+        phone: existingAgent.phone,
+        email: existingAgent.email,
+        default_payment_group: existingAgent.default_payment_group,
+      };
 
       // 準備更新數據
       const updateFields: any = {};
@@ -533,6 +571,52 @@ export class AgentService {
 
       // 返回更新後的資料
       const updatedAgent = await this.findById(id);
+      
+      // 記錄操作日誌
+      if (currentUser && Object.keys(updateFields).length > 0) {
+        const afterData = {
+          agent_level: updatedAgent.agent_level,
+          display_name: updatedAgent.display_name,
+          agent_name: updatedAgent.agent_name,
+          parent_agent_id: updatedAgent.parent_agent_id,
+          status: updatedAgent.status,
+          commission_condition_id: updatedAgent.commission_condition_id,
+          phone: updatedAgent.phone,
+          email: updatedAgent.email,
+          default_payment_group: updatedAgent.default_payment_group,
+        };
+        
+        // 🔹 檢查具體的變更類型來決定操作名稱
+        let action = '編輯代理商資料';
+        
+        if (beforeData.status !== afterData.status) {
+          // 狀態變更
+          action = afterData.status === 'ACTIVE' ? '啟用代理商' : '停用代理商';
+        } else if (updateFields.agent_name !== undefined) {
+          // 代理姓名變更
+          action = `編輯代理商 - ${updatedAgent.username}（代理姓名：${beforeData.agent_name || '空'} → ${afterData.agent_name || '空'}）`;
+        } else if (updateFields.display_name !== undefined) {
+          // 顯示名稱變更
+          action = `編輯代理商 - ${updatedAgent.username}（顯示名稱：${beforeData.display_name || '空'} → ${afterData.display_name || '空'}）`;
+        } else if (updateFields.commission_condition_id !== undefined) {
+          // 抽成條件變更
+          action = `編輯代理商 - ${updatedAgent.username}（變更抽成條件）`;
+        } else if (updateFields.phone !== undefined || updateFields.email !== undefined) {
+          // 聯絡資訊變更
+          action = `編輯代理商 - ${updatedAgent.username}（聯絡資訊）`;
+        }
+        
+        await this.auditLogService.record({
+          user: currentUser,
+          action: action,
+          ip: ip,
+          platform: '後台管理',
+          target: `Agent:${id}`,
+          before: beforeData,
+          after: afterData,
+        });
+      }
+      
       return { 
         id: updatedAgent.id, 
         loginAccount: updatedAgent.username, 
@@ -544,7 +628,7 @@ export class AgentService {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number, currentUser?: User, ip: string = 'unknown') {
     try {
       const existingAgent = await this.userRepo.findOne({ 
         where: { id },
@@ -568,6 +652,25 @@ export class AgentService {
       await this.userRepo.update(id, {
         deleted_at: new Date()
       });
+      
+      // 記錄操作日誌
+      if (currentUser) {
+        await this.auditLogService.record({
+          user: currentUser,
+          action: '刪除代理商',
+          ip: ip,
+          platform: '後台管理',
+          target: `Agent:${id}`,
+          before: {
+            id: existingAgent.id,
+            username: existingAgent.username,
+            agent_level: existingAgent.agent_level,
+            display_name: existingAgent.display_name,
+            agent_name: existingAgent.agent_name,
+            status: existingAgent.status,
+          },
+        });
+      }
 
       return { 
         id: id, 
