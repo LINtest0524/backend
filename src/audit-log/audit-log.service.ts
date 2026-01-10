@@ -107,6 +107,35 @@ export class AuditLogService {
     // 🔒 過濾掉前台會員的操作記錄（只顯示後台管理員/代理商的操作）
     qb.andWhere('user.role != :userRole', { userRole: 'USER' });
 
+    // 🔒 只有在「代理商操作紀錄」頁面（沒有指定 target）時才過濾特定操作
+    // 其他專屬頁面（黑名單、會員狀態等）不應該被過濾
+    if (!target) {
+      // 代理商操作紀錄只顯示「代理管理」相關的操作
+      // 過濾掉以下操作（這些有專屬的記錄頁面）：
+      // 1. 財務相關操作（存扣款紀錄）
+      qb.andWhere('log.action NOT LIKE :balanceOp', { balanceOp: '%💰%存款操作%' });
+      qb.andWhere('log.action NOT LIKE :deductionOp', { deductionOp: '%💰%扣款操作%' });
+      
+      // 2. 會員標籤操作
+      qb.andWhere('log.action NOT LIKE :tagAdd', { tagAdd: '%USER_TAG_ADD%' });
+      qb.andWhere('log.action NOT LIKE :tagRemove', { tagRemove: '%USER_TAG_REMOVE%' });
+      
+      // 3. 黑名單操作（黑名單紀錄）
+      qb.andWhere('log.action NOT LIKE :blacklistMember', { blacklistMember: '%🚫 會員%黑名單%' });
+      
+      // 4. 會員狀態變更（會員狀態紀錄）
+      qb.andWhere('log.action NOT LIKE :statusChangeMember', { statusChangeMember: '%⚡ 變更會員status%' });
+      
+      // 5. Banner 操作（Banner 紀錄）
+      qb.andWhere('log.action NOT LIKE :bannerOp', { bannerOp: '%編輯 Banner%' });
+      
+      // 6. 會員資料修改（會員管理相關）
+      qb.andWhere('log.action NOT LIKE :memberDataOp', { memberDataOp: '%修改會員資料%' });
+      
+      // 7. 跑馬燈操作（跑馬燈紀錄）
+      qb.andWhere('log.action NOT LIKE :marqueeOp', { marqueeOp: '%編輯跑馬燈%' });
+    }
+
     // 權限檢查：代理商只能查看自己公司的審計日誌
     if (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'GLOBAL_ADMIN') {
       qb.andWhere('user.company_id = :companyId', { companyId: currentUser.company_id });

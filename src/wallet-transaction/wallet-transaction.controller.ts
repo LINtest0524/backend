@@ -153,7 +153,8 @@ export class WalletTransactionController {
   ) {
     // 只查詢管理員操作的記錄
     if (type === 'admin_operations') {
-      const companyId = req.user.company_id;
+      // 取得 companyId，優先從 company 物件取得，否則從 company_id 欄位
+      const companyId = req.user.company?.id || req.user.company_id;
       const pageNum = page ? parseInt(page) : 1;
       const limitNum = limit ? parseInt(limit) : 20;
       

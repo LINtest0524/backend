@@ -22,6 +22,7 @@ import { User } from '../user/user.entity';
 import { Company } from '../company/company.entity';
 import { AgentService } from '../agent/agent.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import * as UAParser from 'ua-parser-js';
 
 @Injectable()
 export class CommissionConditionService {
@@ -41,6 +42,17 @@ export class CommissionConditionService {
     private agentService: AgentService,
     private auditLogService: AuditLogService,
   ) {}
+
+  // 統一 IP 格式的輔助函數
+  private normalizeIP(ip: string): string {
+    if (ip === '::1' || ip === '::ffff:127.0.0.1' || ip === '127.0.0.1') {
+      return '127.0.0.1';
+    }
+    if (ip.startsWith('::ffff:')) {
+      return ip.substring(7);
+    }
+    return ip;
+  }
 
   async create(companyCode: string, dto: CreateCommissionConditionDto, user?: any) {
     // 1. 驗證公司存在
@@ -415,7 +427,7 @@ export class CommissionConditionService {
     return condition;
   }
 
-  async update(companyCode: string, id: string, dto: UpdateCommissionConditionDto, user?: any) {
+  async update(companyCode: string, id: string, dto: UpdateCommissionConditionDto, user?: any, req?: any) {
     const existing = await this.findOne(companyCode, id, user);
     
     // 記錄更新前的資料（用於審計日誌）
@@ -513,11 +525,37 @@ export class CommissionConditionService {
           isActive: dto.isActive
         };
 
+        // 從 request 對象取得 IP 和 platform
+        const ip = req ? (req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || 'Unknown') : 'Unknown';
+        
+        // 解析 User-Agent
+        let platform = 'Web';
+        if (req) {
+          const userAgent = req.headers['user-agent'] || '';
+          const parser = new UAParser.UAParser(userAgent);
+          const info = parser.getResult();
+          
+          let deviceType = info.device.type ?? 'desktop';
+          let device: string;
+          
+          if (deviceType === 'mobile') {
+            device = '手機';
+          } else if (deviceType === 'tablet') {
+            device = '平板';
+          } else {
+            device = '電腦';
+          }
+          
+          const os = `${info.os.name || ''} ${info.os.version || ''}`.trim();
+          const browser = `${info.browser.name || ''} ${info.browser.version || ''}`.trim();
+          platform = `${device} / ${os} / ${browser}`;
+        }
+        
         await this.auditLogService.record({
           user: user,
           action: `編輯分潤方案「${dto.name || existing.name}」`,
-          ip: user.ip || 'Unknown',
-          platform: user.platform || 'Web',
+          ip: this.normalizeIP(ip),
+          platform: platform,
           target: `CommissionCondition:${id}`,
           before: beforeData,
           after: afterData,

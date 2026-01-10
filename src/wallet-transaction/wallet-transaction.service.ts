@@ -279,10 +279,14 @@ export class WalletTransactionService {
     const queryBuilder = this.walletTransactionRepository
       .createQueryBuilder('wt')
       .leftJoinAndSelect('wt.user', 'user')
-      .where('wt.companyId = :companyId', { companyId })
       .andWhere('wt.transactionType IN (:...adminTypes)', { 
         adminTypes: ['admin_deposit', 'admin_deduction'] 
       });
+    
+    // 如果有 companyId，才加上公司過濾條件（SUPER_ADMIN 的 companyId 是 null，應該看到所有公司）
+    if (companyId !== null && companyId !== undefined) {
+      queryBuilder.andWhere('wt.companyId = :companyId', { companyId });
+    }
 
     if (startDate) {
       queryBuilder.andWhere('wt.createdAt >= :startDate', { startDate });

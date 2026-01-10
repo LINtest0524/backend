@@ -1548,7 +1548,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
         // 直接創建交易記錄，使用已計算好的餘額
         const transaction = manager.create(WalletTransaction, {
           userId: latestUser.id,
-          companyId: latestUser.company_id,
+          companyId: latestUser.company?.id || latestUser.company_id,
           transactionType: operationType,
           amount: amount,
           balanceBefore: oldBalance,
