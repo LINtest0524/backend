@@ -138,7 +138,7 @@ export class User {
   @Column({ type: 'integer', default: 0 })
   vip_level: number;
 
-  @Column({ type: 'integer', default: 0 })
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, nullable: false })
   balance: number;
 
   @Column({ type: 'varchar', nullable: true })

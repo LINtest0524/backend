@@ -15,14 +15,14 @@ export class WalletTransaction {
   @Column({ name: 'transaction_type', length: 50 })
   transactionType: string; // 'coupon_redeem', 'manual_recharge', 'admin_adjustment'
 
-  @Column({ type: 'integer' })
-  amount: number; // 金額（以分為單位，正數為收入，負數為支出）
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, nullable: false })
+  amount: number; // 金額（元，支援小數點後2位，正數為收入，負數為支出）
 
-  @Column({ name: 'balance_before', type: 'integer' })
-  balanceBefore: number; // 交易前餘額
+  @Column({ name: 'balance_before', type: 'numeric', precision: 12, scale: 2, default: 0, nullable: false })
+  balanceBefore: number; // 交易前餘額（元）
 
-  @Column({ name: 'balance_after', type: 'integer' })
-  balanceAfter: number; // 交易後餘額
+  @Column({ name: 'balance_after', type: 'numeric', precision: 12, scale: 2, default: 0, nullable: false })
+  balanceAfter: number; // 交易後餘額（元）
 
   @Column({ type: 'text' })
   description: string; // 交易描述

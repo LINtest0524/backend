@@ -597,7 +597,7 @@ async findAll(
       bank_verified: user.bank_verified,
       bank_verified_at: user.bank_verified_at,
       vip_level: user.vip_level,
-      balance: user.balance || 0,
+      balance: parseFloat((Number(user.balance) || 0).toFixed(2)),
       // 添加代理商資訊
       parent_agent: user.parent_agent 
         ? { 
@@ -1524,12 +1524,12 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       // 確保有 username，如果沒有則使用 ID 作為備用
       const displayUsername = latestUser.username || `用戶${latestUser.id}`;
 
-      const oldBalance = latestUser.balance || 0;
-      const newBalance = oldBalance + amount;
+      const oldBalance = Number(latestUser.balance) || 0;
+      const newBalance = parseFloat((oldBalance + amount).toFixed(2));
 
       // 🔒 嚴格檢查餘額範圍
       if (newBalance < 0) {
-        throw new BadRequestException(`餘額不足，目前餘額：${oldBalance}，扣款金額：${Math.abs(amount)}`);
+        throw new BadRequestException(`餘額不足，目前餘額：${oldBalance.toFixed(2)}，扣款金額：${Math.abs(amount).toFixed(2)}`);
       }
 
       if (newBalance > 10000000) {
@@ -1570,7 +1570,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
         
         await this.auditLogService.record({
           user: { id: currentUser.id },
-          action: `💰 ${operationType}操作 - ${displayUsername}（金額：${operationAmount}，餘額：${oldBalance} → ${newBalance}）`,
+          action: `💰 ${operationType}操作 - ${displayUsername}（金額：${operationAmount.toFixed(2)}，餘額：${oldBalance.toFixed(2)} → ${newBalance.toFixed(2)}）`,
           ip: this.normalizeIP(ip || '127.0.0.1'),
           platform,
           target: `balance:${latestUser.id}`,
@@ -1636,8 +1636,8 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
         throw new BadRequestException('用戶不存在');
       }
 
-      const oldBalance = latestUser.balance || 0;
-      const newBalance = oldBalance + amount;
+      const oldBalance = Number(latestUser.balance) || 0;
+      const newBalance = parseFloat((oldBalance + amount).toFixed(2));
 
       // 檢查餘額範圍
       if (newBalance > 10000000) {
@@ -1670,7 +1670,7 @@ async findOneSecured(id: number, currentUser: JwtUser): Promise<User> {
       if (this.auditLogService) {
         await this.auditLogService.record({
           user: { id: userId },
-          action: `🎯 簽到獎勵 - ${latestUser.username || `用戶${latestUser.id}`}（金額：${amount}，餘額：${oldBalance} → ${newBalance}）`,
+          action: `🎯 簽到獎勵 - ${latestUser.username || `用戶${latestUser.id}`}（金額：${amount.toFixed(2)}，餘額：${oldBalance.toFixed(2)} → ${newBalance.toFixed(2)}）`,
           ip: this.normalizeIP(clientIp || '127.0.0.1'),
           platform: '前台會員',
           target: `checkin:${latestUser.id}`,

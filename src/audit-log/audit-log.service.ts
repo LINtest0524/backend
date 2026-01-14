@@ -105,7 +105,10 @@ export class AuditLogService {
       .orderBy('log.created_at', 'DESC');
 
     // 🔒 過濾掉前台會員的操作記錄（只顯示後台管理員/代理商的操作）
-    qb.andWhere('user.role != :userRole', { userRole: 'USER' });
+    // 但如果是查詢 login-portal（前台登入記錄），則不過濾會員
+    if (target !== 'login-portal') {
+      qb.andWhere('user.role != :userRole', { userRole: 'USER' });
+    }
 
     // 🔒 只有在「代理商操作紀錄」頁面（沒有指定 target）時才過濾特定操作
     // 其他專屬頁面（黑名單、會員狀態等）不應該被過濾

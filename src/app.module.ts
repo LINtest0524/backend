@@ -44,6 +44,7 @@ import { AgentModule } from './agent/agent.module';
 import { CommissionConditionModule } from './commission-condition/commission-condition.module';
 import { DictionaryModule } from './dictionary/dictionary.module';
 import { GameProviderModule } from './game-provider/game-provider.module';
+import { GameProviderGscModule } from './game-provider-gsc/game-provider-gsc.module';
 import { PublicAgentController } from './public-agent.controller';
 
 
@@ -104,6 +105,7 @@ import { PublicAgentController } from './public-agent.controller';
     CommissionConditionModule,
     DictionaryModule,
     GameProviderModule,
+    GameProviderGscModule,
 
   ],
   controllers: [PublicAgentController],

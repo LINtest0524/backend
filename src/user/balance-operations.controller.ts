@@ -70,8 +70,8 @@ export class BalanceOperationsController {
       throw new BadRequestException('金額必須大於 0');
     }
 
-    // 金額直接使用（台灣使用整數元，無小數點）
-    const amountInInteger = Math.round(amount);
+    // 金額直接使用，支援小數點後2位
+    const amountValue = parseFloat(amount.toFixed(2));
 
     // 獲取目標用戶
     const targetUser = await this.userService.findById(userId);
@@ -86,16 +86,16 @@ export class BalanceOperationsController {
     let afterBalance: number;
     switch (operationType) {
       case 'ADD':
-        afterBalance = beforeBalance + amountInInteger;
+        afterBalance = parseFloat((beforeBalance + amountValue).toFixed(2));
         break;
       case 'DEDUCT':
-        if (beforeBalance < amountInInteger) {
+        if (beforeBalance < amountValue) {
           throw new BadRequestException('餘額不足，無法執行扣款操作');
         }
-        afterBalance = beforeBalance - amountInInteger;
+        afterBalance = parseFloat((beforeBalance - amountValue).toFixed(2));
         break;
       case 'ADJUST':
-        afterBalance = amountInInteger;
+        afterBalance = amountValue;
         break;
     }
 
@@ -104,13 +104,13 @@ export class BalanceOperationsController {
       let changeAmount: number;
       switch (operationType) {
         case 'ADD':
-          changeAmount = amountInInteger;
+          changeAmount = amountValue;
           break;
         case 'DEDUCT':
-          changeAmount = -amountInInteger;
+          changeAmount = -amountValue;
           break;
         case 'ADJUST':
-          changeAmount = amountInInteger - beforeBalance;
+          changeAmount = parseFloat((amountValue - beforeBalance).toFixed(2));
           break;
       }
 
@@ -135,9 +135,9 @@ export class BalanceOperationsController {
           userId,
           username: targetUser.username,
           operationType,
-          amount: amountInInteger,
-          beforeBalance: result.oldBalance,
-          afterBalance: result.newBalance,
+          amount: amountValue,
+          beforeBalance: parseFloat(result.oldBalance.toFixed(2)),
+          afterBalance: parseFloat(result.newBalance.toFixed(2)),
           reason,
         },
       };

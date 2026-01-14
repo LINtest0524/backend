@@ -1,0 +1,132 @@
+### GSC+ Callback API 測試
+### 這些是遊戲廠商會呼叫您的 API
+### 使用 VS Code 的 REST Client 擴充套件來測試
+
+@baseUrl = http://localhost:3000
+@operatorCode = T9H1
+@secretKey = GSiBLVjYwuk2BtB2VAuuo7
+
+### 1. 測試 Balance API (查詢餘額)
+# 計算簽名: MD5(operator_code + request_time + "getbalance" + secret_key)
+# MD5(T9H1 + 1704067200 + getbalance + GSiBLVjYwuk2BtB2VAuuo7)
+POST {{baseUrl}}/api/game-provider-gsc/seamless/balance
+Content-Type: application/json
+
+{
+  "operator_code": "T9H1",
+  "currency": "TWD",
+  "sign": "計算後的MD5值",
+  "request_time": "1704067200",
+  "batch_requests": [
+    {
+      "member_account": "test_user",
+      "product_code": 1006
+    }
+  ]
+}
+
+### 2. 測試 Withdraw API (扣款/下注)
+# 計算簽名: MD5(operator_code + request_time + "withdraw" + secret_key)
+POST {{baseUrl}}/api/game-provider-gsc/seamless/withdraw
+Content-Type: application/json
+
+{
+  "operator_code": "T9H1",
+  "currency": "TWD",
+  "sign": "計算後的MD5值",
+  "request_time": "1704067200",
+  "batch_requests": [
+    {
+      "member_account": "test_user",
+      "product_code": 1006,
+      "game_type": "SLOT",
+      "transactions": [
+        {
+          "id": "txn_001",
+          "action": "bet",
+          "wager_code": "wager_001",
+          "wager_status": "BET",
+          "round_id": "round_001",
+          "channel_code": "gscp",
+          "amount": 10,
+          "bet_amount": 10,
+          "valid_bet_amount": 10,
+          "prize_amount": 0,
+          "tip_amount": 0,
+          "settled_at": 0,
+          "game_code": "vs20olympgate",
+          "wager_type": "NORMAL"
+        }
+      ]
+    }
+  ]
+}
+
+### 3. 測試 Deposit API (加款/派彩)
+# 計算簽名: MD5(operator_code + request_time + "deposit" + secret_key)
+POST {{baseUrl}}/api/game-provider-gsc/seamless/deposit
+Content-Type: application/json
+
+{
+  "operator_code": "T9H1",
+  "currency": "TWD",
+  "sign": "計算後的MD5值",
+  "request_time": "1704067200",
+  "batch_requests": [
+    {
+      "member_account": "test_user",
+      "product_code": 1006,
+      "game_type": "SLOT",
+      "transactions": [
+        {
+          "id": "txn_002",
+          "action": "settled",
+          "wager_code": "wager_001",
+          "wager_status": "SETTLED",
+          "round_id": "round_001",
+          "channel_code": "gscp",
+          "amount": 20,
+          "bet_amount": 10,
+          "valid_bet_amount": 10,
+          "prize_amount": 20,
+          "tip_amount": 0,
+          "settled_at": 1704067300000,
+          "game_code": "vs20olympgate",
+          "wager_type": "NORMAL"
+        }
+      ]
+    }
+  ]
+}
+
+### 4. 測試 Push Bet Data API (推送注單資料)
+# 計算簽名: MD5(operator_code + request_time + "pushbetdata" + secret_key)
+POST {{baseUrl}}/api/game-provider-gsc/seamless/pushbetdata
+Content-Type: application/json
+
+{
+  "operator_code": "T9H1",
+  "sign": "計算後的MD5值",
+  "request_time": "1704067200",
+  "wagers": [
+    {
+      "member_account": "test_user",
+      "bet_amount": 10,
+      "valid_bet_amount": 10,
+      "prize_amount": 20,
+      "tip_amount": 0,
+      "wager_type": "NORMAL",
+      "wager_code": "wager_001",
+      "wager_status": "SETTLED",
+      "round_id": "round_001",
+      "channel_code": "gscp",
+      "game_type": "SLOT",
+      "settled_at": 1704067300000,
+      "created_at": 1704067200000,
+      "payload": {},
+      "product_code": "1006",
+      "game_code": "vs20olympgate",
+      "currency": "TWD"
+    }
+  ]
+}
